@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom dark mode transitions: super smooth */
+html, body, #root {
+  min-height: 100vh;
+  /* width: 100vw; */
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f5;
+  color: #18181b;
+  transition-property: background-color, color, border-color, box-shadow, fill, stroke;
+  transition-duration: 900ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.dark, .dark body, .dark #root {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+*, *:before, *:after {
+  transition-property: background-color, color, border-color, box-shadow, fill, stroke;
+  transition-duration: 900ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: inherit;
+}
+
+header, nav, .dark header, .dark nav {
+  transition: background-color 0.9s cubic-bezier(0.4,0,0.2,1), color 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Perbaikan agar container dan card ikut full dark/bright */
+.container, .card, .dark .container, .dark .card {
+  background-color: inherit !important;
+  color: inherit !important;
+  transition: background-color 0.9s cubic-bezier(0.4,0,0.2,1), color 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Perbaikan border dan shadow agar smooth di darkmode */
+.border, .dark .border {
+  border-color: #e5e7eb !important;
+  transition: border-color 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+.dark .border {
+  border-color: #27272a !important;
+}
+
+.shadow, .dark .shadow {
+  transition: box-shadow 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 400ms;
+}
+.fade-exit {
+  opacity: 1;
+}
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 400ms;
+}
+
+/* Animasi khusus untuk produk ShopPage */
+.shop-fadeup-enter {
+  opacity: 0;
+  transform: translateY(32px);
+}
+.shop-fadeup-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 500ms, transform 500ms;
+}
+.shop-fadeup-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+.shop-fadeup-exit-active {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 500ms, transform 500ms;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.7s cubic-bezier(0.4,0,0.2,1) both;
+}
