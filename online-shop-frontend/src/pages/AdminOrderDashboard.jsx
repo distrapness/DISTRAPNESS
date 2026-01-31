@@ -9,7 +9,7 @@ const statusLabels = {
   cancelled: "Dibatalkan"
 };
 
-import config from '../config';
+import config from '../config.js';
 
 const AdminOrderDashboard = () => {
   const [orders, setOrders] = useState([]);

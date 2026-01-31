@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import BackButton from "../components/BackButton.jsx";
-import config from '../config';
+import config from '../config.js';
 
 const API_URL = `${config.API_URL}/api/brand`;
 const UPLOAD_URL = `${config.API_URL}/api/upload`;

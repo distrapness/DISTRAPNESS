@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import BackButton from "../components/BackButton";
-import config from '../config';
+import config from '../config.js';
 
 const socket = io(config.API_URL);
 

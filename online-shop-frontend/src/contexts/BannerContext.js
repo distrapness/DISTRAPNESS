@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
-import config from "../config";
+import config from '../config.js';
 
 const BannerContext = createContext();
 const API_URL = `${config.API_URL}/api/banners`;

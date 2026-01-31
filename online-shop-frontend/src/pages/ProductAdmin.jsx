@@ -3,7 +3,7 @@ import BackButton from "../components/BackButton.jsx";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
 import ProductPreviewPanel from "../components/ProductPreviewPanel.jsx";
 import { Link } from "react-router-dom";
-import config from '../config';
+import config from '../config.js';
 
 const API_URL = `${config.API_URL}/api/products`;
 const UPLOAD_URL = `${config.API_URL}/api/upload`;

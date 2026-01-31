@@ -4,7 +4,7 @@ import { useCart } from "./CartContext";
 import { useCurrency, CURRENCY_OPTIONS } from "../components/CurrencyContext";
 import { useAuth } from "../contexts/AuthContext";
 
-import config from "../config";
+import config from "../config.js";
 
 const API_URL = `${config.API_URL}/api/products`;
 const BRAND_API_URL = `${config.API_URL}/api/brand`;

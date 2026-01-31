@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import Footer from "../components/Footer.jsx";
 
-import config from "../config";
+import config from "../config.js";
 
 const API_URL = `${config.API_URL}/api/products`;
 
