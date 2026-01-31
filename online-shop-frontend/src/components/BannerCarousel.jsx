@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 
-const API_URL = "http://localhost:5001/api/banners";
+import config from "../config.js";
+import { getImageUrl } from "../utils/imageHelper";
+
+const API_URL = `${config.API_URL}/api/banners`;
 
 const BannerCarousel = () => {
   const [banners, setBanners] = useState([]);
@@ -20,9 +23,8 @@ const BannerCarousel = () => {
         setBanners(
           data.map(banner => ({
             ...banner,
-            image: banner.image && banner.image.startsWith('/uploads/')
-              ? `http://localhost:5001${banner.image}`
-              : banner.image
+            ...banner,
+            image: getImageUrl(banner.image)
           }))
         );
         setError(null);
@@ -43,7 +45,7 @@ const BannerCarousel = () => {
   return (
     <div
       className="relative w-screen max-w-none left-1/2 right-1/2 -translate-x-1/2 h-64 md:h-[420px] overflow-hidden flex items-center justify-center"
-      style={{marginTop:0, marginBottom:0, borderRadius:0, top:0, paddingTop:HEADER_HEIGHT, background:'transparent'}}
+      style={{ marginTop: 0, marginBottom: 0, borderRadius: 0, top: 0, paddingTop: HEADER_HEIGHT, background: 'transparent' }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
@@ -51,7 +53,7 @@ const BannerCarousel = () => {
         src={banner.image}
         alt={banner.title || `Banner ${current + 1}`}
         className="object-cover w-full h-full absolute inset-0"
-        style={{zIndex:1, borderRadius:0, marginTop:0, top:0, paddingTop:0}}
+        style={{ zIndex: 1, borderRadius: 0, marginTop: 0, top: 0, paddingTop: 0 }}
       />
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4">
         {banner.title && <h2 className="text-2xl md:text-4xl font-bold text-white drop-shadow mb-2 uppercase tracking-widest leading-tight md:leading-snug max-w-2xl mx-auto">{banner.title}</h2>}
