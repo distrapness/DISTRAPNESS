@@ -5,6 +5,7 @@ import { useCurrency } from "../components/CurrencyContext.jsx";
 import Footer from "../components/Footer.jsx";
 
 import config from "../config.js";
+import { getImageUrl } from "../utils/imageHelper";
 
 const API_URL = `${config.API_URL}/api/products`;
 
@@ -85,7 +86,7 @@ const HomePage = () => {
                     }}
                   >
                     <img
-                      src={Array.isArray(product.images) && product.images.length > 0 ? product.images[activeImageIndex[product.id] || 0] : (product.image || "/assets/placeholder.jpg")}
+                      src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
                       className={`object-contain w-full h-full max-h-64 transition-all duration-500 ease-in-out bg-transparent ${activeImageIndex[product.id] === 1 ? 'opacity-100 scale-105' : 'opacity-100 scale-100'}`}
                       style={{ position: 'absolute', top: 0, left: 0, transition: 'opacity 0.5s, transform 0.5s', zIndex: 1, cursor: Array.isArray(product.images) && product.images.length > 1 ? 'pointer' : 'default' }}

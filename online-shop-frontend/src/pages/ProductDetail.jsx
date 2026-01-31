@@ -6,6 +6,7 @@ import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx
 import Footer from "../components/Footer.jsx";
 
 import config from "../config";
+import { getImageUrl } from "../utils/imageHelper";
 
 const API_URL = `${config.API_URL}/api/products`;
 
@@ -78,7 +79,7 @@ const ProductDetail = () => {
               <div className="flex-1 flex items-center justify-center">
                 <div className="bg-[#fff] dark:bg-gray-900 border-none w-full aspect-square max-w-[500px] mx-auto mb-4 cursor-pointer overflow-hidden" onClick={() => handleImageClick(galleryIndex)}>
                   <img
-                    src={Array.isArray(product.images) && product.images.length > 0 ? product.images[galleryIndex] : (product.image || "/assets/placeholder.jpg")}
+                    src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[galleryIndex]) : getImageUrl(product.image)}
                     alt={product.name}
                     className="object-contain w-full h-full max-h-[420px] transition-transform duration-300 hover:scale-105 bg-transparent"
                   />
@@ -90,7 +91,7 @@ const ProductDetail = () => {
                   {product.images.map((img, idx) => (
                     <img
                       key={idx}
-                      src={img}
+                      src={getImageUrl(img)}
                       alt="thumb"
                       className={`w-16 h-16 object-cover rounded border cursor-pointer transition-all duration-200 ${galleryIndex === idx ? 'ring-2 ring-black scale-105' : 'opacity-80 hover:opacity-100'}`}
                       onClick={() => setGalleryIndex(idx)}
@@ -174,7 +175,7 @@ function RelatedProducts({ excludeId, className }) {
   const [activeImageIndex, setActiveImageIndex] = React.useState({});
 
   React.useEffect(() => {
-    fetch("http://localhost:5001/api/products")
+    fetch(`${config.API_URL}/api/products`)
       .then(res => res.json())
       .then(data => {
         setProducts(data.filter(p => p.id !== excludeId).slice(0, 4));
@@ -209,7 +210,7 @@ function RelatedProducts({ excludeId, className }) {
             }}
           >
             <img
-              src={Array.isArray(prod.images) && prod.images.length > 0 ? prod.images[activeImageIndex[prod.id] || 0] : (prod.image || "/assets/placeholder.jpg")}
+              src={Array.isArray(prod.images) && prod.images.length > 0 ? getImageUrl(prod.images[activeImageIndex[prod.id] || 0]) : getImageUrl(prod.image)}
               alt={prod.name}
               className={`object-contain w-full h-full max-h-64 transition-all duration-500 ease-in-out bg-transparent ${activeImageIndex[prod.id] === 1 ? 'opacity-100 scale-105' : 'opacity-100 scale-100'}`}
               style={{ position: 'absolute', top: 0, left: 0, transition: 'opacity 0.5s, transform 0.5s', zIndex: 1, cursor: Array.isArray(prod.images) && prod.images.length > 1 ? 'pointer' : 'default' }}

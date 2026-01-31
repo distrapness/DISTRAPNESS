@@ -5,6 +5,7 @@ import { useCurrency, CURRENCY_OPTIONS } from "../components/CurrencyContext";
 import { useAuth } from "../contexts/AuthContext";
 
 import config from "../config.js";
+import { getImageUrl } from "../utils/imageHelper";
 
 const API_URL = `${config.API_URL}/api/products`;
 const BRAND_API_URL = `${config.API_URL}/api/brand`;
@@ -50,7 +51,7 @@ const Header = ({ onCartClick }) => {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAccountMenu]);
 
-  const logoUrl = dark && brand.logoWhite ? brand.logoWhite : brand.logo;
+  const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-md`}>

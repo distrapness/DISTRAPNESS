@@ -1,6 +1,7 @@
 import React from "react";
 import { useCart } from "./CartContext";
 import { useNavigate } from "react-router-dom";
+import { getImageUrl } from "../utils/imageHelper";
 
 const CartDrawer = ({ open, onClose }) => {
   const { cart, removeFromCart, updateQty, clearCart } = useCart();
@@ -29,7 +30,7 @@ const CartDrawer = ({ open, onClose }) => {
         ) : (
           cart.map((item) => (
             <div key={item.id} className="flex items-center mb-4 border-b pb-2">
-              <img src={item.image} alt={item.name} className="w-14 h-14 object-cover rounded mr-3" />
+              <img src={getImageUrl(item.image)} alt={item.name} className="w-14 h-14 object-cover rounded mr-3" />
               <div className="flex-1">
                 <div className="font-semibold">{item.name}</div>
                 <div className="text-sm text-gray-500">Rp {item.price.toLocaleString('id-ID')}</div>
