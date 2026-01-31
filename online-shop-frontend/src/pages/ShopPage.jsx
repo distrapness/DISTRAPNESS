@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useCurrency, useDarkMode } from "../components/CurrencyContext.jsx";
 import Footer from "../components/Footer.jsx";
 
-const API_URL = "http://localhost:5001/api/products";
+import config from "../config";
+
+const API_URL = `${config.API_URL}/api/products`;
 
 const getCategories = (products) => {
   const cats = new Set();
@@ -65,6 +67,16 @@ const ShopPage = () => {
     // Jangan log atau throw error berbasis event!
   };
 
+  // Tambahkan state dan fungsi untuk pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12); // default 12 produk per halaman
+
+  // Hitung jumlah halaman
+  const totalPages = Math.ceil(filtered.length / pageSize);
+
+  // Produk yang ditampilkan di halaman saat ini
+  const paginatedProducts = filtered.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <>
       <div className="w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-700 pt-4 pb-16">
@@ -96,10 +108,10 @@ const ShopPage = () => {
               ))
             ) : error ? (
               <div className="col-span-full text-red-500">{error}</div>
-            ) : !filtered || filtered.length === 0 ? (
+            ) : !paginatedProducts || paginatedProducts.length === 0 ? (
               <div className="col-span-full text-gray-500">No products found.</div>
             ) : (
-              filtered.map((product) => (
+              paginatedProducts.map((product) => (
                 <div
                   key={product.id || product._id}
                   className="flex flex-col items-center group cursor-pointer"
@@ -128,14 +140,51 @@ const ShopPage = () => {
                     />
                   </div>
                   <div className="mt-4 text-center w-full">
-                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-0 leading-[1] truncate" style={{marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0}}>{product.name}</div>
-                    <div className="font-bold text-black dark:text-blue-300 text-base mb-0 leading-[1]" style={{marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0}}>{convertPrice(product.price)}</div>
+                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-0 leading-[1] truncate" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{product.name}</div>
+                    <div className="font-bold text-black dark:text-blue-300 text-base mb-0 leading-[1]" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{convertPrice(product.price)}</div>
                     {product.stock === 0 && <span className="inline-block px-2 py-1 bg-black text-white text-xs rounded mt-1">OUT OF STOCK</span>}
                   </div>
                 </div>
               ))
             )}
           </div>
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-10 gap-2">
+              <button
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-black dark:text-white font-bold disabled:opacity-50"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-black text-white' : 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white'} font-bold`}
+                  onClick={() => setPage(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-black dark:text-white font-bold disabled:opacity-50"
+                disabled={page === totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                Next
+              </button>
+              <select
+                className="ml-6 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+              >
+                {[8, 12, 16, 20, 24].map(size => (
+                  <option key={size} value={size}>{size} / page</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
       <Footer />

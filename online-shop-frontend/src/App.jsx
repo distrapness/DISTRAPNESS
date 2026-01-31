@@ -7,6 +7,7 @@ import OrderStatus from './pages/OrderStatus.jsx';
 import OrderTracking from './pages/OrderTracking.jsx';
 import PaymentDashboard from './pages/PaymentDashboard.jsx';
 import PaymentSuccess from './pages/PaymentSuccess.jsx';
+import PaymentConfirm from "./pages/PaymentConfirm";
 import BrandAdmin from './pages/BrandAdmin.jsx';
 import StorePage from './pages/StorePage.jsx';
 import ContactPage from './pages/ContactPage.jsx';
@@ -28,6 +29,8 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import './App.css';
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import HowToOrder from "./pages/HowToOrder.jsx";
+import AdminOrderDashboard from "./pages/AdminOrderDashboard";
+import AdminChat from "./pages/AdminChat"; // tambahkan import AdminChat
 
 function App() {
   const [cartOpen, setCartOpen] = useState(false);
@@ -74,6 +77,7 @@ function App() {
                     <Route path="/order-status" element={<OrderStatus />} />
                     <Route path="/order-tracking" element={<OrderTracking />} />
                     <Route path="/payment" element={<PaymentDashboard />} />
+                    <Route path="/payment/confirm" element={<PaymentConfirm />} />
                     <Route path="/payment-success" element={<PaymentSuccess />} />
                     <Route path="/brand-admin" element={<BrandAdmin />} />
                     <Route path="/product-admin" element={<ProductAdmin />} />
@@ -81,6 +85,8 @@ function App() {
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/orders" element={<AdminOrderDashboard />} />
+                    <Route path="/admin-chat" element={<AdminChat />} /> // tambahkan route untuk '/admin-chat'
                     <Route path="/banner-admin" element={<BannerAdmin />} />
                     <Route path="/how-to-order" element={<HowToOrder />} />
                   </Routes>

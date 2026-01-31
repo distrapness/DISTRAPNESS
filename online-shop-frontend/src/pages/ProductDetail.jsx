@@ -5,7 +5,9 @@ import BackButton from "../components/BackButton.jsx";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
 import Footer from "../components/Footer.jsx";
 
-const API_URL = "http://localhost:5001/api/products";
+import config from "../config";
+
+const API_URL = `${config.API_URL}/api/products`;
 
 const FloatingAddToCart = ({ onClick }) => (
   <button
@@ -31,7 +33,8 @@ const ProductDetail = () => {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_URL}/${id}`)
+    // Tambahkan timestamp agar fetch selalu ambil data terbaru
+    fetch(`${API_URL}/${id}?t=${Date.now()}`)
       .then((res) => {
         if (!res.ok) throw new Error("Produk tidak ditemukan");
         return res.json();
@@ -108,20 +111,12 @@ const ProductDetail = () => {
             {/* Detail produk */}
             <div className="flex-1 w-full md:w-5/12">
               <h1 className="text-2xl md:text-3xl font-extrabold mb-1 text-gray-900 dark:text-gray-100 uppercase tracking-wide">{product.name}</h1>
-              <div className="text-base text-gray-500 dark:text-gray-300 mb-2 tracking-wider">{product.category || product.brand || '-'}</div>
+              <div className="text-base text-gray-500 dark:text-gray-300 mb-2 tracking-wider">{product.brand || '-'}</div>
               <div className="text-xl md:text-2xl font-bold text-black dark:text-blue-300 mb-4">Rp {product.price.toLocaleString('id-ID')}</div>
               <div className="border-t border-b border-gray-200 dark:border-gray-700 py-4 mb-3">
                 <div className="text-xs font-bold text-gray-700 dark:text-gray-100 tracking-widest mb-2">PRODUCT DESCRIPTION</div>
                 <div className="text-sm text-gray-700 dark:text-gray-200">{product.description}</div>
               </div>
-              <table className="w-full text-xs mb-6">
-                <tbody>
-                  <tr><td className="py-1 pr-3 font-semibold text-gray-500 dark:text-gray-300">SKU</td><td className="py-1 text-gray-800 dark:text-gray-100">{product.sku || '-'}</td></tr>
-                  <tr><td className="py-1 pr-3 font-semibold text-gray-500 dark:text-gray-300">Stok</td><td className="py-1 text-gray-800 dark:text-gray-100">{product.stock || '-'}</td></tr>
-                  <tr><td className="py-1 pr-3 font-semibold text-gray-500 dark:text-gray-300">Berat</td><td className="py-1 text-gray-800 dark:text-gray-100">{product.weight ? product.weight + ' gr' : '-'}</td></tr>
-                  <tr><td className="py-1 pr-3 font-semibold text-gray-500 dark:text-gray-300">Dimensi</td><td className="py-1 text-gray-800 dark:text-gray-100">{product.dimensions || '-'}</td></tr>
-                </tbody>
-              </table>
               <div className="flex flex-row gap-2 items-center mb-6">
                 <button
                   type="button"
@@ -133,9 +128,9 @@ const ProductDetail = () => {
                   type="number"
                   min={1}
                   value={qty}
-                  onChange={e => setQty(Math.max(1, parseInt(e.target.value)||1))}
+                  onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
                   className="w-14 text-center border rounded font-bold text-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                  style={{MozAppearance:'textfield'}}
+                  style={{ MozAppearance: 'textfield' }}
                 />
                 <button
                   type="button"
@@ -149,12 +144,12 @@ const ProductDetail = () => {
                   tabIndex={0}
                 >ADD TO CART</button>
               </div>
-              <div className="flex gap-6 mb-2">
-                <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white font-semibold tracking-widest uppercase">ADD TO WISHLIST</button>
-                <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white font-semibold tracking-widest uppercase">SHARE</button>
-              </div>
               <div className="flex gap-6 mt-2">
-                <span className="text-xs text-gray-400">In stock</span>
+                {product.stock > 0 ? (
+                  <span className="text-xs text-green-600 dark:text-green-400">In stock</span>
+                ) : (
+                  <span className="text-xs text-red-500 dark:text-red-400">Out of stock</span>
+                )}
               </div>
             </div>
           </div>
@@ -164,8 +159,7 @@ const ProductDetail = () => {
           <h2 className="text-lg md:text-2xl font-bold mb-8 text-gray-900 dark:text-gray-100 tracking-wide uppercase">Related Products</h2>
           <RelatedProducts
             excludeId={product.id}
-            currentCategory={product.category}
-            className="grid grid-cols-2 md:grid-cols-4 gap-12"
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 w-full max-w-6xl mx-auto"
           />
         </div>
       </div>
@@ -174,34 +168,58 @@ const ProductDetail = () => {
   );
 };
 
-function RelatedProducts({ excludeId, currentCategory, className }) {
+function RelatedProducts({ excludeId, className }) {
   const [products, setProducts] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [activeImageIndex, setActiveImageIndex] = React.useState({});
+
   React.useEffect(() => {
     fetch("http://localhost:5001/api/products")
       .then(res => res.json())
       .then(data => {
-        setProducts(data.filter(p => p.id !== excludeId && p.category === currentCategory));
+        setProducts(data.filter(p => p.id !== excludeId).slice(0, 4));
         setLoading(false);
       });
-  }, [excludeId, currentCategory]);
+  }, [excludeId]);
+
   if (loading) return <div className="py-8 text-center text-gray-400">Memuat rekomendasi...</div>;
   if (!products.length) return <div className="py-8 text-center text-gray-400">Tidak ada produk lain.</div>;
+
   return (
     <div className={className}>
-      {products.slice(0, 4).map(prod => (
+      {products.map(prod => (
         <Link
           to={`/shop/${prod.id}`}
           key={prod.id}
-          className="block bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg border border-gray-200 dark:border-gray-700 p-4 transition-all duration-300 hover:-translate-y-1"
+          className="flex flex-col items-center group cursor-pointer"
+          style={{ textDecoration: "none" }}
         >
-          <img
-            src={Array.isArray(prod.images) && prod.images.length > 0 ? prod.images[0] : (prod.image || "/assets/placeholder.jpg")}
-            alt={prod.name}
-            className="w-full h-32 object-contain mb-2 rounded bg-white dark:bg-gray-700 border border-gray-100 dark:border-gray-800"
-          />
-          <div className="font-semibold text-gray-900 dark:text-gray-100 truncate mb-1">{prod.name}</div>
-          <div className="text-blue-700 dark:text-blue-300 font-bold text-sm">Rp {prod.price.toLocaleString('id-ID')}</div>
+          <div
+            className="w-full aspect-[3/4] bg-transparent dark:bg-transparent flex items-center justify-center overflow-hidden"
+            style={{ minHeight: '256px', maxHeight: '256px', position: 'relative' }}
+            onMouseEnter={() => {
+              if (Array.isArray(prod.images) && prod.images.length > 1) {
+                setActiveImageIndex(prev => ({ ...prev, [prod.id]: 1 }));
+              }
+            }}
+            onMouseLeave={() => {
+              if (Array.isArray(prod.images) && prod.images.length > 1) {
+                setActiveImageIndex(prev => ({ ...prev, [prod.id]: 0 }));
+              }
+            }}
+          >
+            <img
+              src={Array.isArray(prod.images) && prod.images.length > 0 ? prod.images[activeImageIndex[prod.id] || 0] : (prod.image || "/assets/placeholder.jpg")}
+              alt={prod.name}
+              className={`object-contain w-full h-full max-h-64 transition-all duration-500 ease-in-out bg-transparent ${activeImageIndex[prod.id] === 1 ? 'opacity-100 scale-105' : 'opacity-100 scale-100'}`}
+              style={{ position: 'absolute', top: 0, left: 0, transition: 'opacity 0.5s, transform 0.5s', zIndex: 1, cursor: Array.isArray(prod.images) && prod.images.length > 1 ? 'pointer' : 'default' }}
+            />
+          </div>
+          <div className="mt-4 text-center w-full">
+            <div className="font-medium text-base md:text-lg text-gray-900 mb-1 dark:text-gray-100 truncate" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{prod.name}</div>
+            <div className="font-bold text-black text-base md:text-lg dark:text-blue-300" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>Rp {prod.price.toLocaleString('id-ID')}</div>
+            {prod.stock === 0 && <span className="inline-block px-2 py-1 bg-black text-white text-xs rounded mt-1">OUT OF STOCK</span>}
+          </div>
         </Link>
       ))}
     </div>

@@ -1,50 +1,95 @@
-import React, { useState } from "react";
+import React from 'react';
 
-const ProductPreviewPanel = ({ form, images, onRemoveImage }) => {
-  const [index, setIndex] = useState(0);
-  const imgList = Array.isArray(images) && images.length > 0 ? images : ["/assets/placeholder.jpg"];
+// Placeholder SVG sebagai data URI untuk menggantikan placeholder.com
+const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmMWYxZjEiLz48dGV4dCB4PSIxMDAiIHk9IjEwMCIgZm9udC1zaXplPSIxOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmaWxsPSIjNTU1NTU1Ij5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+const thumbnailPlaceholder = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDUwIDUwIj48cmVjdCB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIGZpbGw9IiNmMWYxZjEiLz48dGV4dCB4PSIyNSIgeT0iMjUiIGZvbnQtc2l6ZT0iOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmaWxsPSIjNTU1NTU1Ij5FcnJvcjwvdGV4dD48L3N2Zz4=';
 
-  const handlePrev = () => setIndex(i => (i === 0 ? imgList.length - 1 : i - 1));
-  const handleNext = () => setIndex(i => (i === imgList.length - 1 ? 0 : i + 1));
-
+export default function ProductPreviewPanel({ product, images, onRemoveImage }) {
+  // State untuk gambar aktif
+  const [activeImage, setActiveImage] = React.useState(0);
+  
+  // Pastikan images selalu array
+  const imageList = Array.isArray(images) ? images : [];
+  
   return (
-    <aside className="w-full md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow p-6 ml-0 md:ml-8 mt-8 md:mt-0 flex flex-col items-center transition-colors duration-[900ms] ease-in-out">
-      <h3 className="text-lg font-bold mb-4 text-blue-700 dark:text-blue-200">Preview Produk</h3>
-      <div className="relative w-full h-64 flex items-center justify-center bg-gray-100 rounded mb-4">
-        <button onClick={handlePrev} className="absolute left-2 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full px-2 py-1">&#8592;</button>
-        <img src={imgList[index]} alt="Preview" className="object-contain max-h-60 max-w-full mx-auto" />
-        <button onClick={handleNext} className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full px-2 py-1">&#8594;</button>
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-white bg-opacity-70 px-2 py-1 rounded text-xs">{index + 1} / {imgList.length}</div>
-      </div>
-      <div className="flex gap-2 mt-2 mb-4">
-        {Array.isArray(images) && images.length > 0 && images.map((img, idx) => (
-          <div key={idx} className="relative group">
-            <img
-              src={img}
-              alt="Thumb"
-              className={`w-12 h-12 object-cover rounded border cursor-pointer ${idx === index ? 'ring-2 ring-blue-500' : ''}`}
-              onClick={() => setIndex(idx)}
-            />
-            {onRemoveImage && (
-              <button
-                type="button"
-                className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-80 group-hover:opacity-100"
-                onClick={() => onRemoveImage(idx)}
-                title="Hapus foto"
-              >
-                ×
-              </button>
-            )}
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 transition-colors duration-[900ms] ease-in-out">
+      <h3 className="text-lg font-semibold mb-2 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">
+        Preview Produk
+      </h3>
+      
+      {/* Main Image Display */}
+      <div className="relative mb-4 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 transition-colors duration-[900ms] ease-in-out" style={{ height: '300px' }}>
+        {imageList.length > 0 ? (
+          <img
+            src={imageList[activeImage]}
+            alt={`Product Preview ${activeImage + 1}`}
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              console.log('[PREVIEW] Error loading image, using placeholder');
+              e.target.onerror = null; // Prevent infinite loop
+              e.target.src = placeholderImage;
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <img src={placeholderImage} alt="No Image" className="w-full h-full object-contain" />
           </div>
-        ))}
+        )}
       </div>
-      <div className="w-full text-center">
-        <div className="font-bold text-lg mb-1">{form.name || "Nama Produk"}</div>
-        <div className="text-green-600 font-semibold mb-1">{form.price ? `Rp ${parseInt(form.price).toLocaleString("id-ID")}` : "Harga"}</div>
-        <div className="text-gray-500 text-sm mb-2">{form.description || "Deskripsi produk akan tampil di sini."}</div>
+      
+      {/* Thumbnail Navigation */}
+      {imageList.length > 0 && (
+        <div className="flex flex-wrap gap-2 justify-start">
+          {imageList.map((img, idx) => (
+            <div 
+              key={idx} 
+              className={`relative w-16 h-16 rounded overflow-hidden cursor-pointer border-2 ${activeImage === idx ? 'border-blue-500' : 'border-transparent'}`}
+              onClick={() => setActiveImage(idx)}
+            >
+              <img
+                src={img}
+                alt={`Thumbnail ${idx + 1}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.log('[PREVIEW] Error loading thumbnail, using placeholder');
+                  e.target.onerror = null;
+                  e.target.src = thumbnailPlaceholder;
+                }}
+              />
+              
+              {/* Remove button */}
+              {onRemoveImage && (
+                <button
+                  className="absolute top-0 right-0 bg-red-500 text-white rounded-bl w-5 h-5 flex items-center justify-center text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveImage(idx);
+                    if (activeImage >= imageList.length - 1) {
+                      setActiveImage(Math.max(0, imageList.length - 2));
+                    }
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Product Info */}
+      <div className="mt-4 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">
+        <h4 className="font-bold text-xl mb-1">{product?.name || 'Nama Produk'}</h4>
+        <p className="text-lg text-blue-600 dark:text-blue-400 font-semibold mb-2 transition-colors duration-[900ms] ease-in-out">
+          {product?.price ? `Rp ${Number(product.price).toLocaleString('id-ID')}` : 'Rp 0'}
+        </p>
+        <p className="text-gray-600 dark:text-gray-300 text-sm mb-2 transition-colors duration-[900ms] ease-in-out">
+          {product?.description || 'Deskripsi produk akan ditampilkan di sini.'}
+        </p>
+        <div className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-[900ms] ease-in-out">
+          Kategori: {product?.category?.name || 'Belum dipilih'}
+        </div>
       </div>
-    </aside>
+    </div>
   );
-};
-
-export default ProductPreviewPanel;
+}

@@ -15,7 +15,13 @@ const ProductImageGalleryModal = ({ images = [], open, onClose, initialIndex = 0
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
       <div className="relative bg-white rounded shadow-lg p-4 max-w-xl w-full flex flex-col items-center">
-        <button className="absolute top-2 right-2 text-xl" onClick={onClose}>&times;</button>
+        <button
+          className="absolute top-2 right-2 text-xl bg-white/90 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full shadow px-3 py-1 z-10 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-black"
+          onClick={onClose}
+          aria-label="Tutup"
+        >
+          &times;
+        </button>
         <div className="flex items-center justify-center w-full h-96 bg-gray-100 rounded mb-2">
           <img src={images[index]} alt="Product" className="object-contain max-h-96 max-w-full" />
         </div>

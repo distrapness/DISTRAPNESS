@@ -4,8 +4,10 @@ import { useCart } from "./CartContext";
 import { useCurrency, CURRENCY_OPTIONS } from "../components/CurrencyContext";
 import { useAuth } from "../contexts/AuthContext";
 
-const API_URL = "http://localhost:5001/api/products";
-const BRAND_API_URL = "http://localhost:5001/api/brand";
+import config from "../config";
+
+const API_URL = `${config.API_URL}/api/products`;
+const BRAND_API_URL = `${config.API_URL}/api/brand`;
 
 const Header = ({ onCartClick }) => {
   const { cart } = useCart();
@@ -52,18 +54,18 @@ const Header = ({ onCartClick }) => {
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-md`}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4" style={{height: '88px'}}>
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-4" style={{ height: '88px' }}>
         {/* Logo + Brand name */}
-        <div className="flex-shrink-0 flex items-center justify-start" style={{height: '88px', minWidth: 'fit-content'}}>
+        <div className="flex-shrink-0 flex items-center justify-start" style={{ height: '88px', minWidth: 'fit-content' }}>
           {brand.logo && (
-            <Link to="/" style={{display: 'flex', alignItems: 'center', height: '88px', textDecoration: 'none'}}>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', height: '88px', textDecoration: 'none' }}>
               <img
                 src={logoUrl}
                 alt="Logo"
                 className="h-20 w-20 object-contain bg-transparent rounded-none shadow-none border-0 p-0 m-0"
-                style={{background:'transparent', margin: 0, padding: 0}}
+                style={{ background: 'transparent', margin: 0, padding: 0 }}
               />
-              <span className="text-black dark:text-white font-extrabold text-2xl tracking-tight select-none uppercase leading-none" style={{letterSpacing:'-0.04em', lineHeight:'1', display: 'inline-block', verticalAlign: 'middle', marginLeft: '-25px'}}>
+              <span className="text-black dark:text-white font-extrabold text-2xl tracking-tight select-none uppercase leading-none" style={{ letterSpacing: '-0.04em', lineHeight: '1', display: 'inline-block', verticalAlign: 'middle', marginLeft: '-25px' }}>
                 DISTRAPNESS
               </span>
             </Link>
@@ -118,7 +120,7 @@ const Header = ({ onCartClick }) => {
             <button
               onClick={() => setShowAccountMenu(v => !v)}
               className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-blue-600 transition"
-              style={{lineHeight: 1}}
+              style={{ lineHeight: 1 }}
               aria-label="Login akun"
             >
               {isLoggedIn && userEmail ? (

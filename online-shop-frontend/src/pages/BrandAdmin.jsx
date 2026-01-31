@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import BackButton from "../components/BackButton.jsx";
+import config from '../config';
 
-const API_URL = "http://localhost:5001/api/brand";
-const UPLOAD_URL = "http://localhost:5001/api/upload";
+const API_URL = `${config.API_URL}/api/brand`;
+const UPLOAD_URL = `${config.API_URL}/api/upload`;
 
 const BrandAdmin = () => {
   const [brand, setBrand] = useState({ brandName: "", logo: "" });
@@ -68,9 +69,9 @@ const BrandAdmin = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 md:pt-24 px-4 transition-colors duration-[900ms] ease-in-out">
+      <BackButton />
       <div className="max-w-xl mx-auto py-10 px-4">
-        <div className="flex items-center gap-4 mb-4">
-          <BackButton />
+        <div className="flex items-center justify-between gap-4 mb-4">
           <h1 className="text-2xl font-bold ml-4">Edit Brand & Logo</h1>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded shadow">

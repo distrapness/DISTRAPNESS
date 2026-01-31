@@ -8,10 +8,11 @@ const CartDrawer = ({ open, onClose }) => {
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const handleCheckout = () => {
+    // Langsung redirect ke halaman metode pembayaran (dashboard payment)
     onClose();
     setTimeout(() => {
       navigate("/payment");
-    }, 350); // biar animasi sidebar nutup dulu
+    }, 350); // tunggu animasi sidebar nutup
   };
 
   return (
@@ -57,15 +58,6 @@ const CartDrawer = ({ open, onClose }) => {
           >
             <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2zm-5 4v2m-4-6h8" /></svg>
             Checkout
-          </button>
-          {/* Tombol silang di kanan checkout */}
-          <button
-            onClick={onClose}
-            className="ml-2 text-gray-400 hover:text-red-500 text-2xl px-2 py-1 rounded-full border border-gray-200 hover:bg-gray-100 transition"
-            aria-label="Tutup Sidebar Keranjang"
-            title="Tutup Keranjang"
-          >
-            &times;
           </button>
         </div>
       </div>

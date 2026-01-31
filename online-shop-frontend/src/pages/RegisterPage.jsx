@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import config from "../config";
 import { useNavigate } from "react-router-dom";
 
 export default function RegisterPage() {
@@ -23,9 +24,9 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await axios.post("http://localhost:5001/api/register", { email, password });
+      await axios.post(`${config.API_URL}/api/register`, { email, password });
       // Setelah sukses register, langsung login otomatis
-      const res = await axios.post("http://localhost:5001/api/login", { email, password });
+      const res = await axios.post(`${config.API_URL}/api/login`, { email, password });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("email", res.data.email); // Simpan email user
       setSuccess("Registrasi & login berhasil!");

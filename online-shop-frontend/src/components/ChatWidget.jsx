@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-// import { io } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { useCurrency } from './CurrencyContext';
 
-// const socket = io('http://localhost:5001'); // Ganti dengan port backend Anda jika berbeda
+import config from '../config';
+
+const socket = io(config.API_URL); // Ganti dengan port backend Anda jika berbeda
 
 const ChatWidget = () => {
   const [open, setOpen] = useState(false);
@@ -15,11 +17,14 @@ const ChatWidget = () => {
 
   useEffect(() => {
     if (!open) return;
-    // socket.on('chat message', (msg) => {
-    //   setMessages((prev) => [...prev, msg]);
-    // });
+    // Listen pesan dari server
+    socket.on('chat_message', (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+    // Join sebagai guest
+    socket.emit('join', 'Guest');
     return () => {
-      // socket.off('chat message');
+      socket.off('chat_message');
     };
   }, [open]);
 
@@ -30,7 +35,7 @@ const ChatWidget = () => {
   const sendMessage = (e) => {
     e.preventDefault();
     if (input.trim() !== '') {
-      // socket.emit('chat message', input);
+      socket.emit('chat_message', { message: input, role: 'user' });
       setInput('');
     }
   };
@@ -39,15 +44,11 @@ const ChatWidget = () => {
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
       {/* Chat Logo Button */}
       <button
-        onClick={() => {
-          console.log('Tombol chat diklik, open sebelumnya:', open);
-          setOpen((v) => !v);
-        }}
+        onClick={() => setOpen((v) => !v)}
         className="flex flex-col items-center justify-center w-14 h-14 rounded-none shadow-none transition-colors duration-500 focus:outline-none bg-transparent"
         aria-label="Buka chat"
         style={{ boxShadow: 'none', background: 'transparent', transition: 'background 0.5s, color 0.5s, border 0.5s' }}
       >
-        {/* Logo chat menyesuaikan mode */}
         <img
           src={dark ? "/uploads/logo-putih.png" : "/uploads/logo-hitam.png"}
           alt="Logo Chat"
@@ -80,8 +81,10 @@ const ChatWidget = () => {
             )}
             {messages.map((msg, i) => (
               <div key={i} className="flex">
-                <div className={`rounded-2xl px-4 py-2 mb-1 max-w-[80%] shadow-sm ${dark ? 'bg-blue-900 text-gray-100' : 'bg-blue-100 text-gray-900'}`}>
-                  {msg}
+                <div className={`rounded-2xl px-4 py-2 mb-1 max-w-[80%] shadow-sm ${msg.role === 'admin' ? 'bg-green-100 text-green-900 dark:bg-green-900 dark:text-white ml-auto' : dark ? 'bg-blue-900 text-gray-100' : 'bg-blue-100 text-gray-900'}`}>
+                  <span className="block text-xs font-bold mb-1">{msg.user}</span>
+                  {msg.message}
+                  <span className="block text-[10px] text-gray-400 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</span>
                 </div>
               </div>
             ))}

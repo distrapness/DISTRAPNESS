@@ -1,0 +1,34 @@
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "online-shop-backend/server.js",
+            "use": "@vercel/node"
+        },
+        {
+            "src": "online-shop-frontend/package.json",
+            "use": "@vercel/static-build"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/online-shop-backend/server.js"
+        },
+        {
+            "src": "/uploads/(.*)",
+            "dest": "/online-shop-backend/server.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/online-shop-frontend/build/$1"
+        },
+        {
+            "handle": "filesystem"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/online-shop-frontend/index.html"
+        }
+    ]
+}

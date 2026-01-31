@@ -5,8 +5,12 @@ const path = require('path');
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const pool = require('./db');
+const http = require('http');
+const setupSocket = require('./socket');
 
 const app = express();
+const server = http.createServer(app);
+setupSocket(server);
 
 // ====== CORS untuk seluruh route, termasuk static file ======
 app.use(cors());
@@ -56,6 +60,11 @@ app.put('/api/brand', (req, res) => {
   });
 });
 
+// TEST ROUTE UNTUK CEK SERVER
+app.get('/api/test', (req, res) => {
+  res.json({ ok: true, message: 'Server aktif!' });
+});
+
 // REGISTER ENDPOINT
 app.post('/api/register', async (req, res) => {
   const { email, password } = req.body;
@@ -95,5 +104,15 @@ app.use('/api/products', productRoutes);
 const bannerRoutes = require('./routes/bannerRoutes');
 app.use('/api/banners', bannerRoutes);
 
+const orderRoutes = require('./routes/orderRoutes');
+app.use('/api/orders', orderRoutes);
+
+const midtransRoutes = require('./routes/midtrans');
+app.use('/api/midtrans', midtransRoutes);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+if (require.main === module) {
+  server.listen(PORT, () => console.log(`Server running on port ${PORT} (with Socket.io)`));
+}
+
+module.exports = app;

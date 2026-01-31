@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 
 const socials = [
   { href: "https://facebook.com", icon: "fab fa-facebook-f", label: "Facebook" },
-  { href: "https://instagram.com", icon: "instagram", label: "Instagram" },
-  { href: "https://tiktok.com", icon: "tiktok", label: "TikTok" },
-  { href: "https://shopee.co.id", icon: "shopee", label: "Shopee" },
+  { href: "https://www.instagram.com/distrapness?igsh=amExMnV0ZW9pYmc5&utm_source=qr", icon: "instagram", label: "Instagram" },
+  { href: "https://www.tiktok.com/@distrapness?_t=ZS-8vw2GZGHO6c&_r=1", icon: "tiktok", label: "TikTok" },
+  { href: "https://shopee.co.id/distrapness", icon: "shopee", label: "Shopee" },
   { href: "https://pinterest.com", icon: "fab fa-pinterest-p", label: "Pinterest" },
   { href: "https://youtube.com", icon: "fab fa-youtube", label: "YouTube" },
 ];

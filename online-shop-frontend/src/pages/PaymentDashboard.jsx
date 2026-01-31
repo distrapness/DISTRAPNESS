@@ -1,123 +1,92 @@
-import React, { useState } from "react";
-import { useCart } from "../components/CartContext";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
 import BackButton from "../components/BackButton.jsx";
 
-const paymentOptions = [
-  { label: "Virtual Account BCA", value: "bca_va" },
-  { label: "QRIS (All Bank)", value: "qris" },
-  { label: "Transfer Bank Mandiri", value: "mandiri_tf" },
-  { label: "COD (Bayar di Tempat)", value: "cod" },
-];
+import config from '../config';
 
-const PaymentDashboard = () => {
-  const { cart, clearCart } = useCart();
-  const navigate = useNavigate();
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(paymentOptions[0].value);
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+const PaymentMethodList = ({ onSelect }) => {
+  const [methods, setMethods] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [total, setTotal] = useState(0);
 
-  const handlePay = () => {
-    setShowSuccess(true);
-    clearCart();
-    setTimeout(() => {
-      setShowSuccess(false);
-      navigate("/payment-success", { state: { paymentMethod } });
-    }, 1800);
+  useEffect(() => {
+    fetch(`${config.API_URL}/api/midtrans/methods`)
+      .then(res => {
+        if (!res.ok) throw new Error("Gagal mengambil metode pembayaran");
+        return res.json();
+      })
+      .then(data => {
+        setMethods(data);
+        setError(null);
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const c = JSON.parse(localStorage.getItem("cart") || "[]");
+    setCart(c);
+    setTotal(c.reduce((sum, item) => sum + item.price * item.qty, 0));
+  }, []);
+
+  const handleClick = async (method) => {
+    // Buat order/token ke backend untuk semua metode
+    // (hanya contoh, bisa diubah sesuai kebutuhan order)
+    const orderId = Math.floor(Math.random() * 1000000);
+    try {
+      const res = await fetch("http://localhost:5001/api/midtrans/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          total,
+          email: "guest@mail.com",
+          paymentMethod: method
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.token) throw new Error(data.error || "Gagal membuat pembayaran");
+      // Simpan data pembayaran ke localStorage/session jika perlu
+      localStorage.setItem('selectedPaymentMethod', method);
+      localStorage.setItem('midtransToken', data.token);
+      localStorage.setItem('midtransOrderId', orderId);
+      // Redirect ke halaman konfirmasi
+      window.location.href = '/payment/confirm';
+    } catch (e) {
+      alert(e.message || "Gagal membuat pembayaran");
+    }
   };
 
+  if (loading) return <div className="text-center py-6">Memuat metode pembayaran...</div>;
+  if (error) return <div className="text-center text-red-500 py-6">{error}</div>;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-100 to-blue-50 pt-20 md:pt-24 px-4 py-10 relative overflow-hidden">
-      {/* Success Animation Overlay */}
-      {showSuccess && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-50 animate-fadeIn">
-          <div className="bg-white rounded-full p-8 shadow-xl flex flex-col items-center animate-bounceIn">
-            <svg className="w-16 h-16 text-green-500 mb-4 animate-pulse" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            <div className="text-2xl font-bold text-green-600 mb-2">Pembayaran Berhasil!</div>
-            <div className="text-gray-600 text-center">Terima kasih sudah berbelanja.<br />Anda akan diarahkan ke halaman sukses.</div>
-          </div>
-        </div>
-      )}
-      <div className="flex items-center gap-4 mb-4 w-full max-w-lg">
-        <BackButton />
-        <h1 className="text-3xl font-bold text-blue-700 ml-4">Dashboard Payment</h1>
-      </div>
-      <div className={`bg-white shadow-xl rounded-lg p-8 w-full max-w-lg animate-fadeIn ${showSuccess ? 'opacity-30 pointer-events-none' : ''}`}>
-        <h2 className="text-lg font-semibold mb-4">Ringkasan Belanja</h2>
-        {cart.length === 0 ? (
-          <p className="text-gray-500 text-center mb-6">Keranjang kosong.</p>
-        ) : (
-          <ul className="mb-6 divide-y">
-            {cart.map((item) => (
-              <li key={item.id} className="flex justify-between py-2">
-                <span>{item.name} <span className="text-xs text-gray-400">x{item.qty}</span></span>
-                <span>Rp {(item.price * item.qty).toLocaleString("id-ID")}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex justify-between items-center font-bold text-lg mb-6">
-          <span>Total</span>
-          <span>Rp {total.toLocaleString("id-ID")}</span>
-        </div>
-        {/* Pilihan metode pembayaran */}
-        <div className="mb-6">
-          <div className="font-semibold mb-2">Pilih Metode Pembayaran:</div>
-          <div className="flex flex-col gap-2">
-            {paymentOptions.map((opt) => (
-              <label key={opt.value} className={`flex items-center gap-2 p-2 rounded cursor-pointer border transition ${paymentMethod === opt.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value={opt.value}
-                  checked={paymentMethod === opt.value}
-                  onChange={() => setPaymentMethod(opt.value)}
-                  className="accent-blue-600"
-                />
-                <span>{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+    <div className="w-full flex flex-col items-center gap-4 mt-8">
+      {methods.map((m, idx) => (
         <button
-          onClick={handlePay}
-          disabled={cart.length === 0 || showSuccess}
-          className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-lg font-semibold text-lg shadow hover:from-green-600 hover:to-emerald-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          key={m.value}
+          className={`w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow p-4 text-lg font-semibold transition flex items-center gap-4 justify-center hover:ring-2 hover:ring-blue-400 focus:ring-2 focus:ring-blue-600 ${idx === 1 ? 'scale-105 border-blue-500 ring-2 ring-blue-300 font-bold' : ''}`}
+          style={{ minHeight: 56 }}
+          onClick={() => handleClick(m.value)}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2zm-5 4v2m-4-6h8" /></svg>
-          Bayar Sekarang
+          {m.label}
         </button>
-      </div>
-      {/* Animasi confetti sederhana */}
-      {showSuccess && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden z-50">
-          {[...Array(24)].map((_, i) => (
-            <div
-              key={i}
-              className={`absolute w-2 h-2 rounded-full bg-gradient-to-br from-pink-400 to-blue-400 animate-confetti`}
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random()}s`,
-                animationDuration: `${1 + Math.random()}s`,
-              }}
-            />
-          ))}
+      ))}
+    </div>
+  );
+};
+
+const PaymentDashboard = () => {
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 md:pt-24 px-4 transition-colors duration-[900ms] ease-in-out flex flex-col items-center">
+      <div className="w-full max-w-2xl">
+        <div className="flex justify-between mb-6">
+          <BackButton to="/" />
         </div>
-      )}
-      {/* Animasi CSS untuk fadeIn, bounceIn, confetti */}
-      <style>{`
-        .animate-fadeIn { animation: fadeIn .5s; }
-        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-        .animate-bounceIn { animation: bounceIn .8s; }
-        @keyframes bounceIn { 0% { transform: scale(0.2);} 60% { transform: scale(1.15);} 80% { transform: scale(0.95);} 100% { transform: scale(1);} }
-        .animate-confetti { animation: confetti 1.2s ease-out forwards; }
-        @keyframes confetti {
-          0% { transform: translateY(0) scale(1); opacity: 1; }
-          80% { opacity: 1; }
-          100% { transform: translateY(120px) scale(0.6); opacity: 0; }
-        }
-      `}</style>
+        <h2 className="text-2xl font-bold mb-4 text-center text-blue-700 dark:text-blue-300">Pilih Metode Pembayaran</h2>
+        <PaymentMethodList />
+      </div>
     </div>
   );
 };

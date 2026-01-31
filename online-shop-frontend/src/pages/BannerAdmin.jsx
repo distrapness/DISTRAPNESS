@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import BannerUploader from "../components/BannerUploader";
 import Banner from "../components/Banner";
 import EditBannerModal from "../components/EditBannerModal";
+import BackButton from "../components/BackButton"; 
+
 import { useBanners } from "../contexts/BannerContext";
 
 const BannerAdmin = () => {
@@ -45,6 +47,9 @@ const BannerAdmin = () => {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
+      <div className="flex justify-between mb-6">
+        <BackButton />
+      </div>
       <h1 className="text-2xl font-bold mb-6">Admin Banner</h1>
       {error && <div className="text-red-500 mb-2">{error}</div>}
       {!adding && (

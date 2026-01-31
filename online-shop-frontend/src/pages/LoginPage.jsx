@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import config from "../config";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -18,7 +19,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.post("http://localhost:5001/api/login", { email, password });
+      const res = await axios.post(`${config.API_URL}/api/login`, { email, password });
       login(res.data.token, res.data.email); // update context & localStorage
       setSuccess("Login berhasil!");
       navigate("/"); // langsung redirect tanpa timeout

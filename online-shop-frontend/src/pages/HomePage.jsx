@@ -4,7 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import Footer from "../components/Footer.jsx";
 
-const API_URL = "http://localhost:5001/api/products";
+import config from "../config";
+
+const API_URL = `${config.API_URL}/api/products`;
 
 const HomePage = () => {
   const [products, setProducts] = useState([]);
@@ -91,8 +93,8 @@ const HomePage = () => {
                     />
                   </div>
                   <div className="mt-4 text-center w-full">
-                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-0 leading-[1] truncate" style={{marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0}}>{product.name}</div>
-                    <div className="font-bold text-black dark:text-blue-300 text-base mb-0 leading-[1]" style={{marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0}}>{convertPrice(product.price)}</div>
+                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-0 leading-[1] truncate" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{product.name}</div>
+                    <div className="font-bold text-black dark:text-blue-300 text-base mb-0 leading-[1]" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{convertPrice(product.price)}</div>
                     {product.stock === 0 && <span className="inline-block px-2 py-1 bg-black text-white text-xs rounded mt-1">OUT OF STOCK</span>}
                   </div>
                 </div>

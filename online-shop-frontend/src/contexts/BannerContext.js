@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
+import config from "../config";
 
 const BannerContext = createContext();
-const API_URL = "http://localhost:5001/api/banners";
+const API_URL = `${config.API_URL}/api/banners`;
 
 export const BannerProvider = ({ children }) => {
   const [banners, setBanners] = useState([]);
