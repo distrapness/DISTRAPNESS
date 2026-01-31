@@ -28,7 +28,7 @@
         },
         {
             "src": "/(.*)",
-            "dest": "/online-shop-frontend/index.html"
+            "dest": "/online-shop-frontend/build/index.html"
         }
     ]
 }
