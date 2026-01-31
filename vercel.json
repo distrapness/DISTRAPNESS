@@ -21,14 +21,14 @@
         },
         {
             "src": "/(.*)",
-            "dest": "/online-shop-frontend/build/$1"
+            "dest": "/online-shop-frontend/$1"
         },
         {
             "handle": "filesystem"
         },
         {
             "src": "/(.*)",
-            "dest": "/online-shop-frontend/build/index.html"
+            "dest": "/online-shop-frontend/index.html"
         }
     ]
 }
