@@ -20,11 +20,16 @@ const upload = multer({ storage });
 // CREATE ORDER
 router.post('/', async (req, res) => {
   const { userId, items, total, paymentMethod, status } = req.body;
+
+  // Fix: userId di database kemungkinan INT, tapi frontend kirim Email (String) untuk guest.
+  // Jika userId bukan angka, set ke NULL.
+  const dbUserId = (userId && !isNaN(userId)) ? userId : null;
+
   try {
     // Insert order
     pool.query(
       'INSERT INTO orders (userId, items, total, paymentMethod, status, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
-      [userId, JSON.stringify(items), total, paymentMethod, status || 'pending'],
+      [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending'],
       (err, result) => {
         if (err) return res.status(500).json({ error: 'Database error', detail: err });
 
