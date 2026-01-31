@@ -11,27 +11,33 @@ const snap = new midtransClient.Snap({
 });
 
 // Dummy endpoint untuk generate token & data pembayaran tanpa Midtrans
+// Generate Snap Token
 router.post('/token', async (req, res) => {
-  const { orderId, total, email, paymentMethod } = req.body;
-  // Simulasi nomor virtual account dan QR code
-  let dummyData = {
-    token: `dummy-token-${orderId}`,
-    order_id: `ORDER-${orderId}-${Date.now()}`,
-    payment_method: paymentMethod,
-    total,
-    email,
+  const { orderId, total, email } = req.body;
+
+  // Parameter parameter transaksi
+  let parameter = {
+    transaction_details: {
+      order_id: `ORDER-${orderId}-${Date.now()}`, // Unik setiap transaksi
+      gross_amount: total
+    },
+    credit_card: {
+      secure: true
+    },
+    customer_details: {
+      email: email
+    }
   };
-  if (paymentMethod === 'bca_va') {
-    dummyData.va_number = '1234 5678 9012 3456';
-    dummyData.bank = 'BCA';
-  } else if (paymentMethod === 'qris') {
-    dummyData.qr_string = 'DUMMY-QR-STRING-123456';
-    dummyData.qr_url = 'https://dummy-qr.com/123456';
-  } else if (paymentMethod === 'mandiri_tf') {
-    dummyData.account_number = '14000 1234 5678';
-    dummyData.bank = 'Mandiri';
+
+  try {
+    const transaction = await snap.createTransaction(parameter);
+    // transaction token
+    const transactionToken = transaction.token;
+    res.json({ token: transactionToken });
+  } catch (error) {
+    console.error('Midtrans Error:', error);
+    res.status(500).json({ error: 'Gagal membuat token pembayaran' });
   }
-  res.json(dummyData);
 });
 
 // Endpoint untuk mendapatkan data pembayaran dummy
