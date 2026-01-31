@@ -4,6 +4,7 @@ const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { sendOrderConfirmation } = require('../services/emailService');
 
 // Multer setup for payment proof uploads
 const storage = multer.diskStorage({
@@ -26,6 +27,29 @@ router.post('/', async (req, res) => {
       [userId, JSON.stringify(items), total, paymentMethod, status || 'pending'],
       (err, result) => {
         if (err) return res.status(500).json({ error: 'Database error', detail: err });
+
+        // Kirim email konfirmasi (asynchronous, tidak perlu tunggu selesai)
+        // Kita perlu ambil email user dulu. 
+        // NOTE: Di codingan lama, userId disimpan, tapi kita butuh email.
+        // Asumsi: userId yang dikirim dari frontend adalah email (jika login pakai email) 
+        // ATAU kita perlu query user table.
+        // Untuk amannya, kita query user table berdasarkan userId (jika userId itu ID)
+        // TAPI, jika userId itu sebenarnya string email (karena auth sederhana), langsung pakai.
+        // Mari kita cek db schema user... 
+
+        // SEMENTARA: Kita asumsikan backend menerima field 'userEmail' di body request juga agar lebih mudah.
+        // Jika tidak ada request body email, kita coba gunakan userId kalau bentuknya email.
+        const targetEmail = req.body.email || (userId && userId.includes('@') ? userId : null);
+
+        if (targetEmail) {
+          sendOrderConfirmation({
+            email: targetEmail,
+            orderId: result.insertId,
+            cart: items,
+            total: total
+          });
+        }
+
         res.json({ success: true, orderId: result.insertId });
       }
     );

@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import BackButton from "../components/BackButton.jsx";
 
 import config from '../config.js';
+import { useAuth } from "../contexts/AuthContext";
 
 const PaymentMethodList = ({ onSelect }) => {
+  const { userEmail } = useAuth();
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,30 +33,40 @@ const PaymentMethodList = ({ onSelect }) => {
   }, []);
 
   const handleClick = async (method) => {
-    // Buat order/token ke backend untuk semua metode
-    // (hanya contoh, bisa diubah sesuai kebutuhan order)
-    const orderId = Math.floor(Math.random() * 1000000);
+    // Buat REAL ORDER ke database (yang akan mentrigger email)
+
+    // Siapkan item cart (backend butuh userId, items, total, status)
+    // Jika auth belum ada userId numeric, kita kirim email sebagai userId sementara atau 0
+    const items = cart; // cart sudah ada di state
+
     try {
-      const res = await fetch("http://localhost:5001/api/midtrans/token", {
+      const res = await fetch(`${config.API_URL}/api/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          orderId,
+          userId: userEmail || "guest", // Kirim email sebagai identitas
+          email: userEmail || "guest@mail.com", // Email eksplisit untuk notifikasi
+          items,
           total,
-          email: "guest@mail.com",
-          paymentMethod: method
+          paymentMethod: method,
+          status: 'pending'
         })
       });
+
       const data = await res.json();
-      if (!res.ok || !data.token) throw new Error(data.error || "Gagal membuat pembayaran");
-      // Simpan data pembayaran ke localStorage/session jika perlu
+      if (!res.ok) throw new Error(data.error || "Gagal membuat pesanan");
+
+      // Simpan data untuk halaman konfirmasi
+      localStorage.setItem('lastOrderId', data.orderId);
       localStorage.setItem('selectedPaymentMethod', method);
-      localStorage.setItem('midtransToken', data.token);
-      localStorage.setItem('midtransOrderId', orderId);
-      // Redirect ke halaman konfirmasi
+      localStorage.setItem('cartTotal', total);
+
+      // Redirect ke halaman konfirmasi upload bukti
+      // Kita pakai /payment/confirm (asumsi halaman ini ada dan butuh penyesuaian sedikit)
       window.location.href = '/payment/confirm';
+
     } catch (e) {
-      alert(e.message || "Gagal membuat pembayaran");
+      alert(e.message || "Gagal memproses pesanan");
     }
   };
 

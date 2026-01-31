@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton.jsx";
+import config from '../config.js';
 
 const paymentLabels = {
   bca_va: "Virtual Account BCA",
@@ -17,33 +18,32 @@ const PaymentConfirm = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Ambil data pembayaran dari localStorage
-    const token = localStorage.getItem("midtransToken");
-    const order_id = localStorage.getItem("midtransOrderId");
-    // Untuk demo dummy, request ulang ke backend agar dapat data lengkap (VA, QR, dsb)
-    if (!method || !order_id) {
+    // Ambil order ID dari localStorage (disimpan saat checkout di PaymentDashboard)
+    const orderId = localStorage.getItem("lastOrderId");
+
+    if (!orderId) {
+      setError("Data pesanan tidak ditemukan");
       setLoading(false);
       return;
     }
+
     setLoading(true);
-    fetch("http://localhost:5001/api/midtrans/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: order_id.replace("ORDER-", "").split("-")[0],
-        total: localStorage.getItem("cart") ? JSON.parse(localStorage.getItem("cart")).reduce((sum, item) => sum + item.price * item.qty, 0) : 0,
-        email: "guest@mail.com",
-        paymentMethod: method
-      })
-    })
+    fetch(`${config.API_URL}/api/orders/${orderId}`)
       .then(res => res.json())
       .then(data => {
-        setPaymentData(data);
+        if (data.error) throw new Error(data.error);
+        setPaymentData({
+          ...data,
+          // Perkaya data untuk tampilan (karena DB belum simpan detail pembayaran virtual)
+          va_number: '1234 5678 9012',
+          account_number: '14000 999 888',
+          total: parseFloat(data.total)
+        });
         setError("");
       })
-      .catch(() => setError("Gagal mengambil data pembayaran"))
+      .catch((err) => setError(err.message || "Gagal mengambil data pesanan"))
       .finally(() => setLoading(false));
-  }, [method]);
+  }, []);
 
   const handleNext = () => {
     navigate("/payment-success");
