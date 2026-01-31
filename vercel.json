@@ -19,10 +19,6 @@
             "dest": "/online-shop-backend/server.js"
         },
         {
-            "src": "/uploads/(.*)",
-            "dest": "/online-shop-backend/server.js"
-        },
-        {
             "src": "/(.*)",
             "dest": "/online-shop-frontend/$1"
         },
