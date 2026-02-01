@@ -102,10 +102,10 @@ const ShopPage = () => {
             />
           </div>
           {/* Gallery grid ala jamesboogie.com: 4 kolom, jarak rapat, gambar besar, info di bawah */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12 md:gap-x-8 md:gap-y-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-[280px] md:h-[340px] bg-[#fff] dark:bg-gray-800 animate-pulse rounded-none" />
+                <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
               ))
             ) : error ? (
               <div className="col-span-full text-red-500">{error}</div>
@@ -115,12 +115,19 @@ const ShopPage = () => {
               paginatedProducts.map((product) => (
                 <div
                   key={product.id || product._id}
-                  className="flex flex-col items-center group cursor-pointer"
+                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
+                  {/* Badge: Low Stock */}
+                  {product.stock > 0 && product.stock < 5 && (
+                    <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
+                      Low Stock
+                    </div>
+                  )}
+
+                  {/* Image Container */}
                   <div
-                    className="w-full aspect-[3/4] bg-transparent dark:bg-transparent flex items-center justify-center overflow-hidden mb-4"
-                    style={{ position: 'relative' }}
+                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative"
                     onMouseEnter={() => {
                       if (Array.isArray(product.images) && product.images.length > 1) {
                         setActiveImageIndex(prev => ({ ...prev, [product.id]: 1 }));
@@ -135,15 +142,19 @@ const ShopPage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-contain w-full h-full transition-all duration-500 ease-in-out bg-transparent ${activeImageIndex[product.id] === 1 ? 'opacity-100 scale-105' : 'opacity-100 scale-100'}`}
-                      style={{ position: 'absolute', top: 0, left: 0, transition: 'opacity 0.5s, transform 0.5s', zIndex: 1, cursor: Array.isArray(product.images) && product.images.length > 1 ? 'pointer' : 'default' }}
+                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
                       onError={handleImageError}
                     />
                   </div>
-                  <div className="text-center w-full px-1">
-                    <div className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1 leading-tight truncate">{product.name}</div>
-                    <div className="font-bold text-black dark:text-blue-300 text-sm md:text-base leading-tight">{convertPrice(product.price)}</div>
-                    {product.stock === 0 && <span className="inline-block px-2 py-1 bg-black text-white text-[10px] rounded mt-2">OUT OF STOCK</span>}
+
+                  {/* Text Details */}
+                  <div className="text-center w-full mt-auto">
+                    <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium">
+                      {product.name}
+                    </div>
+                    <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">
+                      {convertPrice(product.price)}
+                    </div>
                   </div>
                 </div>
               ))
