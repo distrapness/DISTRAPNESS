@@ -44,7 +44,7 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full h-screen overflow-hidden flex items-center justify-center bg-gray-900"
+      className="relative w-full h-[85vh] overflow-hidden flex items-center justify-center bg-gray-900"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
@@ -59,7 +59,7 @@ const BannerCarousel = () => {
 
       <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4 max-w-5xl mx-auto mt-16 md:mt-0">
         {banner.title && (
-          <h2 className="text-4xl md:text-7xl font-[900] text-white uppercase tracking-tighter leading-none mb-4 md:mb-6 font-sans">
+          <h2 className="text-4xl md:text-6xl font-[900] text-white uppercase tracking-tighter leading-none mb-4 md:mb-6 font-sans">
             {banner.title}
           </h2>
         )}

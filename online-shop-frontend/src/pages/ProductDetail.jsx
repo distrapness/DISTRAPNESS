@@ -39,7 +39,7 @@ const ProductDetail = () => {
     <div className="bg-white dark:bg-gray-900 min-h-screen text-black dark:text-white transition-colors duration-300">
 
       {/* Main Content: Split Layout */}
-      <div className="pt-[120px] pb-24 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-[120px] pb-24 max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex flex-col md:flex-row gap-12 lg:gap-24 items-start">
 
           {/* Left: Images (Carousel on Mobile, Grid on Desktop) */}

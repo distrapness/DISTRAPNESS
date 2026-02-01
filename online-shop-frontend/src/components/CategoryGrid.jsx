@@ -15,7 +15,7 @@ const CategoryGrid = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {categories.map((cat, idx) => (
-                        <div key={idx} className="relative group overflow-hidden h-[350px] md:h-[500px] bg-gray-100 dark:bg-gray-800">
+                        <div key={idx} className="relative group overflow-hidden h-[350px] md:h-[400px] bg-gray-100 dark:bg-gray-800">
                             {/* Image Placeholder if actual image missing */}
                             <img
                                 src={cat.image}
