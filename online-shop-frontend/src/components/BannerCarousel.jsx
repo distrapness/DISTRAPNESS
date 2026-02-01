@@ -57,24 +57,26 @@ const BannerCarousel = () => {
       {/* Overlay Gradient for better text readability */}
       <div className="absolute inset-0 bg-black/30 md:bg-black/20" />
 
-      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4 max-w-5xl mx-auto mt-16 md:mt-0">
+      <div className="relative z-10 flex flex-col items-start justify-end w-full h-full text-left px-4 md:px-12 pb-12 md:pb-24 max-w-[1600px] mx-auto">
         {banner.title && (
-          <h2 className="text-4xl md:text-6xl font-[900] text-white uppercase tracking-tighter leading-none mb-4 md:mb-6 font-sans">
+          <h2 className="text-4xl md:text-6xl font-[900] text-white uppercase tracking-tighter leading-none mb-2 font-sans drop-shadow-md">
             {banner.title}
           </h2>
         )}
         {banner.subtitle && (
-          <p className="text-lg md:text-2xl text-gray-200 mb-8 max-w-2xl mx-auto font-light leading-relaxed">
-            {banner.subtitle}
-          </p>
-        )}
-        {banner.link && (
-          <a
-            href={banner.link}
-            className="inline-block bg-white text-black font-bold text-sm md:text-base px-8 py-4 uppercase tracking-widest hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
-          >
-            Shop Collection
-          </a>
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+            <p className="text-lg md:text-xl text-gray-200 tracking-widest font-light uppercase">
+              {banner.subtitle}
+            </p>
+            {banner.link && (
+              <a
+                href={banner.link}
+                className="inline-block bg-white text-black font-bold text-xs md:text-sm px-6 py-3 uppercase tracking-widest hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
+              >
+                Shop Now
+              </a>
+            )}
+          </div>
         )}
       </div>
 

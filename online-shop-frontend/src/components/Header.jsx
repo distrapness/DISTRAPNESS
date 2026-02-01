@@ -71,11 +71,9 @@ const Header = ({ onCartClick }) => {
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-sm transition-all duration-300 h-[60px] md:h-[88px]`}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-full">
+      <div className="max-w-[1600px] mx-auto flex items-center h-full px-6 md:px-12">
 
-        {/* Mobile Left: Hamburger (Hidden if Bottom Nav is used?) Actually Bottom Nav replaces this need? 
-            But let's keep it for "About" and other links not in Bottom Nav.
-        */}
+        {/* Mobile Left: Hamburger */}
         <button
           className="md:hidden p-2 -ml-2 text-gray-800 dark:text-white focus:outline-none"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -86,92 +84,80 @@ const Header = ({ onCartClick }) => {
           </svg>
         </button>
 
-        {/* Logo Section */}
-        <div className="flex-1 flex justify-center md:justify-start">
-          <Link to="/" className="flex items-center">
-            {/* Mobile: Red Logo Text always visible */}
+        {/* LOGO (Always Left and Visible) */}
+        <div className="flex-1 md:flex-none flex justify-center md:justify-start">
+          <Link to="/" className="flex items-center gap-2">
+            {/* Mobile: Red Logo Text */}
             <span className="md:hidden text-[#FF0000] font-[900] text-xl tracking-tighter uppercase font-sans">
               DISTRAPNESS
             </span>
 
-            {/* Desktop: Logic from before */}
-            <div className="hidden md:flex items-center relative">
-              <div className={`transition-all duration-500 ease-in-out transform ${isScrolled ? 'opacity-0 scale-50 w-0 hidden' : 'opacity-100 scale-100 w-auto flex'}`}>
-                <img
-                  src={logoUrl}
-                  alt="Logo"
-                  className="h-12 md:h-20 w-auto object-contain"
-                />
-              </div>
-              <div className={`transition-all duration-500 ease-in-out ${isScrolled ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90 w-0 hidden'}`}>
-                <span className="text-black dark:text-white font-[900] text-3xl md:text-4xl tracking-tighter uppercase font-serif" style={{ fontFamily: 'Times New Roman, serif' }}>
-                  DISTRAPNESS
-                </span>
-              </div>
-              <span className="hidden md:inline-block text-black dark:text-white font-extrabold text-2xl tracking-tight uppercase leading-none ml-3" style={{ opacity: isScrolled ? 0 : 1, transition: 'opacity 0.3s' }}>
-                {!isScrolled && "DISTRAPNESS"}
-              </span>
-            </div>
+            {/* Desktop: Clean Black Logo Text */}
+            <span className="hidden md:block text-black dark:text-white font-[900] text-2xl tracking-tighter uppercase font-sans">
+              DISTRAPNESS
+            </span>
           </Link>
         </div>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex flex-1 justify-center">
-          <nav className="flex items-center gap-8">
-            <Link to="/" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Home</Link>
-            <Link to="/shop" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname.startsWith("/shop") ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Shop</Link>
-            <Link to="/contact" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Contact</Link>
-            <Link to="/store" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Store</Link>
-            <Link to="/about" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>About</Link>
-          </nav>
+        {/* NAVIGATION (Left Aligned next to Logo) */}
+        <div className="hidden md:flex ml-12 gap-8 items-center">
+          <Link to="/" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Home</Link>
+          <Link to="/shop" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname.startsWith("/shop") ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Shop</Link>
+          <Link to="/contact" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Contact</Link>
+          <Link to="/store" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Store</Link>
+          <Link to="/about" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>About</Link>
         </div>
 
-        {/* Right Icons */}
-        <div className="flex items-center gap-4 md:gap-6 justify-end flex-initial w-10 md:w-auto">
-          {/* Search Mobile */}
-          <button className="md:hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        {/* SPACER for Right Alignment */}
+        <div className="flex-1"></div>
+
+        {/* RIGHT ICONS */}
+        <div className="flex items-center gap-5 justify-end flex-initial">
+          {/* Search (Desktop) */}
+          <button className="hidden md:block hover:text-[#FF0000] transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
 
+          {/* Wishlist (Desktop) - Optional based on ref */}
+          <button className="hidden md:block hover:text-[#FF0000] transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+
           {/* Cart Icon */}
-          {/* On Mobile, maybe we use Bottom Nav for Cart? Or Header? Reference shows "Bag" icon in Header on Mobile usually, but let's see. 
-              The user implementation plan says "Add to Bag" sticky button. 
-              Let's keep Cart in Header for consistency.
-          */}
-          <button onClick={onCartClick} className="relative group">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-6 md:w-6 text-black dark:text-white group-hover:text-[#FF0000] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button onClick={onCartClick} className="relative group hover:text-[#FF0000] transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             {totalQty > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#FF0000] text-white text-[10px] font-bold h-4 w-4 md:h-5 md:w-5 flex items-center justify-center rounded-full">
+              <span className="absolute -top-2 -right-2 bg-[#FF0000] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
                 {totalQty}
               </span>
             )}
           </button>
 
-          {/* Profile Desktop */}
+          {/* User Profile */}
           <div className="hidden md:block relative account-menu-parent">
-            <button onClick={() => setShowAccountMenu(!showAccountMenu)} className="flex items-center gap-2 focus:outline-none group">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black dark:text-white group-hover:text-[#FF0000] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <button onClick={() => setShowAccountMenu(!showAccountMenu)} className="flex items-center hover:text-[#FF0000] transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </button>
             {showAccountMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
+              <div className="absolute right-0 mt-4 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-2 z-50">
                 {isLoggedIn ? (
                   <>
-                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 font-bold truncate">
-                      {userEmail}
-                    </div>
-                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Profile</Link>
-                    <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">Sign out</button>
+                    <div className="px-4 py-2 text-xs text-gray-500 font-bold uppercase tracking-wider">{userEmail}</div>
+                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Profile</Link>
+                    <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700">Sign out</button>
                   </>
                 ) : (
                   <>
-                    <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Sign in</Link>
-                    <Link to="/register" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Register</Link>
+                    <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Sign in</Link>
+                    <Link to="/register" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Register</Link>
                   </>
                 )}
               </div>
