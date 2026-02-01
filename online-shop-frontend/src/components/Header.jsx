@@ -93,7 +93,7 @@ const Header = ({ onCartClick }) => {
             </span>
 
             {/* Desktop: Clean Static Logo + Text */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1">
               <img
                 src={logoUrl}
                 alt="Logo"

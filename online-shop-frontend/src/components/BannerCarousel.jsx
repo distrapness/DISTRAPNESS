@@ -11,7 +11,35 @@ const BannerCarousel = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hover, setHover] = useState(false);
-  const HEADER_HEIGHT = 88; // px, agar tidak tertutup header
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // Auto-change every 5 seconds
+  useEffect(() => {
+    if (banners.length < 2) return;
+    const interval = setInterval(() => {
+      next();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
+  // Swipe Handlers
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) next();
+    if (isRightSwipe) prev();
+  };
 
   useEffect(() => {
     fetch(API_URL)
@@ -22,7 +50,6 @@ const BannerCarousel = () => {
       .then((data) => {
         setBanners(
           data.map(banner => ({
-            ...banner,
             ...banner,
             image: getImageUrl(banner.image)
           }))
@@ -44,9 +71,12 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full h-[500px] md:h-auto md:aspect-[21/9] overflow-hidden flex items-center justify-center bg-gray-900"
+      className="relative w-full h-[500px] md:h-auto md:aspect-[21/9] overflow-hidden flex items-center justify-center bg-gray-900 group"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       <img
         src={banner.image}
