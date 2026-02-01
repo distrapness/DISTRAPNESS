@@ -14,6 +14,8 @@ const Header = ({ onCartClick }) => {
   const [brand, setBrand] = useState({ brandName: "Online Shop", logo: "", logoWhite: "" });
   const { currency, setCurrency, dark, setDark, language, setLanguage, t } = useCurrency();
   const { isLoggedIn, userEmail, logout } = useAuth();
+  const { cart } = useCart();
+  const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Dropdown state: 'lang', 'currency', or null
