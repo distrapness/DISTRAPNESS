@@ -44,42 +44,75 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-screen max-w-none left-1/2 right-1/2 -translate-x-1/2 h-64 md:h-[420px] overflow-hidden flex items-center justify-center"
-      style={{ marginTop: 0, marginBottom: 0, borderRadius: 0, top: 0, paddingTop: HEADER_HEIGHT, background: 'transparent' }}
+      className="relative w-full h-screen overflow-hidden flex items-center justify-center bg-gray-900"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
       <img
         src={banner.image}
         alt={banner.title || `Banner ${current + 1}`}
-        className="object-cover w-full h-full absolute inset-0"
-        style={{ zIndex: 1, borderRadius: 0, marginTop: 0, top: 0, paddingTop: 0 }}
+        className="object-cover w-full h-full absolute inset-0 opacity-80"
       />
-      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4">
-        {banner.title && <h2 className="text-2xl md:text-4xl font-bold text-white drop-shadow mb-2 uppercase tracking-widest leading-tight md:leading-snug max-w-2xl mx-auto">{banner.title}</h2>}
-        {banner.subtitle && <p className="text-base md:text-xl text-white mb-4 drop-shadow max-w-xl mx-auto">{banner.subtitle}</p>}
+
+      {/* Overlay Gradient for better text readability */}
+      <div className="absolute inset-0 bg-black/30 md:bg-black/20" />
+
+      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full text-center px-4 max-w-5xl mx-auto mt-16 md:mt-0">
+        {banner.title && (
+          <h2 className="text-4xl md:text-7xl font-[900] text-white uppercase tracking-tighter leading-none mb-4 md:mb-6 font-sans">
+            {banner.title}
+          </h2>
+        )}
+        {banner.subtitle && (
+          <p className="text-lg md:text-2xl text-gray-200 mb-8 max-w-2xl mx-auto font-light leading-relaxed">
+            {banner.subtitle}
+          </p>
+        )}
         {banner.link && (
-          <a href={banner.link} target="_blank" rel="noopener noreferrer" className="inline-block bg-white/80 text-blue-700 font-bold px-6 py-2 rounded-full shadow hover:bg-blue-50 transition-colors mt-2">Lihat Promo</a>
+          <a
+            href={banner.link}
+            className="inline-block bg-white text-black font-bold text-sm md:text-base px-8 py-4 uppercase tracking-widest hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
+          >
+            Shop Collection
+          </a>
         )}
       </div>
-      {/* Tombol navigasi hanya muncul saat hover */}
-      {hover && (
+
+      {/* Tombol navigasi */}
+      {banners.length > 1 && (
         <>
           <button
             onClick={prev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/70 hover:bg-white text-black font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-20"
+            className={`absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full w-12 h-12 flex items-center justify-center transition-all ${hover ? 'opacity-100' : 'opacity-0 md:opacity-100'}`}
             aria-label="Sebelumnya"
           >
-            &#8592;
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
           </button>
           <button
             onClick={next}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/70 hover:bg-white text-black font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg z-20"
+            className={`absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full w-12 h-12 flex items-center justify-center transition-all ${hover ? 'opacity-100' : 'opacity-0 md:opacity-100'}`}
             aria-label="Selanjutnya"
           >
-            &#8594;
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
           </button>
         </>
+      )}
+
+      {/* Dots Indicator */}
+      {banners.length > 1 && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
+          {banners.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrent(idx)}
+              className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all ${idx === current ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'}`}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
