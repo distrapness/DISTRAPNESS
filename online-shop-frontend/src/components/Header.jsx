@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
 
-const API_URL = `${config.API_URL}/api/products`;
+
 const BRAND_API_URL = `${config.API_URL}/api/brand`;
 
 const Header = ({ onCartClick }) => {
@@ -16,7 +16,22 @@ const Header = ({ onCartClick }) => {
   const { isLoggedIn, userEmail, logout } = useAuth();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  // Dropdown state: 'lang', 'currency', or null
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (activeDropdown && !event.target.closest(".dropdown-container")) {
+        setActiveDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeDropdown]);
+
+  const toggleDropdown = (name) => {
+    setActiveDropdown(activeDropdown === name ? null : name);
+  };
 
   useEffect(() => {
     fetch(BRAND_API_URL)
