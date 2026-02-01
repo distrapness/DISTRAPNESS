@@ -42,22 +42,46 @@ const ProductDetail = () => {
       <div className="pt-[120px] pb-24 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col md:flex-row gap-12 lg:gap-24 items-start">
 
-          {/* Left: Images (Grid or Stack) */}
-          <div className="w-full md:w-3/5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {images.map((img, idx) => (
-              <div
-                key={idx}
-                className={`w-full bg-gray-50 dark:bg-gray-800 cursor-pointer overflow-hidden ${idx === 0 ? 'md:col-span-2 aspect-[4/5]' : 'aspect-square'}`}
-                onClick={() => { setGalleryIndex(idx); setGalleryOpen(true); }}
-              >
-                <img
-                  src={getImageUrl(img)}
-                  alt={`${product.name} ${idx}`}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                  onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x1000/e2e8f0/1e293b?text=" + product.name; }}
-                />
-              </div>
-            ))}
+          {/* Left: Images (Carousel on Mobile, Grid on Desktop) */}
+          <div className="w-full md:w-3/5">
+            {/* Desktop Grid */}
+            <div className="hidden md:grid grid-cols-2 gap-4">
+              {images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className={`w-full bg-gray-50 dark:bg-gray-800 cursor-pointer overflow-hidden ${idx === 0 ? 'col-span-2 aspect-[4/5]' : 'aspect-square'}`}
+                  onClick={() => { setGalleryIndex(idx); setGalleryOpen(true); }}
+                >
+                  <img
+                    src={getImageUrl(img)}
+                    alt={`${product.name} ${idx}`}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x1000/e2e8f0/1e293b?text=" + product.name; }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile Carousel (Horizontal Scroll Snap) */}
+            <div className="md:hidden -mx-4 px-4 flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4">
+              {images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className="relative flex-shrink-0 w-[85vw] aspect-[3/4] snap-center bg-gray-50 dark:bg-gray-800 overflow-hidden rounded-lg shadow-sm"
+                  onClick={() => { setGalleryIndex(idx); setGalleryOpen(true); }}
+                >
+                  <img
+                    src={getImageUrl(img)}
+                    alt={`${product.name} ${idx}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
+                  />
+                  <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm font-bold">
+                    {idx + 1}/{images.length}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Right: Details (Sticky on Desktop) */}
