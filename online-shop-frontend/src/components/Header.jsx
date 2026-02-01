@@ -17,14 +17,22 @@ const Header = ({ onCartClick }) => {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [isScrolled, setIsScrolled] = useState(false);
+  // Dropdown state: 'lang', 'currency', or null
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
   useEffect(() => {
-    fetch(API_URL)
-      .then((res) => res.json())
-      .then(setProducts)
-      .catch(() => setProducts([]));
-  }, []);
+    function handleClickOutside(event) {
+      if (activeDropdown && !event.target.closest(".dropdown-container")) {
+        setActiveDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeDropdown]);
+
+  const toggleDropdown = (name) => {
+    setActiveDropdown(activeDropdown === name ? null : name);
+  };
 
   useEffect(() => {
     fetch(BRAND_API_URL)
@@ -120,39 +128,61 @@ const Header = ({ onCartClick }) => {
           {/* Desktop Controls: Language | Currency | Theme */}
           <div className="hidden md:flex items-center gap-4 mr-2 border-r border-gray-200 dark:border-gray-700 pr-6 h-6">
             {/* Language Selector */}
-            <div className="relative group cursor-pointer h-full flex items-center">
-              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity uppercase px-2">{language}</span>
-              <div className="hidden group-hover:block absolute top-full right-0 pt-2 bg-transparent min-w-[60px] z-[60]">
-                <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 rounded-sm">
-                  {['EN', 'ID'].map(lang => (
-                    <div
-                      key={lang}
-                      onClick={() => setLanguage(lang)}
-                      className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${lang === language ? 'text-red-600' : ''}`}
-                    >
-                      {lang}
-                    </div>
-                  ))}
-                </div>
+            <div className="relative dropdown-container h-full flex items-center">
+              <div
+                onClick={() => toggleDropdown('lang')}
+                className="cursor-pointer flex items-center h-full hover:opacity-70 transition-opacity"
+              >
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase px-2 select-none">{language}</span>
               </div>
+
+              {activeDropdown === 'lang' && (
+                <div className="absolute top-full right-0 pt-2 bg-transparent min-w-[60px] z-[60]">
+                  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 rounded-sm">
+                    {['EN', 'ID'].map(lang => (
+                      <div
+                        key={lang}
+                        onClick={() => {
+                          setLanguage(lang);
+                          setActiveDropdown(null);
+                        }}
+                        className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${lang === language ? 'text-red-600' : ''}`}
+                      >
+                        {lang}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Currency Selector */}
-            <div className="relative group cursor-pointer h-full flex items-center">
-              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity px-2">{currency.code}</span>
-              <div className="hidden group-hover:block absolute top-full right-0 pt-2 bg-transparent min-w-[60px] z-[60]">
-                <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 rounded-sm">
-                  {CURRENCY_OPTIONS.map(opt => (
-                    <div
-                      key={opt.code}
-                      onClick={() => setCurrency(opt)}
-                      className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${opt.code === currency.code ? 'text-red-600' : ''}`}
-                    >
-                      {opt.code}
-                    </div>
-                  ))}
-                </div>
+            <div className="relative dropdown-container h-full flex items-center">
+              <div
+                onClick={() => toggleDropdown('currency')}
+                className="cursor-pointer flex items-center h-full hover:opacity-70 transition-opacity"
+              >
+                <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase px-2 select-none">{currency.code}</span>
               </div>
+
+              {activeDropdown === 'currency' && (
+                <div className="absolute top-full right-0 pt-2 bg-transparent min-w-[60px] z-[60]">
+                  <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 rounded-sm">
+                    {CURRENCY_OPTIONS.map(opt => (
+                      <div
+                        key={opt.code}
+                        onClick={() => {
+                          setCurrency(opt);
+                          setActiveDropdown(null);
+                        }}
+                        className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${opt.code === currency.code ? 'text-red-600' : ''}`}
+                      >
+                        {opt.code}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Theme Toggle */}
