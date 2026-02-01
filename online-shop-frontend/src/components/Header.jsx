@@ -21,6 +21,8 @@ const Header = ({ onCartClick }) => {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const [isScrolled, setIsScrolled] = useState(false);
+
   useEffect(() => {
     fetch(API_URL)
       .then((res) => res.json())
@@ -56,10 +58,19 @@ const Header = ({ onCartClick }) => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // Detect scroll to toggle logo/text
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-md`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-md transition-all duration-300`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-[88px]">
         {/* Mobile Hamburger Button */}
         <button
@@ -76,24 +87,40 @@ const Header = ({ onCartClick }) => {
           </svg>
         </button>
 
-        {/* Logo Section */}
-        <div className="flex-shrink-0 flex items-center justify-center md:justify-start flex-1 md:flex-none">
-          {brand.logo && (
-            <Link to="/" className="flex items-center h-full no-underline">
+        {/* Logo Section (Dynamic on Scroll) */}
+        <div className="flex-shrink-0 flex items-center justify-center md:justify-start flex-1 md:flex-none transition-all duration-500">
+          <Link to="/" className="flex items-center h-full no-underline justify-center md:justify-start w-full md:w-auto">
+            {/* Tampilkan Logo Gambar HANYA jika TIDAK di-scroll (atau di desktop selalu ada text di sampingnya) 
+                User request: Awal masuk logo, scroll bawah tulisan distrapness. */}
+            <div className={`transition-all duration-500 ease-in-out transform ${isScrolled ? 'opacity-0 scale-50 w-0 hidden' : 'opacity-100 scale-100 w-auto flex'}`}>
               <img
                 src={logoUrl}
                 alt="Logo"
                 className="h-12 md:h-20 w-auto object-contain"
               />
-              <span className="hidden md:inline-block text-black dark:text-white font-extrabold text-2xl tracking-tight uppercase leading-none" style={{ marginLeft: '-15px' }}>
+            </div>
+
+            {/* Tampilkan Text "DISTRAPNESS" HANYA jika di-scroll */}
+            <div className={`transition-all duration-500 ease-in-out ${isScrolled ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90 w-0 hidden'}`}>
+              <span className="text-black dark:text-white font-[900] text-3xl md:text-4xl tracking-tighter uppercase font-serif" style={{ fontFamily: 'Times New Roman, serif' }}>
                 DISTRAPNESS
               </span>
-            </Link>
-          )}
+            </div>
+
+            {/* Desktop: Keep original behavior? Or applies to desktop too? User showed mobile screenshot. 
+                Let's make text visible on Desktop alongside logo usually, but here we follow the scroll logic for the center element.
+                Actually, on desktop the logo is usually on the left.
+                Let's apply this dynamic effect mainly for Mobile centered layout, but works for desktop if flex is handled right.
+            */}
+            <span className="hidden md:inline-block text-black dark:text-white font-extrabold text-2xl tracking-tight uppercase leading-none ml-3" style={{ opacity: isScrolled ? 0 : 1, transition: 'opacity 0.3s' }}>
+              {!isScrolled && "DISTRAPNESS"}
+            </span>
+          </Link>
         </div>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex flex-1 justify-center">
+
           <nav className="flex items-center gap-6">
             <Link to="/" className={`hover:text-blue-600 transition ${location.pathname === "/" ? "font-bold text-blue-600" : ""}`}>Home</Link>
             <Link to="/shop" className={`hover:text-blue-600 transition ${location.pathname.startsWith("/shop") ? "font-bold text-blue-600" : ""}`}>Shop</Link>
