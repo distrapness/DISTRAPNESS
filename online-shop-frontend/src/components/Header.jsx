@@ -11,12 +11,8 @@ const API_URL = `${config.API_URL}/api/products`;
 const BRAND_API_URL = `${config.API_URL}/api/brand`;
 
 const Header = ({ onCartClick }) => {
-  const { cart } = useCart();
-  const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
-  const location = useLocation();
-  const [products, setProducts] = useState([]);
   const [brand, setBrand] = useState({ brandName: "Online Shop", logo: "", logoWhite: "" });
-  const { currency, setCurrency, dark, setDark, language, setLanguage } = useCurrency();
+  const { currency, setCurrency, dark, setDark, language, setLanguage, t } = useCurrency();
   const { isLoggedIn, userEmail, logout } = useAuth();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -70,7 +66,7 @@ const Header = ({ onCartClick }) => {
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
-    <header className={`sticky top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-sm transition-all duration-300 h-[60px] md:h-[88px]`}>
+    <header className={`sticky top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300 h-[60px] md:h-[88px]`}>
       <div className="max-w-[1600px] mx-auto flex items-center h-full px-6 md:px-12">
 
         {/* Mobile Left: Hamburger */}
@@ -108,11 +104,11 @@ const Header = ({ onCartClick }) => {
 
         {/* NAVIGATION (Left Aligned next to Logo) */}
         <div className="hidden md:flex ml-12 gap-8 items-center">
-          <Link to="/" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Home</Link>
-          <Link to="/shop" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname.startsWith("/shop") ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Shop</Link>
-          <Link to="/contact" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Contact</Link>
-          <Link to="/store" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Store</Link>
-          <Link to="/about" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>About</Link>
+          <Link to="/" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.home')}</Link>
+          <Link to="/shop" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname.startsWith("/shop") ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.shop')}</Link>
+          <Link to="/contact" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.contact')}</Link>
+          <Link to="/store" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.store')}</Link>
+          <Link to="/about" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.about')}</Link>
         </div>
 
         {/* SPACER for Right Alignment */}
@@ -124,34 +120,38 @@ const Header = ({ onCartClick }) => {
           {/* Desktop Controls: Language | Currency | Theme */}
           <div className="hidden md:flex items-center gap-4 mr-2 border-r border-gray-200 dark:border-gray-700 pr-6 h-6">
             {/* Language Selector */}
-            <div className="relative group cursor-pointer">
-              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity uppercase">{language}</span>
-              <div className="hidden group-hover:block absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 min-w-[60px] z-[60] rounded-sm">
-                {['EN', 'ID'].map(lang => (
-                  <div
-                    key={lang}
-                    onClick={() => setLanguage(lang)}
-                    className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${lang === language ? 'text-red-600' : ''}`}
-                  >
-                    {lang}
-                  </div>
-                ))}
+            <div className="relative group cursor-pointer h-full flex items-center">
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity uppercase px-2">{language}</span>
+              <div className="hidden group-hover:block absolute top-full right-0 pt-2 bg-transparent min-w-[60px] z-[60]">
+                <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 rounded-sm">
+                  {['EN', 'ID'].map(lang => (
+                    <div
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${lang === language ? 'text-red-600' : ''}`}
+                    >
+                      {lang}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Currency Selector */}
-            <div className="relative group cursor-pointer">
-              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity">{currency.code}</span>
-              <div className="hidden group-hover:block absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 min-w-[60px] z-[60] rounded-sm">
-                {CURRENCY_OPTIONS.map(opt => (
-                  <div
-                    key={opt.code}
-                    onClick={() => setCurrency(opt)}
-                    className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${opt.code === currency.code ? 'text-red-600' : ''}`}
-                  >
-                    {opt.code}
-                  </div>
-                ))}
+            <div className="relative group cursor-pointer h-full flex items-center">
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity px-2">{currency.code}</span>
+              <div className="hidden group-hover:block absolute top-full right-0 pt-2 bg-transparent min-w-[60px] z-[60]">
+                <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 rounded-sm">
+                  {CURRENCY_OPTIONS.map(opt => (
+                    <div
+                      key={opt.code}
+                      onClick={() => setCurrency(opt)}
+                      className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${opt.code === currency.code ? 'text-red-600' : ''}`}
+                    >
+                      {opt.code}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 

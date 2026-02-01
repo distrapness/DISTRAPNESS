@@ -16,7 +16,7 @@ const HomePage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currency } = useCurrency();
+  const { currency, t } = useCurrency();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,14 +59,14 @@ const HomePage = () => {
       <CategoryGrid />
 
       {/* New Arrivals Section */}
-      <section className="py-12 bg-white dark:bg-gray-900">
+      <section className="py-12 bg-white dark:bg-gray-900 transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-end mb-10">
             <h3 className="text-4xl md:text-5xl font-[900] uppercase tracking-tighter leading-none text-gray-900 dark:text-white font-sans">
-              New <br className="md:hidden" /> Arrivals
+              {t('home.newArrivals')}
             </h3>
             <Link to="/shop" className="text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white border-b-2 border-black dark:border-white pb-1 hover:opacity-70 transition-opacity">
-              View All
+              {t('home.viewAll')}
             </Link>
           </div>
 
