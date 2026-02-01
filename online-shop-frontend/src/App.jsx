@@ -30,7 +30,9 @@ import './App.css';
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import HowToOrder from "./pages/HowToOrder.jsx";
 import AdminOrderDashboard from "./pages/AdminOrderDashboard";
-import AdminChat from "./pages/AdminChat"; // tambahkan import AdminChat
+import AdminChat from "./pages/AdminChat";
+import MobileBottomNav from './components/MobileBottomNav.jsx';
+import CartPage from './pages/CartPage.jsx';
 
 function App() {
   const [cartOpen, setCartOpen] = useState(false);
@@ -62,11 +64,13 @@ function App() {
           <AuthProvider>
             <div className="min-h-screen transition-colors duration-700 bg-white dark:bg-gray-900">
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-[900ms] ease-in-out">
+                {/* Header disembunyikan jika di Cart Page agar clean? Atau tetap ada? Referensi: Cart Page usually clean header. */}
+                {/* Tapi untuk sekarang biarkan Header ada, cuma cart drawer di trigger manual */}
                 <Header onCartClick={() => setCartOpen(true)} />
                 <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
                 <Toast show={toast.show} message={toast.message} />
                 <ChatWidget />
-                <div className="pt-20">
+                <div className="pt-20 pb-20 md:pb-0"> {/* Add padding bottom for mobile nav */}
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
@@ -74,6 +78,7 @@ function App() {
                     <Route path="/" element={<HomePage onAddToCart={handleAddToCart} />} />
                     <Route path="/shop" element={<ShopPage onAddToCart={handleAddToCart} />} />
                     <Route path="/shop/:id" element={<ProductDetail onAddToCart={handleAddToCart} />} />
+                    <Route path="/cart" element={<CartPage />} />
                     <Route path="/order-status" element={<OrderStatus />} />
                     <Route path="/order-tracking" element={<OrderTracking />} />
                     <Route path="/payment" element={<PaymentDashboard />} />
@@ -86,11 +91,12 @@ function App() {
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/admin" element={<AdminDashboard />} />
                     <Route path="/admin/orders" element={<AdminOrderDashboard />} />
-                    <Route path="/admin-chat" element={<AdminChat />} /> // tambahkan route untuk '/admin-chat'
+                    <Route path="/admin-chat" element={<AdminChat />} />
                     <Route path="/banner-admin" element={<BannerAdmin />} />
                     <Route path="/how-to-order" element={<HowToOrder />} />
                   </Routes>
                 </div>
+                <MobileBottomNav />
               </div>
             </div>
           </AuthProvider>

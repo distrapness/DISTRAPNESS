@@ -70,125 +70,108 @@ const Header = ({ onCartClick }) => {
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-md transition-all duration-300`}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-[88px]">
-        {/* Mobile Hamburger Button */}
+    <header className={`fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-sm transition-all duration-300 h-[60px] md:h-[88px]`}>
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-full">
+
+        {/* Mobile Left: Hamburger (Hidden if Bottom Nav is used?) Actually Bottom Nav replaces this need? 
+            But let's keep it for "About" and other links not in Bottom Nav.
+        */}
         <button
           className="md:hidden p-2 -ml-2 text-gray-800 dark:text-white focus:outline-none"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle Menu"
         >
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {mobileMenuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
 
-        {/* Logo Section (Dynamic on Scroll) */}
-        <div className="flex-shrink-0 flex items-center justify-center md:justify-start flex-1 md:flex-none transition-all duration-500">
-          <Link to="/" className="flex items-center h-full no-underline justify-center md:justify-start w-full md:w-auto">
-            {/* Tampilkan Logo Gambar HANYA jika TIDAK di-scroll (atau di desktop selalu ada text di sampingnya) 
-                User request: Awal masuk logo, scroll bawah tulisan distrapness. */}
-            <div className={`transition-all duration-500 ease-in-out transform ${isScrolled ? 'opacity-0 scale-50 w-0 hidden' : 'opacity-100 scale-100 w-auto flex'}`}>
-              <img
-                src={logoUrl}
-                alt="Logo"
-                className="h-12 md:h-20 w-auto object-contain"
-              />
-            </div>
+        {/* Logo Section */}
+        <div className="flex-1 flex justify-center md:justify-start">
+          <Link to="/" className="flex items-center">
+            {/* Mobile: Red Logo Text always visible */}
+            <span className="md:hidden text-[#FF0000] font-[900] text-xl tracking-tighter uppercase font-sans">
+              DISTRAPNESS
+            </span>
 
-            {/* Tampilkan Text "DISTRAPNESS" HANYA jika di-scroll */}
-            <div className={`transition-all duration-500 ease-in-out ${isScrolled ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90 w-0 hidden'}`}>
-              <span className="text-black dark:text-white font-[900] text-3xl md:text-4xl tracking-tighter uppercase font-serif" style={{ fontFamily: 'Times New Roman, serif' }}>
-                DISTRAPNESS
+            {/* Desktop: Logic from before */}
+            <div className="hidden md:flex items-center relative">
+              <div className={`transition-all duration-500 ease-in-out transform ${isScrolled ? 'opacity-0 scale-50 w-0 hidden' : 'opacity-100 scale-100 w-auto flex'}`}>
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="h-12 md:h-20 w-auto object-contain"
+                />
+              </div>
+              <div className={`transition-all duration-500 ease-in-out ${isScrolled ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90 w-0 hidden'}`}>
+                <span className="text-black dark:text-white font-[900] text-3xl md:text-4xl tracking-tighter uppercase font-serif" style={{ fontFamily: 'Times New Roman, serif' }}>
+                  DISTRAPNESS
+                </span>
+              </div>
+              <span className="hidden md:inline-block text-black dark:text-white font-extrabold text-2xl tracking-tight uppercase leading-none ml-3" style={{ opacity: isScrolled ? 0 : 1, transition: 'opacity 0.3s' }}>
+                {!isScrolled && "DISTRAPNESS"}
               </span>
             </div>
-
-            {/* Desktop: Keep original behavior? Or applies to desktop too? User showed mobile screenshot. 
-                Let's make text visible on Desktop alongside logo usually, but here we follow the scroll logic for the center element.
-                Actually, on desktop the logo is usually on the left.
-                Let's apply this dynamic effect mainly for Mobile centered layout, but works for desktop if flex is handled right.
-            */}
-            <span className="hidden md:inline-block text-black dark:text-white font-extrabold text-2xl tracking-tight uppercase leading-none ml-3" style={{ opacity: isScrolled ? 0 : 1, transition: 'opacity 0.3s' }}>
-              {!isScrolled && "DISTRAPNESS"}
-            </span>
           </Link>
         </div>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex flex-1 justify-center">
-
-          <nav className="flex items-center gap-6">
-            <Link to="/" className={`hover:text-blue-600 transition ${location.pathname === "/" ? "font-bold text-blue-600" : ""}`}>Home</Link>
-            <Link to="/shop" className={`hover:text-blue-600 transition ${location.pathname.startsWith("/shop") ? "font-bold text-blue-600" : ""}`}>Shop</Link>
-            <Link to="/contact" className={`hover:text-blue-600 transition ${location.pathname === "/contact" ? "font-bold text-blue-600" : ""}`}>Contact</Link>
-            <Link to="/store" className={`hover:text-blue-600 transition ${location.pathname === "/store" ? "font-bold text-blue-600" : ""}`}>Store</Link>
-            <Link to="/about" className={`hover:text-blue-600 transition ${location.pathname === "/about" ? "font-bold text-blue-600" : ""}`}>About</Link>
+          <nav className="flex items-center gap-8">
+            <Link to="/" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Home</Link>
+            <Link to="/shop" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname.startsWith("/shop") ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Shop</Link>
+            <Link to="/contact" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Contact</Link>
+            <Link to="/store" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>Store</Link>
+            <Link to="/about" className={`text-sm font-bold uppercase tracking-widest hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-black dark:text-white"}`}>About</Link>
           </nav>
         </div>
 
-        {/* Right Controls */}
-        <div className="flex gap-3 md:gap-4 items-center">
-          {/* Dark Mode (Hidden on extremely small screens if needed, but better kept) */}
-          <button
-            onClick={() => setDark((d) => !d)}
-            className="hidden md:block px-3 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow hover:bg-gray-300 dark:hover:bg-gray-600 font-bold text-sm"
-          >
-            {dark ? "☀️" : "🌙"}
+        {/* Right Icons */}
+        <div className="flex items-center gap-4 md:gap-6 justify-end flex-initial w-10 md:w-auto">
+          {/* Search Mobile */}
+          <button className="md:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </button>
 
           {/* Cart Icon */}
-          <button
-            onClick={onCartClick}
-            className="relative focus:outline-none ml-2 p-1"
-            aria-label="Keranjang"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-7 h-7 md:w-8 md:h-8 text-gray-700 dark:text-gray-100">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m13-9l2 9m-5-9V6a2 2 0 10-4 0v3" />
+          {/* On Mobile, maybe we use Bottom Nav for Cart? Or Header? Reference shows "Bag" icon in Header on Mobile usually, but let's see. 
+              The user implementation plan says "Add to Bag" sticky button. 
+              Let's keep Cart in Header for consistency.
+          */}
+          <button onClick={onCartClick} className="relative group">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-6 md:w-6 text-black dark:text-white group-hover:text-[#FF0000] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             {totalQty > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-[10px] md:text-xs font-bold min-w-[18px] text-center">
+              <span className="absolute -top-1 -right-1 bg-[#FF0000] text-white text-[10px] font-bold h-4 w-4 md:h-5 md:w-5 flex items-center justify-center rounded-full">
                 {totalQty}
               </span>
             )}
           </button>
 
-          {/* Account Menu (Desktop & Mobile) */}
-          <div className="relative account-menu-parent text-gray-800 dark:text-white">
-            <button
-              onClick={() => setShowAccountMenu(v => !v)}
-              className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-200 hover:bg-blue-600 transition"
-              aria-label="Login akun"
-            >
-              {isLoggedIn && userEmail ? (
-                <span className="w-full h-full flex items-center justify-center rounded-full bg-blue-600 text-white font-bold text-base md:text-lg uppercase">
-                  {userEmail.charAt(0)}
-                </span>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 md:w-6 md:h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 21v-2a4 4 0 00-8 0v2M12 11a4 4 0 100-8 4 4 0 000 8z" />
-                </svg>
-              )}
+          {/* Profile Desktop */}
+          <div className="hidden md:block relative account-menu-parent">
+            <button onClick={() => setShowAccountMenu(!showAccountMenu)} className="flex items-center gap-2 focus:outline-none group">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-black dark:text-white group-hover:text-[#FF0000] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
             </button>
             {showAccountMenu && (
-              <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-2xl py-2 z-50 border border-gray-100 dark:border-gray-700 animate-fadein ring-1 ring-black ring-opacity-5">
-                {!isLoggedIn ? (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
+                {isLoggedIn ? (
                   <>
-                    <Link to="/login" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">Login</Link>
-                    <Link to="/register" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">Register</Link>
+                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 font-bold truncate">
+                      {userEmail}
+                    </div>
+                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Profile</Link>
+                    <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">Sign out</button>
                   </>
                 ) : (
                   <>
-                    <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b dark:border-gray-700 mb-1">
-                      Signed in as <br /> <strong className="text-gray-900 dark:text-white truncate block">{userEmail}</strong>
-                    </div>
-                    <Link to="/profile" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">My Profile</Link>
-                    <Link to="/orders" className="block px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">Order History</Link>
-                    <div className="border-t dark:border-gray-700 my-1"></div>
-                    <button onClick={() => { logout(); window.location.href = "/login"; }} className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium">Sign out</button>
+                    <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Sign in</Link>
+                    <Link to="/register" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Register</Link>
                   </>
                 )}
               </div>
@@ -197,23 +180,16 @@ const Header = ({ onCartClick }) => {
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown (Full Width/Height animation) */}
+      {/* Mobile Menu Dropdown */}
       <div className={`md:hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out border-t border-gray-200 dark:border-gray-700 ${mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <nav className="flex flex-col p-6 space-y-6">
-          <Link to="/" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white hover:text-blue-600">Home</Link>
-          <Link to="/shop" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white hover:text-blue-600">Shop</Link>
-          <Link to="/store" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white hover:text-blue-600">Store</Link>
-          <Link to="/about" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white hover:text-blue-600">About</Link>
-          <Link to="/contact" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white hover:text-blue-600">Contact</Link>
-
-          <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-            <button
-              onClick={() => setDark((d) => !d)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 font-bold text-gray-800 dark:text-white"
-            >
-              <span>Appearance</span>
-              <span>{dark ? "🌙 Dark Mode" : "☀️ Light Mode"}</span>
-            </button>
+          <Link to="/" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Home</Link>
+          <Link to="/shop" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Shop</Link>
+          <Link to="/store" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Store</Link>
+          <Link to="/about" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">About</Link>
+          <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Contact</Link>
+          <div className="pt-4">
+            <button onClick={() => setDark(!dark)} className="text-sm font-bold bg-gray-100 px-4 py-2 rounded">{dark ? "Light Mode" : "Dark Mode"}</button>
           </div>
         </nav>
       </div>

@@ -65,7 +65,7 @@ const ProductDetail = () => {
 
             {/* Header */}
             <div>
-              <div className="bg-black text-white text-[10px] font-bold px-2 py-1 inline-block uppercase tracking-widest mb-4">Best Seller</div>
+              <div className="bg-[#FF0000] text-white text-[10px] font-bold px-2 py-1 inline-block uppercase tracking-widest mb-4">Best Seller</div>
               <h1 className="text-4xl font-[900] uppercase tracking-tighter mb-2">{product.name}</h1>
               <div className="text-lg text-gray-500 font-light mb-4">Oversized Premium Cotton Shirt</div>
               <div className="flex items-center gap-4">
@@ -111,13 +111,29 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Add to Cart */}
+            {/* Add to Cart Desktop */}
             <button
               onClick={() => addToCart(product, qty)}
-              className="w-full bg-gray-900 dark:bg-white text-white dark:text-black py-4 font-bold uppercase tracking-widest hover:bg-black dark:hover:bg-gray-200 transition-colors"
+              className="hidden md:block w-full bg-black dark:bg-white text-white dark:text-black py-4 font-bold uppercase tracking-widest hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
             >
-              Add to Cart — Rp {product.price.toLocaleString('id-ID')}
+              Add to Bag — Rp {product.price.toLocaleString('id-ID')}
             </button>
+
+            {/* Mobile Sticky Add to Bag Bar */}
+            <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-40 pb-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+              <div className="flex gap-4 items-center">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Total</span>
+                  <span className="text-lg font-[900] text-[#FF0000]">Rp {product.price.toLocaleString('id-ID')}</span>
+                </div>
+                <button
+                  onClick={() => addToCart(product, qty)}
+                  className="flex-1 bg-[#FF0000] text-white py-3 rounded font-bold uppercase tracking-widest text-sm shadow-md active:scale-95 transition-transform"
+                >
+                  Add to Bag
+                </button>
+              </div>
+            </div>
 
             {/* Accordions */}
             <div className="border-t border-gray-200 dark:border-gray-700 mt-4">
