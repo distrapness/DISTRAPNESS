@@ -14,24 +14,24 @@ const BannerCarousel = () => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
-  // Auto-change every 5 seconds
+  // Auto-change every 3 seconds
   useEffect(() => {
     if (banners.length < 2) return;
     const interval = setInterval(() => {
       next();
-    }, 5000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [banners.length]);
 
-  // Swipe Handlers
-  const onTouchStart = (e) => {
+  // Swipe Handlers (Touch & Mouse)
+  const onStart = (clientX) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStart(clientX);
   };
 
-  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+  const onMove = (clientX) => setTouchEnd(clientX);
 
-  const onTouchEnd = () => {
+  const onEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > 50;
@@ -39,6 +39,23 @@ const BannerCarousel = () => {
 
     if (isLeftSwipe) next();
     if (isRightSwipe) prev();
+
+    // Reset
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Mouse specific wrappers
+  const onMouseDown = (e) => {
+    e.preventDefault(); // Prevent text selection
+    onStart(e.clientX);
+  };
+  const onMouseMove = (e) => {
+    if (touchStart) onMove(e.clientX);
+  };
+  const onMouseUp = () => onEnd();
+  const onMouseLeave = () => {
+    if (touchStart) onEnd();
   };
 
   useEffect(() => {
@@ -71,30 +88,37 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full h-[500px] md:h-auto md:aspect-[21/9] overflow-hidden flex items-center justify-center bg-gray-900 group"
+      className="relative w-full h-[500px] md:h-auto md:aspect-[21/9] overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing"
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+      onMouseLeave={() => { setHover(false); onMouseLeave(); }}
+
+      // Touch Events
+      onTouchStart={(e) => onStart(e.targetTouches[0].clientX)}
+      onTouchMove={(e) => onMove(e.targetTouches[0].clientX)}
+      onTouchEnd={onEnd}
+
+      // Mouse Events
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
     >
       <img
         src={banner.image}
         alt={banner.title || `Banner ${current + 1}`}
-        className="object-cover w-full h-full absolute inset-0 opacity-80"
+        className="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none select-none"
       />
 
       {/* Overlay Gradient for better text readability */}
-      <div className="absolute inset-0 bg-black/30 md:bg-black/20" />
+      <div className="absolute inset-0 bg-black/30 md:bg-black/20 pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col items-start justify-end w-full h-full text-left px-4 md:px-12 pb-12 md:pb-24 max-w-[1600px] mx-auto">
+      <div className="relative z-10 flex flex-col items-start justify-end w-full h-full text-left px-4 md:px-12 pb-12 md:pb-24 max-w-[1600px] mx-auto pointer-events-none">
         {banner.title && (
           <h2 className="text-4xl md:text-6xl font-[900] text-white uppercase tracking-tighter leading-none mb-2 font-sans drop-shadow-md">
             {banner.title}
           </h2>
         )}
         {banner.subtitle && (
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 pointer-events-auto">
             <p className="text-lg md:text-xl text-gray-200 tracking-widest font-light uppercase">
               {banner.subtitle}
             </p>
