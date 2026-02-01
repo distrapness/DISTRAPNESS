@@ -62,8 +62,10 @@ const HomePage = () => {
       <section className="py-12 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-end mb-10">
-            <h3 className="text-xl font-bold uppercase tracking-widest text-gray-900 dark:text-white">New Arrivals</h3>
-            <Link to="/shop" className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black dark:hover:text-white underline-offset-4 hover:underline transition-all">
+            <h3 className="text-4xl md:text-5xl font-[900] uppercase tracking-tighter leading-none text-gray-900 dark:text-white font-sans">
+              New <br className="md:hidden" /> Arrivals
+            </h3>
+            <Link to="/shop" className="text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white border-b-2 border-black dark:border-white pb-1 hover:opacity-70 transition-opacity">
               View All
             </Link>
           </div>
@@ -82,11 +84,11 @@ const HomePage = () => {
               products.slice(0, 4).map((product) => (
                 <div
                   key={product.id || product._id}
-                  className="flex flex-col items-center group cursor-pointer"
+                  className="flex flex-col group cursor-pointer"
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
                   <div
-                    className="w-full aspect-[3/4] bg-gray-50 dark:bg-gray-800 flex items-center justify-center overflow-hidden mb-4 relative"
+                    className="w-full aspect-[3/4] flex items-center justify-center overflow-hidden mb-4 relative bg-gray-100 dark:bg-gray-800"
                     onMouseEnter={() => {
                       if (Array.isArray(product.images) && product.images.length > 1) {
                         handleProductImageHover(product.id, product.images);
@@ -106,10 +108,9 @@ const HomePage = () => {
                     />
                     {/* Badge if needed, e.g. New or Sale */}
                   </div>
-                  <div className="text-center w-full px-1">
-                    <div className="text-sm font-bold text-gray-900 dark:text-white mb-1 uppercase tracking-wider">{product.name}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Oversized Black Shirt</div>
-                    <div className="font-bold text-gray-900 dark:text-white text-sm">{convertPrice(product.price)}</div>
+                  <div className="flex flex-col gap-1">
+                    <div className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">{product.name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
                   </div>
                 </div>
               ))

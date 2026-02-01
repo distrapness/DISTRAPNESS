@@ -16,7 +16,7 @@ const Footer = () => (
 
       {/* Column 1: About */}
       <div className="flex flex-col gap-4">
-        <h4 className="font-bold uppercase tracking-widest text-xs mb-2">About Distrapness</h4>
+        <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">About</h4>
         <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
           <Link to="/about" className="hover:text-black dark:hover:text-white transition-colors">Our Story</Link>
           <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Sustainability</a>
@@ -27,7 +27,7 @@ const Footer = () => (
 
       {/* Column 2: Customer Service */}
       <div className="flex flex-col gap-4">
-        <h4 className="font-bold uppercase tracking-widest text-xs mb-2">Customer Service</h4>
+        <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">Customer Service</h4>
         <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
           <Link to="/contact" className="hover:text-black dark:hover:text-white transition-colors">Contact Us</Link>
           <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Shipping & Returns</a>
@@ -38,7 +38,7 @@ const Footer = () => (
 
       {/* Column 3: Legal */}
       <div className="flex flex-col gap-4">
-        <h4 className="font-bold uppercase tracking-widest text-xs mb-2">Legal</h4>
+        <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">Legal</h4>
         <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
           <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Terms of Service</a>
           <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Privacy Policy</a>
@@ -48,7 +48,7 @@ const Footer = () => (
 
       {/* Column 4: Connect */}
       <div className="flex flex-col gap-4">
-        <h4 className="font-bold uppercase tracking-widest text-xs mb-2">Connect</h4>
+        <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">Connect</h4>
         <div className="flex gap-4">
           {socials.map(s => (
             <a

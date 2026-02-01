@@ -11,7 +11,9 @@ const CategoryGrid = () => {
     return (
         <section className="py-20 bg-white dark:bg-gray-900">
             <div className="max-w-7xl mx-auto px-4">
-                <h3 className="text-xl font-bold uppercase tracking-widest mb-10 text-gray-900 dark:text-white">Shop By Category</h3>
+                <h3 className="text-4xl md:text-5xl font-[900] uppercase tracking-tighter leading-none mb-10 text-gray-900 dark:text-white font-sans text-center md:text-left">
+                    Shop By Category
+                </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {categories.map((cat, idx) => (
