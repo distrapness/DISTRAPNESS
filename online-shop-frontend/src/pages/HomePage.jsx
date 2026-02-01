@@ -55,10 +55,10 @@ const HomePage = () => {
       <BannerCarousel />
       <div className="w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-700 pb-16">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mt-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12 md:gap-x-8 md:gap-y-16 mt-12">
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-72 bg-[#fff] dark:bg-gray-800 animate-pulse rounded-none" />
+                <div key={i} className="h-[280px] md:h-[340px] bg-[#fff] dark:bg-gray-800 animate-pulse rounded-none" />
               ))
             ) : error ? (
               <div className="col-span-full text-red-500">{error}</div>
@@ -72,8 +72,8 @@ const HomePage = () => {
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
                   <div
-                    className="w-full aspect-[3/4] bg-transparent dark:bg-transparent flex items-center justify-center overflow-hidden"
-                    style={{ minHeight: '256px', maxHeight: '256px', position: 'relative' }}
+                    className="w-full aspect-[3/4] bg-transparent dark:bg-transparent flex items-center justify-center overflow-hidden mb-4"
+                    style={{ position: 'relative' }}
                     onMouseEnter={() => {
                       if (Array.isArray(product.images) && product.images.length > 1) {
                         handleProductImageHover(product.id, product.images);
@@ -88,15 +88,15 @@ const HomePage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-contain w-full h-full max-h-64 transition-all duration-500 ease-in-out bg-transparent ${activeImageIndex[product.id] === 1 ? 'opacity-100 scale-105' : 'opacity-100 scale-100'}`}
+                      className={`object-contain w-full h-full transition-all duration-500 ease-in-out bg-transparent ${activeImageIndex[product.id] === 1 ? 'opacity-100 scale-105' : 'opacity-100 scale-100'}`}
                       style={{ position: 'absolute', top: 0, left: 0, transition: 'opacity 0.5s, transform 0.5s', zIndex: 1, cursor: Array.isArray(product.images) && product.images.length > 1 ? 'pointer' : 'default' }}
                       onError={e => { e.target.onerror = null; e.target.src = "/assets/placeholder-banner.jpg"; }}
                     />
                   </div>
-                  <div className="mt-4 text-center w-full">
-                    <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-0 leading-[1] truncate" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{product.name}</div>
-                    <div className="font-bold text-black dark:text-blue-300 text-base mb-0 leading-[1]" style={{ marginTop: 0, marginBottom: 0, lineHeight: 1, padding: 0 }}>{convertPrice(product.price)}</div>
-                    {product.stock === 0 && <span className="inline-block px-2 py-1 bg-black text-white text-xs rounded mt-1">OUT OF STOCK</span>}
+                  <div className="text-center w-full px-1">
+                    <div className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1 leading-tight truncate">{product.name}</div>
+                    <div className="font-bold text-black dark:text-blue-300 text-sm md:text-base leading-tight">{convertPrice(product.price)}</div>
+                    {product.stock === 0 && <span className="inline-block px-2 py-1 bg-black text-white text-[10px] rounded mt-2">OUT OF STOCK</span>}
                   </div>
                 </div>
               ))
