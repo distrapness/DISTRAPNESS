@@ -44,7 +44,7 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full h-[85vh] overflow-hidden flex items-center justify-center bg-gray-900"
+      className="relative w-full h-[500px] md:h-auto md:aspect-[21/9] overflow-hidden flex items-center justify-center bg-gray-900"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
