@@ -52,6 +52,21 @@ export const translations = {
             connect: "Connect",
             rights: "All Rights Reserved"
         }
+        productDetail: {
+            bestSeller: "Best Seller",
+            addToCart: "Add to Bag",
+            buyNow: "Buy Now",
+            materialCare: "Material & Care",
+            shippingReturns: "Shipping & Returns",
+            styleWith: "Style With",
+            viewCollection: "View Collection",
+            total: "Total",
+            color: "Color",
+            size: "Size",
+            sizeGuide: "Size Guide",
+            shippingNote: "Free shipping on orders over Rp 500.000. Returns accepted within 14 days of delivery.",
+            materialNote: "100% Heavyweight Cotton. Machine wash cold."
+        }
     },
     ID: {
         nav: {
@@ -105,6 +120,21 @@ export const translations = {
             cookie: "Kebijakan Cookie",
             connect: "Hubungi",
             rights: "Hak Cipta Dilindungi"
+        },
+        productDetail: {
+            bestSeller: "Terlaris",
+            addToCart: "Tambah Ke Keranjang",
+            buyNow: "Beli Sekarang",
+            materialCare: "Bahan & Perawatan",
+            shippingReturns: "Pengiriman & Pengembalian",
+            styleWith: "Gaya Dengan",
+            viewCollection: "Lihat Koleksi",
+            total: "Total",
+            color: "Warna",
+            size: "Ukuran",
+            sizeGuide: "Panduan Ukuran",
+            shippingNote: "Gratis ongkir untuk pesanan di atas Rp 500.000. Pengembalian diterima dalam 14 hari.",
+            materialNote: "100% Katun Berat. Cuci dengan air dingin."
         }
     }
 };
