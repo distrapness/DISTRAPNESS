@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useCurrency } from "../components/CurrencyContext";
 
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
@@ -6,6 +7,7 @@ import { getImageUrl } from "../utils/imageHelper";
 const API_URL = `${config.API_URL}/api/banners`;
 
 const BannerCarousel = () => {
+  const { t } = useCurrency();
   const [banners, setBanners] = useState([]);
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -127,7 +129,7 @@ const BannerCarousel = () => {
                 href={banner.link}
                 className="inline-block bg-white text-black font-bold text-xs md:text-sm px-6 py-3 uppercase tracking-widest hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
               >
-                Shop Now
+                {t('home.shopNow')}
               </a>
             )}
           </div>

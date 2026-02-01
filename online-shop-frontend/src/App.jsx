@@ -70,7 +70,7 @@ function App() {
                 <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
                 <Toast show={toast.show} message={toast.message} />
                 <ChatWidget />
-                <div className="pb-20 md:pb-0"> {/* Add padding bottom for mobile nav */}
+                <div className="pt-[60px] md:pt-[88px] pb-20 md:pb-0"> {/* Add padding top for fixed header and bottom for mobile nav */}
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />

@@ -66,7 +66,7 @@ const Header = ({ onCartClick }) => {
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
-    <header className={`sticky top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300 h-[60px] md:h-[88px]`}>
+    <header className={`fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300 h-[60px] md:h-[88px]`}>
       <div className="max-w-[1600px] mx-auto flex items-center h-full px-6 md:px-12">
 
         {/* Mobile Left: Hamburger */}

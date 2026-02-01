@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useCurrency } from './CurrencyContext';
 
 const PhilosophySection = () => {
+    const { t } = useCurrency();
     return (
         <section className="bg-white dark:bg-gray-900 py-20">
             <div className="max-w-7xl mx-auto px-4">
@@ -23,18 +25,18 @@ const PhilosophySection = () => {
 
                     {/* Right: Text Content */}
                     <div className="w-full md:w-1/2 text-left">
-                        <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-4">Our Philosophy</h4>
+                        <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-4">{t('home.philosophy')}</h4>
                         <h2 className="text-4xl md:text-6xl font-[900] text-black dark:text-white uppercase leading-[0.9] mb-8 tracking-tighter">
-                            Simply <br /> Better
+                            {t('home.simplyBetter')}
                         </h2>
                         <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8 max-w-md">
-                            Distrapness clothing is designed to make your everyday life better. Simple, high-quality, everyday clothing with a practical sense of beauty—ingenious in detail, thought through with life’s needs in mind, and always evolving.
+                            {t('home.philosophyText')}
                         </p>
                         <Link
                             to="/about"
                             className="inline-block border-b-2 border-black dark:border-white pb-1 text-black dark:text-white font-bold uppercase tracking-widest text-sm hover:opacity-70 transition-opacity"
                         >
-                            Read Our Story
+                            {t('home.readMore')}
                         </Link>
                     </div>
 
