@@ -80,8 +80,6 @@ const Footer = () => (
         &copy; 2026 Distrapness. All Rights Reserved.
       </div>
       <div className="flex gap-6">
-        <span>English</span>
-        <span>IDR</span>
       </div>
     </div>
   </footer>
