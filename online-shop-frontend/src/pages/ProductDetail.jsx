@@ -242,21 +242,36 @@ function RelatedProducts({ excludeId }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
       {products.map(prod => (
-        <Link to={`/shop/${prod.id}`} key={prod.id} className="group">
-          <div className="aspect-[3/4] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-4 rounded-sm">
+        <Link
+          to={`/shop/${prod.id}`}
+          key={prod.id}
+          className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
+        >
+          {/* Badge low stock if applicable (logic optional but good for consistency) */}
+          {prod.stock > 0 && prod.stock < 5 && (
+            <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
+              Low Stock
+            </div>
+          )}
+
+          <div
+            className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative"
+          >
             <img
               src={getImageUrl(prod.image || (prod.images && prod.images[0]))}
               alt={prod.name}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+              className="object-contain w-full h-full transition-transform duration-500 ease-in-out group-hover:scale-105"
               onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + prod.name; }}
             />
           </div>
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-wide">{prod.name}</h3>
-              <p className="text-xs text-gray-500 mt-1">Technical Shorts</p>
+
+          <div className="text-center w-full mt-auto">
+            <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider">
+              {prod.name}
             </div>
-            <span className="text-sm font-bold">Rp {prod.price.toLocaleString('id-ID')}</span>
+            <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">
+              Rp {prod.price.toLocaleString('id-ID')}
+            </div>
           </div>
         </Link>
       ))}

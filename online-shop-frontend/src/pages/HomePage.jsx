@@ -70,10 +70,10 @@ const HomePage = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-12 md:gap-x-8 md:gap-y-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-[280px] md:h-[400px] bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
               ))
             ) : error ? (
               <div className="col-span-full text-center text-red-500">{error}</div>
@@ -84,11 +84,18 @@ const HomePage = () => {
               products.slice(0, 4).map((product) => (
                 <div
                   key={product.id || product._id}
-                  className="flex flex-col group cursor-pointer"
+                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
+                  {/* Badge: Low Stock */}
+                  {product.stock > 0 && product.stock < 5 && (
+                    <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
+                      Low Stock
+                    </div>
+                  )}
+
                   <div
-                    className="w-full aspect-[3/4] flex items-center justify-center overflow-hidden mb-4 relative bg-gray-100 dark:bg-gray-800"
+                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative"
                     onMouseEnter={() => {
                       if (Array.isArray(product.images) && product.images.length > 1) {
                         handleProductImageHover(product.id, product.images);
@@ -103,14 +110,13 @@ const HomePage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-cover w-full h-full transition-all duration-700 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-110' : 'scale-100'}`}
+                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
                       onError={e => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
                     />
-                    {/* Badge if needed, e.g. New or Sale */}
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">{product.name}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
+                  <div className="text-center w-full mt-auto">
+                    <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider">{product.name}</div>
+                    <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
                   </div>
                 </div>
               ))
