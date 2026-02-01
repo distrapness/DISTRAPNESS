@@ -16,6 +16,7 @@ const Header = ({ onCartClick }) => {
   const { isLoggedIn, userEmail, logout } = useAuth();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Dropdown state: 'lang', 'currency', or null
   const [activeDropdown, setActiveDropdown] = useState(null);
