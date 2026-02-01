@@ -93,11 +93,11 @@ const Header = ({ onCartClick }) => {
             </span>
 
             {/* Desktop: Clean Static Logo + Text */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
               <img
                 src={logoUrl}
                 alt="Logo"
-                className="h-10 w-auto object-contain"
+                className="h-14 w-auto object-contain"
               />
               <span className="text-black dark:text-white font-[900] text-2xl tracking-tighter uppercase font-sans">
                 DISTRAPNESS
