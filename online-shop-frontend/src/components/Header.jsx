@@ -16,7 +16,7 @@ const Header = ({ onCartClick }) => {
   const location = useLocation();
   const [products, setProducts] = useState([]);
   const [brand, setBrand] = useState({ brandName: "Online Shop", logo: "", logoWhite: "" });
-  const { currency, setCurrency, dark, setDark } = useCurrency();
+  const { currency, setCurrency, dark, setDark, language, setLanguage } = useCurrency();
   const { isLoggedIn, userEmail, logout } = useAuth();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -120,6 +120,51 @@ const Header = ({ onCartClick }) => {
 
         {/* RIGHT ICONS */}
         <div className="flex items-center gap-5 justify-end flex-initial">
+
+          {/* Desktop Controls: Language | Currency | Theme */}
+          <div className="hidden md:flex items-center gap-4 mr-2 border-r border-gray-200 dark:border-gray-700 pr-6 h-6">
+            {/* Language Selector */}
+            <div className="relative group cursor-pointer">
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity uppercase">{language}</span>
+              <div className="hidden group-hover:block absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 min-w-[60px] z-[60] rounded-sm">
+                {['EN', 'ID'].map(lang => (
+                  <div
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${lang === language ? 'text-red-600' : ''}`}
+                  >
+                    {lang}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Currency Selector */}
+            <div className="relative group cursor-pointer">
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:opacity-70 transition-opacity">{currency.code}</span>
+              <div className="hidden group-hover:block absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-1 min-w-[60px] z-[60] rounded-sm">
+                {CURRENCY_OPTIONS.map(opt => (
+                  <div
+                    key={opt.code}
+                    onClick={() => setCurrency(opt)}
+                    className={`px-3 py-2 text-[10px] font-bold text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${opt.code === currency.code ? 'text-red-600' : ''}`}
+                  >
+                    {opt.code}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Theme Toggle */}
+            <button onClick={() => setDark(!dark)} className="hover:opacity-70 transition-opacity focus:outline-none transform active:scale-90 duration-200">
+              {dark ? (
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+              ) : (
+                <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+              )}
+            </button>
+          </div>
+
           {/* Search (Desktop) */}
           <button className="hidden md:block hover:text-[#FF0000] transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

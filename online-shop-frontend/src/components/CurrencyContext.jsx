@@ -10,8 +10,10 @@ export const CURRENCY_OPTIONS = [
 export const CurrencyProvider = ({ children }) => {
   const [currency, setCurrency] = useState(CURRENCY_OPTIONS[0]);
   const [dark, setDark] = useState(false);
+  const [language, setLanguage] = useState("EN"); // EN or ID
+
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, dark, setDark }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, dark, setDark, language, setLanguage }}>
       {children}
     </CurrencyContext.Provider>
   );

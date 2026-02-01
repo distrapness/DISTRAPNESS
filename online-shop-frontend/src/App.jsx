@@ -16,7 +16,6 @@ import ProductAdmin from './pages/ProductAdmin.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import BannerAdmin from './pages/BannerAdmin.jsx';
 import Header from './components/Header.jsx';
-import TopBar from './components/TopBar.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import { CartProvider } from './components/CartContext.jsx';
 import Toast from './components/Toast.jsx';
@@ -67,7 +66,6 @@ function App() {
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-[900ms] ease-in-out">
                 {/* Header disembunyikan jika di Cart Page agar clean? Atau tetap ada? Referensi: Cart Page usually clean header. */}
                 {/* Tapi untuk sekarang biarkan Header ada, cuma cart drawer di trigger manual */}
-                <TopBar />
                 <Header onCartClick={() => setCartOpen(true)} />
                 <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
                 <Toast show={toast.show} message={toast.message} />
