@@ -1,7 +1,9 @@
 const config = {
-  API_URL: process.env.NODE_ENV === 'production'
-    ? (process.env.REACT_APP_API_URL || "https://online-shop-beige-one.vercel.app")
-    : "http://localhost:5001", // Local dev default
+  // Gunakan backend Vercel untuk KEDUANYA (Local & Production) agar data selalu sinkron
+  API_URL: "https://online-shop-beige-one.vercel.app"
+
+  // Jika ingin balik ke local server, uncomment baris bawah:
+  // API_URL: process.env.NODE_ENV === 'production' ? "https://online-shop-beige-one.vercel.app" : "http://localhost:5001"
 };
 
 export default config;
