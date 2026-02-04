@@ -2,6 +2,22 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
+const safeJsonParse = (str, fallback) => {
+  try {
+    return str ? JSON.parse(str) : fallback;
+  } catch (e) {
+    return str ? [str] : fallback; // If str is a valid string but not JSON, maybe treat as single image? Or just fallback. 
+    // Actually for sizes, fallback is better. For images, single array.
+  }
+};
+// Safer version strictly for this file
+const parseImages = (str) => {
+  try { return str ? JSON.parse(str) : []; } catch (e) { return str ? [str] : []; }
+};
+const parseSizes = (str) => {
+  try { return str ? JSON.parse(str) : { S: 0, M: 0, L: 0, XL: 0 }; } catch (e) { return { S: 0, M: 0, L: 0, XL: 0 }; }
+};
+
 // GET /api/products
 router.get('/', (req, res) => {
   pool.query('SELECT * FROM products', (err, results) => {
@@ -11,8 +27,8 @@ router.get('/', (req, res) => {
       const { sku, category, weight, dimensions, ...rest } = product;
       return {
         ...rest,
-        images: product.images ? JSON.parse(product.images) : (product.image ? [product.image] : []),
-        sizes: product.sizes ? JSON.parse(product.sizes) : { S: 0, M: 0, L: 0, XL: 0 }
+        images: parseImages(product.images) || (product.image ? [product.image] : []),
+        sizes: parseSizes(product.sizes)
       };
     });
     res.json(products);
@@ -27,8 +43,8 @@ router.get('/:id', (req, res) => {
     if (!results || results.length === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
     const product = results[0];
     const { sku, category, weight, dimensions, ...rest } = product;
-    rest.images = product.images ? JSON.parse(product.images) : (product.image ? [product.image] : []);
-    rest.sizes = product.sizes ? JSON.parse(product.sizes) : { S: 0, M: 0, L: 0, XL: 0 };
+    rest.images = parseImages(product.images) || (product.image ? [product.image] : []);
+    rest.sizes = parseSizes(product.sizes);
     res.json(rest);
   });
 });

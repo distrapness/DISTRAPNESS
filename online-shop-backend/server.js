@@ -280,6 +280,15 @@ app.post('/api/login', (req, res) => {
 
 // ====== ADMIN ROUTES (PHASE 1 & 2) ======
 
+// Helper for safe JSON parsing
+const safeJsonParse = (str) => {
+  try {
+    return str ? JSON.parse(str) : [];
+  } catch (e) {
+    return str ? [str] : []; // Return as single item array if not JSON
+  }
+};
+
 // Dashboard Stats
 app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
   try {
@@ -290,11 +299,10 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
     // Low Stock ( < 10 )
     const [lowStock] = await pool.promise().query('SELECT id, name, stock, images FROM products WHERE stock < 10 LIMIT 3');
 
-    // Best Sellers (Mock logic for now, or complicated SQL. Let's return random products as "trending" for UI demo)
+    // Best Sellers (Mock logic for now, or complicated SQL)
     const [trending] = await pool.promise().query('SELECT id, name, price, images FROM products ORDER BY RAND() LIMIT 4');
 
     // Chart Data (Mock last 7 days)
-    // In real app: Group by date
     const chartData = [1200000, 2100000, 800000, 1600000, 2400000, 3200000, 1800000];
 
     res.json({
@@ -303,19 +311,19 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
       totalProducts: products[0].count,
       lowStock: lowStock.map(p => ({
         ...p,
-        images: p.images ? JSON.parse(p.images) : []
+        images: safeJsonParse(p.images)
       })),
       bestSellers: trending.map(p => ({
         ...p,
-        sales: Math.floor(Math.random() * 50) + 10, // Mock sales count
-        growth: Math.floor(Math.random() * 20), // Mock growth %
-        images: p.images ? JSON.parse(p.images) : []
+        sales: Math.floor(Math.random() * 50) + 10,
+        growth: Math.floor(Math.random() * 20),
+        images: safeJsonParse(p.images)
       })),
       chartData
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Stats error' });
+    console.error("Stats API Error:", err);
+    res.status(500).json({ error: 'Stats error: ' + err.message });
   }
 });
 
