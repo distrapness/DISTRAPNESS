@@ -6,6 +6,7 @@ import Footer from "../components/Footer.jsx";
 import config from "../config";
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { useWishlist } from "../components/WishlistContext.jsx";
 
 const API_URL = `${config.API_URL}/api/products`;
 
@@ -24,6 +25,10 @@ const ProductDetail = () => {
   // Image selection state
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
+  // Wishlist state
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  const inWishlist = product ? isInWishlist(product.id) : false;
+
   // Accordion state
   const [openMaterial, setOpenMaterial] = useState(false);
   const [openShipping, setOpenShipping] = useState(false);
@@ -32,7 +37,14 @@ const ProductDetail = () => {
     setLoading(true);
     fetch(`${API_URL}/${id}?t=${Date.now()}`)
       .then((res) => res.json())
-      .then(setProduct)
+      .then(data => {
+        setProduct(data);
+        // Auto-select first available size
+        if (data.sizes) {
+          const firstAvailable = ['S', 'M', 'L', 'XL'].find(s => data.sizes[s] > 0);
+          if (firstAvailable) setSelectedSize(firstAvailable);
+        }
+      })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, [id]);
@@ -42,7 +54,7 @@ const ProductDetail = () => {
   const images = Array.isArray(product.images) && product.images.length > 0 ? product.images : [product.image];
 
   const handleBuyNow = () => {
-    addToCart(product, qty);
+    addToCart({ ...product, selectedSize }, qty);
     navigate('/cart');
   };
 
@@ -57,156 +69,184 @@ const ProductDetail = () => {
     <div className="bg-white dark:bg-gray-900 min-h-screen text-black dark:text-white transition-colors duration-300">
 
       {/* Main Content: Split Layout */}
-      <div className="pt-[100px] md:pt-[120px] pb-24 max-w-7xl mx-auto px-4 md:px-8">
-        <div className="flex flex-col md:flex-row gap-8 lg:gap-16 items-start">
+      <div className="pt-[80px] md:pt-[90px] pb-24 max-w-7xl mx-auto px-4 md:px-8">
+        <div className="flex flex-col md:flex-row gap-8 md:gap-12 items-start justify-center">
 
-          {/* Left: Images (Vertical Thumbnails + Main Image) */}
-          <div className="w-full md:w-[60%] flex gap-4">
+          {/* Left: Images (Main Image + Horizontal Thumbnails) */}
+          <div className="w-full md:w-[55%] flex md:justify-end">
+            <div className="flex flex-col gap-6 w-full">
 
-            {/* Thumbnails (Desktop Only) */}
-            <div className="hidden md:flex flex-col gap-4 w-[80px]">
-              {images.map((img, idx) => (
-                <div
-                  key={idx}
-                  className={`aspect-[3/4] cursor-pointer border transition-all ${selectedImageIndex === idx ? 'border-black dark:border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-100'}`}
-                  onClick={() => setSelectedImageIndex(idx)}
-                >
+              {/* Main Image */}
+              <div className="w-full" onClick={() => { setGalleryIndex(selectedImageIndex); setGalleryOpen(true); }}>
+                {/* Mobile Carousel (Horizontal Scroll Snap) - Visible only on mobile */}
+                <div className="md:hidden -mx-4 px-4 flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4">
+                  {images.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className="relative flex-shrink-0 w-[85vw] aspect-[3/4] snap-center bg-gray-50 dark:bg-gray-800 overflow-hidden rounded-lg shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent parent click
+                        setGalleryIndex(idx);
+                        setGalleryOpen(true);
+                      }}
+                    >
+                      <img
+                        src={getImageUrl(img)}
+                        alt={`${product.name} ${idx}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
+                      />
+                      <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm font-bold">
+                        {idx + 1}/{images.length}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Main Image - Constrained Height, NO CROP */}
+                <div className="hidden md:flex w-full h-[450px] lg:h-[500px] bg-[#f9f9f9] dark:bg-gray-800 cursor-zoom-in relative items-center justify-center overflow-hidden rounded-md border border-gray-100 dark:border-gray-700">
                   <img
-                    src={getImageUrl(img)}
-                    alt={`Thumbnail ${idx}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x133/e2e8f0/1e293b?text=" + idx; }}
+                    src={getImageUrl(images[selectedImageIndex])}
+                    alt={product.name}
+                    className="h-full w-full object-contain p-4"
+                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x1000/e2e8f0/1e293b?text=" + product.name; }}
                   />
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Main Image */}
-            <div className="flex-1" onClick={() => { setGalleryIndex(selectedImageIndex); setGalleryOpen(true); }}>
-              {/* Mobile Carousel (Horizontal Scroll Snap) - Visible only on mobile */}
-              <div className="md:hidden -mx-4 px-4 flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4">
+              {/* Thumbnails (Desktop Only - Moved to Bottom) */}
+              <div className="hidden md:flex flex-row gap-4 w-full justify-center overflow-x-auto pb-2">
                 {images.map((img, idx) => (
                   <div
                     key={idx}
-                    className="relative flex-shrink-0 w-[85vw] aspect-[3/4] snap-center bg-gray-50 dark:bg-gray-800 overflow-hidden rounded-lg shadow-sm"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent parent click
-                      setGalleryIndex(idx);
-                      setGalleryOpen(true);
-                    }}
+                    className={`w-20 aspect-[3/4] shrink-0 cursor-pointer border transition-all rounded-sm ${selectedImageIndex === idx ? 'border-black dark:border-white opacity-100 ring-1 ring-offset-1 ring-black dark:ring-white' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                    onClick={() => setSelectedImageIndex(idx)}
                   >
                     <img
                       src={getImageUrl(img)}
-                      alt={`${product.name} ${idx}`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
+                      alt={`Thumbnail ${idx}`}
+                      className="w-full h-full object-contain p-1 rounded-sm bg-gray-50 dark:bg-gray-800"
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x133/e2e8f0/1e293b?text=" + idx; }}
                     />
-                    <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm font-bold">
-                      {idx + 1}/{images.length}
-                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Desktop Main Image */}
-              <div className="hidden md:block w-full aspect-[3/4] bg-gray-50 dark:bg-gray-800 cursor-zoom-in relative">
-                <img
-                  src={getImageUrl(images[selectedImageIndex])}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x1000/e2e8f0/1e293b?text=" + product.name; }}
-                />
-              </div>
             </div>
-
           </div>
 
           {/* Right: Details (Sticky on Desktop) */}
-          <div className="w-full md:w-[40%] md:sticky md:top-32 self-start flex flex-col gap-6">
+          <div className="w-full md:w-[45%] flex md:justify-start md:sticky md:top-32 self-start">
+            <div className="w-full md:max-w-[450px] flex flex-col pt-4">
 
-            {/* Header */}
-            <div>
-              {product.description && product.description.includes('Best Seller') && (
-                <div className="bg-black dark:bg-white text-white dark:text-black text-[10px] font-bold px-2 py-1 inline-block uppercase tracking-widest mb-4">{t('productDetail.bestSeller')}</div>
-              )}
-              <div className="flex gap-2 mb-2">
-                <span className="bg-black text-white text-[10px] px-2 py-0.5 rounded-sm">Ada Stok</span>
-                <span className="bg-black text-white text-[10px] px-2 py-0.5 rounded-sm">Bags</span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-[500] tracking-tight mb-2 font-sans">{product.name}</h1>
-              <div className="text-xl font-medium mb-6">
-                {convertPrice(product.price)}
-              </div>
-            </div>
-
-            {/* Action Buttons (Stacked) */}
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => addToCart(product, qty)}
-                className="w-full bg-black dark:bg-white text-white dark:text-black py-4 font-bold uppercase tracking-widest text-xs hover:opacity-80 transition-opacity"
-              >
-                {t('productDetail.addToCart')}
-              </button>
-              <button
-                onClick={handleBuyNow}
-                className="w-full border border-black dark:border-white text-black dark:text-white py-4 font-bold uppercase tracking-widest text-xs hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
-              >
-                {t('productDetail.buyNow')}
-              </button>
-            </div>
-
-            {/* Description */}
-            <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-light mt-4">
-              <p>{product.description}</p>
-              <br />
-              <p>Material: Raw Denim 13,5 Oz</p>
-            </div>
-
-            {/* Selectors */}
-            <div className="mt-4">
-              {/* Specs */}
-              <div className="text-xs text-gray-600 dark:text-gray-400 space-y-2 mb-6">
-                <p><span className="font-bold">{t('productDetail.size')}:</span></p>
-                <p>Length: 22 cm</p>
-                <p>Width: 13 cm</p>
-                <p>Height: 15 cm</p>
-                <p>Strap Length: 30 cm</p>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-xs text-gray-500 mb-2">Note:</p>
-                <p className="text-xs text-gray-500">- Warna Denim Mini Hand Bag ini mungkin akan luntur harap digunakan dengan hati-hati</p>
-              </div>
-            </div>
-
-            {/* Mobile Sticky Add to Bag Bar - KEEP EXISTING LOGIC BUT UPDATE TEXT */}
-            <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-40 pb-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-              <div className="flex gap-4 items-center">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">{t('productDetail.total')}</span>
-                  <span className="text-lg font-[900] text-[#FF0000]">{convertPrice(product.price)}</span>
+              {/* Header Section (Name & Price) */}
+              <div className="mb-6 text-right">
+                <h1 className="text-3xl font-bold uppercase tracking-wider mb-2 font-sans">{product.name}</h1>
+                <div className="text-xl font-medium text-gray-900 dark:text-gray-100">
+                  {convertPrice(product.price)}
                 </div>
+              </div>
+
+              <div className="w-full h-px bg-gray-300 dark:bg-gray-700 mb-6"></div>
+
+              {/* Description Section */}
+              <div className="mb-6">
+                <h3 className="font-bold text-sm uppercase tracking-wider mb-4 text-right">Product Description</h3>
+                <div className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-light text-right">
+                  <p>{product.description}</p>
+                  <p className="mt-4 text-xs text-gray-400">
+                    {product.category} collection. Designed for modern lifestyle.
+                    Double needle sleeve and bottom hem.
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full h-px bg-gray-300 dark:bg-gray-700 mb-8"></div>
+
+              {/* Selectors Section */}
+              <div className="flex flex-col items-end gap-6 mb-8">
+
+                {/* Size Selector (Buttons) */}
+                <div className="w-full max-w-[300px] flex flex-col items-end">
+                  <label className="text-sm font-bold uppercase tracking-wider mb-2">Size</label>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {['S', 'M', 'L', 'XL'].map((size) => {
+                      const stock = product.sizes?.[size] || 0;
+                      const isSelected = selectedSize === size;
+                      return (
+                        <button
+                          key={size}
+                          onClick={() => stock > 0 && setSelectedSize(size)}
+                          disabled={stock <= 0}
+                          className={`min-w-[40px] px-3 py-2 border text-sm font-bold transition-all relative
+                             ${isSelected ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white' : 'bg-transparent text-gray-900 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:border-black dark:hover:border-white'}
+                             ${stock <= 0 ? 'opacity-40 cursor-not-allowed bg-gray-100 dark:bg-gray-800 diagonal-strike' : ''}
+                           `}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {product.sizes?.[selectedSize] <= 0 && <div className="text-red-500 text-xs mt-1 font-bold">Sold Out</div>}
+                  {product.sizes?.[selectedSize] > 0 && product.sizes?.[selectedSize] < 5 && <div className="text-orange-500 text-xs mt-1 font-bold">Only {product.sizes[selectedSize]} left!</div>}
+                </div>
+
+                {/* Quantity Selector */}
+                <div className="w-full max-w-[200px] flex flex-col items-end">
+                  <label className="text-sm font-bold uppercase tracking-wider mb-2">Quantity</label>
+                  <div className="flex border border-black dark:border-white w-full h-[45px]">
+                    <button
+                      onClick={() => setQty(Math.max(1, qty - 1))}
+                      className="w-12 flex items-center justify-center border-r border-black dark:border-white hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    >
+                      <svg width="10" height="2" viewBox="0 0 10 2" fill="none"><rect width="10" height="2" fill="currentColor" /></svg>
+                    </button>
+                    <div className="flex-1 flex items-center justify-center text-sm font-bold">
+                      {qty}
+                    </div>
+                    <button
+                      onClick={() => setQty(qty + 1)}
+                      className="w-12 flex items-center justify-center border-l border-black dark:border-white hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M4 6H0V4H4V0H6V4H10V6H6V10H4V6Z" fill="currentColor" /></svg>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Add to Cart Button */}
+              <div className="flex justify-end mb-4">
                 <button
-                  onClick={() => addToCart(product, qty)}
-                  className="flex-1 bg-black text-white py-3 rounded font-bold uppercase tracking-widest text-sm shadow-md active:scale-95 transition-transform"
+                  onClick={() => addToCart({ ...product, selectedSize }, qty)}
+                  className="w-full max-w-[200px] bg-[#808080] hover:bg-[#666666] text-white py-4 font-bold uppercase tracking-widest text-sm transition-colors flex items-center justify-center gap-2"
                 >
-                  {t('productDetail.addToCart')}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                  Add to Cart
                 </button>
               </div>
-            </div>
 
-            {/* Accordions (Cleaned up) */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mt-4">
-              <h4 className="font-bold text-sm mb-4">{t('productDetail.shippingReturns')}</h4>
-              <div className="text-xs text-gray-500">
-                <p className="flex justify-between items-center">
-                  <span>Dikirim ke:</span>
-                  <span className="font-bold">Pilih Area ⌄</span>
-                </p>
-                <p className="mt-2 text-right">Berat: 400g</p>
+              {/* Wishlist & Share */}
+              <div className="flex justify-end gap-6 text-xs font-bold uppercase tracking-widest text-gray-500">
+                <button
+                  onClick={() => toggleWishlist(product)}
+                  className={`${inWishlist ? 'text-red-500 hover:text-red-600' : 'hover:text-black dark:hover:text-white'} transition-colors flex items-center gap-1`}
+                >
+                  {inWishlist ? 'In Wishlist ❤️ (Remove)' : 'Add to Wishlist'}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert("Link copied to clipboard!");
+                  }}
+                  className="hover:text-black dark:hover:text-white transition-colors"
+                >
+                  Share
+                </button>
               </div>
-            </div>
 
+            </div>
           </div>
         </div>
 
@@ -216,7 +256,7 @@ const ProductDetail = () => {
             <h2 className="text-2xl font-[900] uppercase tracking-tighter">{t('productDetail.styleWith')}</h2>
             <Link to="/shop" className="text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white transition-colors">{t('productDetail.viewCollection')} →</Link>
           </div>
-          <RelatedProducts excludeId={product.id} />
+          <RelatedProducts currentProduct={product} />
         </div>
 
       </div>
@@ -236,76 +276,67 @@ const ProductDetail = () => {
   );
 };
 
-{/* Style With (Related Products) */ }
-<div className="mt-32">
-  <div className="flex justify-between items-end mb-8">
-    <h2 className="text-2xl font-[900] uppercase tracking-tighter">Style With</h2>
-    <Link to="/shop" className="text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white transition-colors">View Collection →</Link>
-  </div>
-  <RelatedProducts excludeId={product.id} />
-</div>
 
-      </div >
 
-  {/* Modal Gallery */ }
-{
-  galleryOpen && (
-    <ProductImageGalleryModal
-      images={images}
-      open={galleryOpen}
-      initialIndex={galleryIndex}
-      onClose={() => setGalleryOpen(false)}
-    />
-  )
-}
-
-<Footer />
-    </div >
-  );
-};
-
-function RelatedProducts({ excludeId }) {
+const RelatedProducts = ({ currentProduct }) => {
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
+    if (!currentProduct) return;
+
     fetch(`${config.API_URL}/api/products`)
       .then(res => res.json())
-      .then(data => setProducts(data.filter(p => p.id !== excludeId).slice(0, 4)));
-  }, [excludeId]);
+      .then(data => {
+        // Filter out current product
+        let filtered = data.filter(p => p.id !== currentProduct.id);
+
+        // Prioritize same category
+        const sameCategory = filtered.filter(p => p.category === currentProduct.category);
+        const otherCategory = filtered.filter(p => p.category !== currentProduct.category);
+
+        // Shuffle both
+        const shuffle = (arr) => arr.sort(() => 0.5 - Math.random());
+
+        // Combine: Same category first, then others to fill 4 spots
+        let combined = [...shuffle(sameCategory), ...shuffle(otherCategory)];
+
+        setProducts(combined.slice(0, 4));
+      });
+  }, [currentProduct]);
 
   if (!products.length) return null;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
       {products.map(prod => (
         <Link
           to={`/shop/${prod.id}`}
           key={prod.id}
-          className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
+          className="group cursor-pointer flex flex-col items-start"
         >
-          {/* Badge low stock if applicable (logic optional but good for consistency) */}
-          {prod.stock > 0 && prod.stock < 5 && (
-            <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
-              Low Stock
-            </div>
-          )}
-
-          <div
-            className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative"
-          >
+          <div className="w-full aspect-[3/4] overflow-hidden mb-4 bg-gray-50 dark:bg-gray-800 rounded-sm relative">
+            {/* Badge */}
+            {prod.stock > 0 && prod.stock < 5 && (
+              <div className="absolute top-2 left-2 z-10 bg-black text-white text-[9px] font-bold px-2 py-1 uppercase tracking-wider">
+                Limited
+              </div>
+            )}
             <img
               src={getImageUrl(prod.image || (prod.images && prod.images[0]))}
               alt={prod.name}
-              className="object-contain w-full h-full transition-transform duration-500 ease-in-out group-hover:scale-105"
+              className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-105"
               onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + prod.name; }}
             />
           </div>
 
-          <div className="text-center w-full mt-auto">
-            <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider">
-              {prod.name}
+          <div className="w-full flex justify-between items-start">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-1 group-hover:text-gray-600 transition-colors line-clamp-1">
+                {prod.name}
+              </h3>
+              <p className="text-xs text-gray-500 capitalize">{prod.category || 'Collection'}</p>
             </div>
-            <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">
+            <div className="text-sm font-bold text-gray-900 dark:text-white">
               Rp {prod.price.toLocaleString('id-ID')}
             </div>
           </div>
@@ -313,6 +344,6 @@ function RelatedProducts({ excludeId }) {
       ))}
     </div>
   );
-}
+};
 
 export default ProductDetail;

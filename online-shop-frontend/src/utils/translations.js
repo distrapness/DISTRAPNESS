@@ -51,7 +51,7 @@ export const translations = {
             cookie: "Cookie Policy",
             connect: "Connect",
             rights: "All Rights Reserved"
-        }
+        },
         productDetail: {
             bestSeller: "Best Seller",
             addToCart: "Add to Bag",

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { useCurrency } from './CurrencyContext';
+import { useCurrency } from './CurrencyContext.jsx';
 
 import config from '../config.js';
 

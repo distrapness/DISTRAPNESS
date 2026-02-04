@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useCurrency } from './CurrencyContext';
+import { useCurrency } from './CurrencyContext.jsx';
 
 const PhilosophySection = () => {
     const { t } = useCurrency();

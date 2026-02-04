@@ -3,32 +3,35 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("token"));
+  const [userEmail, setUserEmail] = useState(() => localStorage.getItem("email") || "");
+  const [userRole, setUserRole] = useState(() => localStorage.getItem("role") || null); // 'admin' | 'customer' | null
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const email = localStorage.getItem("email");
-    setIsLoggedIn(!!token);
-    setUserEmail(email || "");
-  }, []);
+  // useEffect removed because state is initialized synchronously above
 
-  const login = (token, email) => {
+  const login = (token, email, role) => {
     localStorage.setItem("token", token);
     localStorage.setItem("email", email);
+    localStorage.setItem("role", role);
+
     setIsLoggedIn(true);
     setUserEmail(email);
+    setUserRole(role);
   };
 
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("email");
+    localStorage.removeItem("role");
+
     setIsLoggedIn(false);
     setUserEmail("");
+    setUserRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, userEmail, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, userEmail, userRole, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,68 +1,146 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "./CartContext";
 import { useNavigate } from "react-router-dom";
 import { getImageUrl } from "../utils/imageHelper";
 
 const CartDrawer = ({ open, onClose }) => {
-  const { cart, removeFromCart, updateQty, clearCart } = useCart();
+  const { cart, removeFromCart, updateQty } = useCart();
   const navigate = useNavigate();
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   const handleCheckout = () => {
-    // Langsung redirect ke halaman metode pembayaran (dashboard payment)
     onClose();
     setTimeout(() => {
       navigate("/payment");
-    }, 350); // tunggu animasi sidebar nutup
+    }, 300);
   };
 
   return (
-    <div
-      className={`fixed top-0 right-0 h-full w-80 bg-white shadow-lg z-50 transform transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"}`}
-    >
-      <div className="flex justify-between items-center p-4 border-b">
-        <h2 className="text-lg font-bold">Keranjang</h2>
-        <button onClick={onClose} className="text-xl px-2 py-1 rounded hover:bg-gray-100" aria-label="Tutup Keranjang">&times;</button>
-      </div>
-      <div className="p-4 flex-1 overflow-y-auto">
-        {cart.length === 0 ? (
-          <p className="text-gray-500 text-center">Keranjang kosong</p>
-        ) : (
-          cart.map((item) => (
-            <div key={item.id} className="flex items-center mb-4 border-b pb-2">
-              <img src={getImageUrl(item.image)} alt={item.name} className="w-14 h-14 object-cover rounded mr-3" />
-              <div className="flex-1">
-                <div className="font-semibold">{item.name}</div>
-                <div className="text-sm text-gray-500">Rp {item.price.toLocaleString('id-ID')}</div>
-                <div className="flex items-center mt-1">
-                  <button onClick={() => updateQty(item.id, Math.max(item.qty - 1, 1))} className="px-2 rounded bg-gray-100 hover:bg-gray-200">-</button>
-                  <span className="mx-2">{item.qty}</span>
-                  <button onClick={() => updateQty(item.id, item.qty + 1)} className="px-2 rounded bg-gray-100 hover:bg-gray-200">+</button>
-                </div>
+    <>
+      {/* Backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Drawer */}
+      <div
+        className={`fixed top-0 right-0 h-full w-full max-w-[400px] bg-white dark:bg-gray-900 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"
+          }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-6 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-sm font-bold tracking-widest uppercase">Your Cart ({totalQty})</h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          {/* Cart Items */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            {cart.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4">
+                <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                <p>Your cart is empty.</p>
+                <button onClick={onClose} className="text-black dark:text-white underline text-sm font-bold">Continue Shopping</button>
               </div>
-              <button onClick={() => removeFromCart(item.id)} className="ml-2 text-red-500 hover:underline">Hapus</button>
+            ) : (
+              cart.map((item) => (
+                <div key={item.id} className="flex gap-4">
+                  {/* Image */}
+                  <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-700">
+                    <img
+                      src={getImageUrl(item?.image || (item?.images && item?.images?.[0]))}
+                      alt={item.name}
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/200x200?text=No+Image"; }}
+                    />
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-bold text-sm tracking-wide">{item.name}</h3>
+                      <span className="font-medium text-sm">Rp {item.price.toLocaleString('id-ID')}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-4">Size: {item.selectedSize || 'M'}</p>
+
+                    <div className="flex justify-between items-center mt-auto">
+                      {/* Qty Selector */}
+                      <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-sm">
+                        <button
+                          onClick={() => updateQty(item.id, item.selectedSize, Math.max(item.qty - 1, 1))}
+                          className="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-400"
+                        >
+                          &minus;
+                        </button>
+                        <span className="text-xs font-bold w-6 text-center">{item.qty}</span>
+                        <button
+                          onClick={() => updateQty(item.id, item.selectedSize, item.qty + 1)}
+                          className="px-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-400"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Remove Link */}
+                      <button
+                        onClick={() => removeFromCart(item.id, item.selectedSize)}
+                        className="text-xs text-gray-400 underline hover:text-red-500 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Footer */}
+          {cart.length > 0 && (
+            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Subtotal</span>
+                <span className="text-lg font-bold">Rp {total.toLocaleString('id-ID')}</span>
+              </div>
+              <p className="text-[10px] text-gray-500 text-center mb-6">
+                Shipping & taxes calculated at checkout
+              </p>
+
+              <button
+                onClick={handleCheckout}
+                className="w-full bg-[#1a56db] hover:bg-[#1546b3] text-white font-bold py-4 rounded-sm uppercase tracking-wider text-xs transition-colors shadow-lg active:scale-[0.99] transform"
+              >
+                View Cart & Checkout &rarr;
+              </button>
+
+              <div className="mt-4 text-center">
+                <button onClick={onClose} className="text-xs text-gray-500 hover:text-black dark:hover:text-white transition-colors">
+                  Or continue shopping
+                </button>
+              </div>
             </div>
-          ))
-        )}
-      </div>
-      <div className="p-4 border-t flex flex-col gap-2">
-        {/* Total Harga */}
-        <div className="flex justify-between items-center font-semibold text-lg mb-2">
-          <span>Total</span>
-          <span className="text-blue-600">Rp {total.toLocaleString('id-ID')}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={clearCart} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition flex-1">Kosongkan</button>
-          <button
-            onClick={handleCheckout}
-            className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded shadow hover:from-blue-600 hover:to-indigo-700 transition flex items-center justify-center gap-2 text-base font-bold"
-          >
-            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a5 5 0 00-10 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2zm-5 4v2m-4-6h8" /></svg>
-            Checkout
-          </button>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

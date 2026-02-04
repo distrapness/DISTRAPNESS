@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useCurrency } from './CurrencyContext';
+import { useCurrency } from './CurrencyContext.jsx';
 
 const categories = [
     { name: 'TOPS', image: '/assets/category-tops.jpg', link: '/shop?category=Tops' },

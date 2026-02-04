@@ -23,24 +23,42 @@ export function CartProvider({ children }) {
 
   const addToCart = (product, qty = 1) => {
     setCart((prev) => {
-      const found = prev.find((item) => item.id === product.id);
-      if (found) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + qty } : item
-        );
+      // Create a unique key based on ID and Size (default to 'M' if undefined for backward compat, or allow null)
+      const targetSize = product.selectedSize || 'M';
+
+      const foundIndex = prev.findIndex((item) =>
+        item.id === product.id && (item.selectedSize || 'M') === targetSize
+      );
+
+      if (foundIndex !== -1) {
+        // Clone array
+        const newCart = [...prev];
+        newCart[foundIndex] = {
+          ...newCart[foundIndex],
+          qty: newCart[foundIndex].qty + qty
+        };
+        return newCart;
       } else {
-        return [...prev, { ...product, qty }];
+        // Enforce valid image
+        const validImage = product.image || (product.images && product.images[0]);
+        return [...prev, { ...product, image: validImage, selectedSize: targetSize, qty }];
       }
     });
   };
 
-  const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+  const removeFromCart = (id, size) => {
+    setCart((prev) => prev.filter((item) =>
+      !(item.id === id && (item.selectedSize || 'M') === (size || 'M'))
+    ));
   };
 
-  const updateQty = (id, qty) => {
+  const updateQty = (id, size, qty) => {
     setCart((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, qty } : item))
+      prev.map((item) =>
+        (item.id === id && (item.selectedSize || 'M') === (size || 'M'))
+          ? { ...item, qty }
+          : item
+      )
     );
   };
 

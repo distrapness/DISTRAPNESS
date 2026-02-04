@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton.jsx";
 import config from '../config.js';
+import { getImageUrl } from "../utils/imageHelper";
 
 const paymentLabels = {
   bca_va: "Virtual Account BCA",
@@ -32,8 +33,13 @@ const PaymentConfirm = () => {
       .then(res => res.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
+
+        // Fallback to localStorage cart if backend doesn't return items (mocking)
+        const storedItems = JSON.parse(localStorage.getItem("cart") || "[]");
+
         setPaymentData({
           ...data,
+          items: data.items && data.items.length > 0 ? data.items : storedItems,
           // Perkaya data untuk tampilan (karena DB belum simpan detail pembayaran virtual)
           va_number: '1234 5678 9012',
           account_number: '14000 999 888',
@@ -113,7 +119,7 @@ const PaymentConfirm = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col items-center justify-start pt-4 md:pt-8 pb-12 bg-gray-50 dark:bg-gray-900">
       <div className="bg-white dark:bg-gray-800 p-8 rounded shadow text-center max-w-md w-full">
         <div className="flex justify-between items-center mb-4">
           <BackButton to="/payment" />
@@ -125,27 +131,59 @@ const PaymentConfirm = () => {
         ) : error ? (
           <div className="mb-6 text-red-500">{error}</div>
         ) : paymentData && (
-          <div className="mb-6">
-            <p className="text-lg">Total Pembayaran:</p>
-            <p className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
-              Rp {paymentData.total?.toLocaleString('id-ID')}
-            </p>
+          <div className="mb-6 w-full text-left">
+            {/* Order Items List */}
+            <div className="mb-6 border border-gray-100 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+              <h3 className="text-sm font-bold uppercase tracking-wider mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Order Summary</h3>
+              <div className="space-y-4 pr-1">
+                {paymentData.items && paymentData.items.length > 0 ? (
+                  paymentData.items.filter(item => item).map((item, idx) => (
+                    <div key={idx} className="flex gap-4 items-center">
+                      <div className="w-16 h-16 bg-white dark:bg-gray-700 rounded-md overflow-hidden shrink-0 border border-gray-200 dark:border-gray-600">
+                        <img
+                          src={getImageUrl(item?.image || (item?.images && item?.images?.[0]))}
+                          alt={item.name}
+                          className="w-full h-full object-contain p-1"
+                          onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100?text=No+Img"; }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate">{item.name}</h4>
+                        <p className="text-xs text-gray-500">Size: {item.selectedSize || 'M'} | Qty: {item.qty} x Rp {item.price?.toLocaleString('id-ID')}</p>
+                      </div>
+                      <div className="font-bold text-sm whitespace-nowrap">
+                        Rp {(item.price * item.qty).toLocaleString('id-ID')}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 italic">Order details not available.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center border-t border-gray-200 dark:border-gray-700 pt-4 mb-2">
+              <span className="text-gray-600 dark:text-gray-300">Total Payment</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                Rp {paymentData.total?.toLocaleString('id-ID')}
+              </span>
+            </div>
 
             {method === 'cod' ? (
-              <div className="text-gray-600 dark:text-gray-300 mb-6">
-                Silakan siapkan uang tunai saat kurir datang.
+              <div className="text-gray-600 dark:text-gray-300 mb-6 text-sm text-center">
+                Please prepare cash when the courier arrives.
               </div>
             ) : (
-              <div className="text-gray-600 dark:text-gray-300 mb-6">
-                Klik tombol di bawah untuk membayar melalui QRIS, Virtual Account, atau Kartu Kredit (Midtrans).
+              <div className="text-gray-600 dark:text-gray-300 mb-6 text-sm text-center">
+                Click the button below to complete payment via Midtrans.
               </div>
             )}
 
             <button
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-3 rounded-full font-bold text-xl hover:shadow-lg transition transform hover:scale-105"
+              className="w-full bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-sm font-bold uppercase tracking-widest hover:opacity-80 transition-opacity shadow-lg"
               onClick={handlePayment}
             >
-              {method === 'cod' ? 'Selesaikan Pesanan' : 'BAYAR SEKARANG'}
+              {method === 'cod' ? 'Complete Order' : 'PAY NOW'}
             </button>
           </div>
         )}

@@ -18,7 +18,7 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
         canvas.width = croppedAreaPixels.width;
         canvas.height = croppedAreaPixels.height;
         const ctx = canvas.getContext("2d");
-        
+
         // Gambar ke canvas
         ctx.drawImage(
           image,
@@ -31,7 +31,7 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
           croppedAreaPixels.width,
           croppedAreaPixels.height
         );
-        
+
         // Convert ke blob dengan kualitas 90%
         canvas.toBlob(
           (blob) => {
@@ -59,10 +59,10 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
 
 const aspectOptions = [
   { label: "1:1 (Kotak)", value: 1 },
-  { label: "3:4 (Portrait)", value: 3/4 },
-  { label: "4:3 (Landscape)", value: 4/3 },
-  { label: "2:3 (Portrait)", value: 2/3 },
-  { label: "3:2 (Landscape)", value: 3/2 },
+  { label: "3:4 (Portrait)", value: 3 / 4 },
+  { label: "4:3 (Landscape)", value: 4 / 3 },
+  { label: "2:3 (Portrait)", value: 2 / 3 },
+  { label: "3:2 (Landscape)", value: 3 / 2 },
   { label: "Bebas (Sesuai Gambar)", value: null },
 ];
 
@@ -80,19 +80,19 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
     if (imageFile) {
       const url = URL.createObjectURL(imageFile);
       setImageUrl(url);
-      
+
       const img = new window.Image();
       img.onload = () => {
         console.log("[CROP] Image loaded:", img.width, "x", img.height);
         setImgDimensions({ width: img.width, height: img.height });
-        
+
         // Set default aspect ratio berdasarkan gambar jika pilihan "Bebas"
         if (!aspect || aspect === null) {
           setAspect(img.width / img.height);
         }
       };
       img.src = url;
-      
+
       return () => {
         URL.revokeObjectURL(url);
         setImageUrl(null);
@@ -106,7 +106,7 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
       // Hitung zoom yang optimal agar gambar selalu muat dalam crop area
       const imageRatio = imgDimensions.width / imgDimensions.height;
       let fitZoom = 1;
-      
+
       if (aspect >= imageRatio) {
         // Landscape crop area, fit to height
         fitZoom = 1 / (aspect / imageRatio);
@@ -114,7 +114,7 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
         // Portrait crop area, fit to width
         fitZoom = 1 / (imageRatio / aspect);
       }
-      
+
       // Batas minimum zoom agar tidak terlalu kecil
       setZoom(Math.max(fitZoom, 0.5));
       console.log("[CROP] Set zoom to:", Math.max(fitZoom, 0.5));
@@ -138,21 +138,21 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
   // Handle save
   const handleSave = async () => {
     setCropError("");
-    
+
     if (!croppedAreaPixels || !croppedAreaPixels.width || !croppedAreaPixels.height) {
       setCropError("Area crop belum dipilih atau terlalu kecil");
       return;
     }
-    
+
     try {
       console.log("[CROP] Saving crop with area:", croppedAreaPixels);
       const croppedBlob = await getCroppedImg(imageUrl, croppedAreaPixels);
-      
+
       if (!croppedBlob) {
         setCropError("Gagal membuat hasil crop");
         return;
       }
-      
+
       console.log("[CROP] Crop saved successfully, blob size:", croppedBlob.size);
       onSave(croppedBlob);
     } catch (err) {
@@ -175,9 +175,9 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
       <div className="bg-white p-6 rounded shadow-lg max-w-2xl w-full">
         <h2 className="font-bold mb-2">Crop Gambar Produk</h2>
         <div className="text-gray-600 text-sm mb-2">Geser, zoom, dan pilih rasio. Untuk memperbesar/kecil crop, atur slider zoom. Jika ingin crop bebas, pilih "Bebas (Sesuai Gambar)".</div>
-        
+
         <div className="mb-4 flex flex-wrap gap-2 items-center">
-          <label className="font-semibold">Aspect Ratio:</label>
+          <label className="font-semibold">Rasio Aspek:</label>
           {aspectOptions.map(opt => (
             <button
               key={opt.label}
@@ -188,7 +188,7 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
             </button>
           ))}
         </div>
-        
+
         <div className="relative w-full h-[60vw] max-h-[70vh] min-h-[350px] bg-gray-100 rounded mb-4 flex items-center justify-center">
           <Cropper
             image={imageUrl}
@@ -216,25 +216,25 @@ const ImageCropModal = ({ open, imageFile, onSave, onCancel }) => {
             showGrid={true}
           />
         </div>
-        
+
         <div className="flex gap-2 items-center mb-4">
           <label>Zoom:</label>
           <input
             type="range"
             min={0.5}
             max={5}
-            step={0.1}
+            step={0.01}
             value={zoom}
             onChange={e => setZoom(Number(e.target.value))}
             className="flex-1"
           />
-          <span className="text-sm">{zoom.toFixed(1)}x</span>
+          <span className="text-sm">{zoom.toFixed(2)}x</span>
         </div>
-        
+
         {cropError && (
           <div className="text-red-600 bg-red-100 rounded px-3 py-1 mb-3 text-sm">{cropError}</div>
         )}
-        
+
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 bg-gray-300 rounded">Batal</button>
           <button

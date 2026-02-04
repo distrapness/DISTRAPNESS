@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCurrency, CURRENCY_OPTIONS } from './CurrencyContext';
+import { useCurrency, CURRENCY_OPTIONS } from './CurrencyContext.jsx';
 
 const TopBar = () => {
     const { currency, setCurrency, dark, setDark } = useCurrency();

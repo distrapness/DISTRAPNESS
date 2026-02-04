@@ -55,20 +55,9 @@ const HomePage = () => {
   return (
     <>
       <BannerCarousel />
-
-      <CategoryGrid />
-
-      {/* New Arrivals Section */}
-      <section className="py-12 bg-white dark:bg-gray-900 transition-colors duration-500">
+      <div className="pt-4 pb-12 bg-white dark:bg-gray-900 transition-colors duration-500 min-h-screen">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-end mb-10">
-            <h3 className="text-4xl md:text-5xl font-[900] uppercase tracking-tighter leading-none text-gray-900 dark:text-white font-sans">
-              {t('home.newArrivals')}
-            </h3>
-            <Link to="/shop" className="text-xs font-bold uppercase tracking-widest text-gray-900 dark:text-white border-b-2 border-black dark:border-white pb-1 hover:opacity-70 transition-opacity">
-              {t('home.viewAll')}
-            </Link>
-          </div>
+
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {loading ? (
@@ -80,8 +69,8 @@ const HomePage = () => {
             ) : !products || products.length === 0 ? (
               <div className="col-span-full text-center text-gray-500">No products found.</div>
             ) : (
-              // Show only first 4 products for New Arrivals
-              products.slice(0, 4).map((product) => (
+              // Show all products
+              products.map((product) => (
                 <div
                   key={product.id || product._id}
                   className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
@@ -123,11 +112,8 @@ const HomePage = () => {
             )}
           </div>
         </div>
-      </section>
+      </div>
 
-      <PhilosophySection />
-
-      <NewsletterSection />
 
       <Footer />
     </>

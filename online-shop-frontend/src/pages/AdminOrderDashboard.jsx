@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import BackButton from "../components/BackButton.jsx";
 
 const statusLabels = {
   pending: "Menunggu Pembayaran",
@@ -17,11 +19,18 @@ const AdminOrderDashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [verifying, setVerifying] = useState(false);
 
+  const navigate = useNavigate();
+
   const fetchOrders = async () => {
     setLoading(true);
     const res = await fetch(`${config.API_URL}/api/orders`);
     const data = await res.json();
-    setOrders(data);
+    if (Array.isArray(data)) {
+      setOrders(data);
+    } else {
+      console.error("Orders data is not array:", data);
+      setOrders([]);
+    }
     setLoading(false);
   };
 
@@ -64,9 +73,9 @@ const AdminOrderDashboard = () => {
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order.id} className="border-b hover:bg-blue-50 cursor-pointer" onClick={() => setSelectedOrder(order)}>
+                <tr key={order.id} className="border-b hover:bg-blue-50 cursor-pointer" onClick={() => navigate(`/admin/orders/${order.id}`)}>
                   <td className="py-2 px-4">{order.id}</td>
-                  <td className="py-2 px-4">{order.userId || "-"}</td>
+                  <td className="py-2 px-4">{String(order.userId || "-")}</td>
                   <td className="py-2 px-4">Rp {Number(order.total).toLocaleString("id-ID")}</td>
                   <td className="py-2 px-4">{order.paymentMethod}</td>
                   <td className="py-2 px-4 font-semibold">{statusLabels[order.status] || order.status}</td>
@@ -84,38 +93,7 @@ const AdminOrderDashboard = () => {
           </table>
         </div>
       )}
-      {/* Modal detail order */}
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-lg relative">
-            <button className="absolute top-2 right-2 text-2xl" onClick={() => setSelectedOrder(null)}>&times;</button>
-            <h2 className="text-xl font-bold mb-4">Detail Order #{selectedOrder.id}</h2>
-            <div className="mb-2"><b>User ID:</b> {selectedOrder.userId || '-'}</div>
-            <div className="mb-2"><b>Total:</b> Rp {Number(selectedOrder.total).toLocaleString("id-ID")}</div>
-            <div className="mb-2"><b>Status:</b> {statusLabels[selectedOrder.status] || selectedOrder.status}</div>
-            <div className="mb-2"><b>Metode:</b> {selectedOrder.paymentMethod}</div>
-            <div className="mb-2"><b>Items:</b>
-              <ul className="list-disc ml-6">
-                {JSON.parse(selectedOrder.items).map((item, idx) => (
-                  <li key={idx}>{item.name} x{item.qty} (Rp {Number(item.price * item.qty).toLocaleString("id-ID")})</li>
-                ))}
-              </ul>
-            </div>
-            {selectedOrder.paymentProof && (
-              <div className="mb-2">
-                <b>Bukti Transfer:</b><br />
-                <img src={`http://localhost:5001${selectedOrder.paymentProof}`} alt="Bukti Transfer" className="w-60 rounded shadow mt-2" />
-              </div>
-            )}
-            {selectedOrder.status === "waiting_verification" && (
-              <div className="flex gap-3 mt-4">
-                <button className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded" onClick={() => handleVerify(selectedOrder.id, "paid")} disabled={verifying}>Verifikasi</button>
-                <button className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded" onClick={() => handleVerify(selectedOrder.id, "failed")} disabled={verifying}>Tolak</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Modal removed - now handled by AdminOrderDetail page */}
     </div>
   );
 };

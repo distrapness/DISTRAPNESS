@@ -1,34 +1,41 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCurrency, useDarkMode } from "../components/CurrencyContext.jsx";
+import { useNavigate, useSearchParams } from "react-router-dom"; // Import useSearchParams
+import { useCurrency } from "../components/CurrencyContext.jsx";
 import Footer from "../components/Footer.jsx";
-
-import config from '../config.js';
+import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
 
 const API_URL = `${config.API_URL}/api/products`;
 
 const getCategories = (products) => {
-  const cats = new Set();
-  products.forEach((p) => {
-    if (p.category) cats.add(p.category);
-  });
-  return Array.from(cats);
+  if (!products || !Array.isArray(products)) return [];
+  const unique = new Set(products.map(p => p.category).filter(Boolean));
+  return Array.from(unique);
 };
 
 const ShopPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams(); // Get params
+  const [search, setSearch] = useState(searchParams.get("search") || ""); // Init from param
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const { currency } = useCurrency();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Update search if URL changes (optional, but good for back button)
+    const query = searchParams.get("search");
+    if (query !== null) {
+      setSearch(query);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     setLoading(true);
     fetch(API_URL)
       .then((res) => {
+        // ...
         if (!res.ok) throw new Error("Gagal mengambil produk");
         return res.json();
       })

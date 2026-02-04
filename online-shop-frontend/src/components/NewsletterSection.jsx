@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCurrency } from './CurrencyContext';
+import { useCurrency } from './CurrencyContext.jsx';
 
 const NewsletterSection = () => {
     const { t } = useCurrency();

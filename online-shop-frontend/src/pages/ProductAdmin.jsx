@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import BackButton from "../components/BackButton.jsx";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
 import ProductPreviewPanel from "../components/ProductPreviewPanel.jsx";
+import ImageCropperModal from "../components/ImageCropperModal.jsx";
 import { Link } from "react-router-dom";
 import config from '../config.js';
 
@@ -13,7 +14,7 @@ const ProductAdmin = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [form, setForm] = useState({ name: "", price: "", images: [], description: "", stock: "" });
+  const [form, setForm] = useState({ name: "", price: "", images: [], description: "", stock: "", sizes: { S: 0, M: 0, L: 0, XL: 0 } });
   const [images, setImages] = useState([]); // File asli
   const [editedImages, setEditedImages] = useState([]); // Hasil edit (resize & rotate)
   const [rotates, setRotates] = useState([]); // Derajat rotasi per gambar
@@ -23,6 +24,17 @@ const ProductAdmin = () => {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const [editId, setEditId] = useState(null);
+
+  // UI State
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [filterStock, setFilterStock] = useState("All");
+
+  // Cropper State
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperFile, setCropperFile] = useState(null);
+  const [cropperIndex, setCropperIndex] = useState(null);
 
   // Delete State
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -47,6 +59,20 @@ const ProductAdmin = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Filter Logic
+  const filteredProducts = products.filter(product => {
+    const matchSearch = product.name.toLowerCase().includes(filterSearch.toLowerCase());
+    const matchCategory = true;
+
+    let matchStock = true;
+    const stock = product.stock || 0;
+    if (filterStock === "In Stock") matchStock = stock > 0;
+    if (filterStock === "Out of Stock") matchStock = stock <= 0;
+    if (filterStock === "Low Stock") matchStock = stock > 0 && stock < 10;
+
+    return matchSearch && matchCategory && matchStock;
+  });
 
   // Tambahkan helper untuk resize dan rotate image
   function processImage(file, rotateDeg = 0, maxSize = 800) {
@@ -100,6 +126,32 @@ const ProductAdmin = () => {
     });
   }
 
+  // Cropper Handlers
+  const handleCropClick = (file, idx, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCropperFile(file);
+    setCropperIndex(idx);
+    setCropperOpen(true);
+  };
+
+  const handleCropSave = (blob) => {
+    const newFile = new File([blob], cropperFile.name, { type: 'image/jpeg' });
+
+    // Update 'images' and 'editedImages' at index
+    const newImages = [...images];
+    newImages[cropperIndex] = newFile;
+    setImages(newImages);
+
+    const newEditedImages = [...editedImages];
+    newEditedImages[cropperIndex] = blob; // blob acts as file
+    setEditedImages(newEditedImages);
+
+    setCropperOpen(false);
+    setCropperFile(null);
+    setCropperIndex(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -113,7 +165,10 @@ const ProductAdmin = () => {
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
         const formData = new FormData();
-        formData.append("image", editedImages[i] || img);
+        // Critical Fix: Ensure we use the edited blob if available, otherwise the original file.
+        const fileToUpload = editedImages[i] || img;
+        formData.append("image", fileToUpload);
+
         try {
           const uploadRes = await fetch(UPLOAD_URL, {
             method: "POST",
@@ -136,27 +191,29 @@ const ProductAdmin = () => {
         const oldImages = Array.isArray(form.images) ? form.images : [];
         finalImages = Array.from(new Set([...oldImages, ...imageUrls]));
       }
+
+      // Hitung stock otomatis dari sizes jika belum
+      const sizes = form.sizes || { S: 0, M: 0, L: 0, XL: 0 };
+      const totalStock = Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0);
+
       const productData = {
         ...form,
-        stock: Number(form.stock) || 0,
+        sizes,
+        stock: totalStock,
         price: Number(form.price) || 0,
-        images: finalImages.length > 0 ? finalImages : form.images
+        images: finalImages.length > 0 ? finalImages : (form.images || [])
       };
+
       // Jika editId ada, lakukan update produk (PUT), jika tidak, tambah produk (POST)
-      let res;
-      if (editId) {
-        res = await fetch(`${API_URL}/${editId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(productData),
-        });
-      } else {
-        res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(productData),
-        });
-      }
+      const method = editId ? "PUT" : "POST";
+      const url = editId ? `${API_URL}/${editId}` : API_URL;
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productData),
+      });
+
       if (!res.ok) {
         const errText = await res.text();
         setError((editId ? "Gagal mengedit produk: " : "Gagal menyimpan produk: ") + errText);
@@ -164,12 +221,14 @@ const ProductAdmin = () => {
         console.error('API error:', errText);
         return;
       }
-      setForm({ name: "", price: "", images: [], description: "", stock: "" });
+
+      setForm({ name: "", price: "", images: [], description: "", stock: "", sizes: { S: 0, M: 0, L: 0, XL: 0 } });
       setImages([]);
       setEditedImages([]);
       setRotates([]);
       setEditId(null);
       setSuccess(editId ? "Produk berhasil diedit" : "Produk berhasil ditambahkan");
+      setIsFormOpen(false); // Close Modal
       fetchProducts();
     } catch (err) {
       setError("Error submit produk: " + err.message);
@@ -184,7 +243,8 @@ const ProductAdmin = () => {
       price: product.price,
       images: product.images,
       description: product.description,
-      stock: product.stock ?? product.stok ?? product.qty ?? product.quantity ?? 0,
+      stock: product.stock ?? 0,
+      sizes: product.sizes || { S: 0, M: 0, L: 0, XL: 0 }
     });
     setImages([]); // gambar baru (belum diupload)
     setEditedImages([]);
@@ -192,30 +252,18 @@ const ProductAdmin = () => {
     setEditId(product.id);
     setSuccess("");
     setError(null);
-    // Scroll ke form edit
-    setTimeout(() => {
-      const formEl = document.getElementById("product-form");
-      if (formEl) {
-        formEl.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 100);
+    setIsFormOpen(true); // Open Modal
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Yakin ingin menghapus produk ini?")) return;
+    if (!window.confirm("Yakin hapus?")) return;
     setDeleteLoading(true);
-    setDeleteError("");
-    setDeleteSuccess("");
     try {
-      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Gagal menghapus produk");
-      }
-      setDeleteSuccess("Produk berhasil dihapus");
+      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       fetchProducts();
+      setIsFormOpen(false); // Close drawer after delete
     } catch (err) {
-      setDeleteError(err.message);
+      console.error(err);
     } finally {
       setDeleteLoading(false);
     }
@@ -229,6 +277,7 @@ const ProductAdmin = () => {
     setEditId(null);
     setSuccess("");
     setError(null);
+    setIsFormOpen(false); // Close Modal
   };
 
   const handleImageClick = (images, idx) => {
@@ -253,159 +302,350 @@ const ProductAdmin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 md:pt-24 transition-colors duration-[900ms] ease-in-out">
-      <div className="max-w-6xl mx-auto px-4 py-8 relative">
-        <BackButton />
-        <h1 className="text-3xl font-bold mb-6 text-blue-700 dark:text-blue-200 transition-colors duration-[900ms] ease-in-out ml-10">Admin Produk</h1>
-        {/* Product Form Section */}
-        <section className="mb-10 bg-white dark:bg-gray-800 rounded-xl shadow p-6 transition-colors duration-[900ms] ease-in-out">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">Tambah / Edit Produk</h2>
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="flex-1">
-              <form id="product-form" onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-gray-800 rounded-xl shadow p-6 transition-colors duration-[900ms] ease-in-out">
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">Nama Produk</label>
-                  <input name="name" value={form.name} onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })} className="w-full border px-3 py-2 rounded dark:bg-gray-700 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out" required />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">Harga</label>
-                  <input name="price" type="number" value={form.price} onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })} className="w-full border px-3 py-2 rounded dark:bg-gray-700 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out" required />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">Stok</label>
-                  <input name="stock" type="number" value={form.stock === undefined || form.stock === null || form.stock === '' ? 0 : form.stock} onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value === '' ? 0 : Number(e.target.value) })} className="w-full border px-3 py-2 rounded dark:bg-gray-700 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out" />
-                </div>
-                {/* Upload Gambar Produk dengan fitur edit sederhana (resize & rotate) */}
-                <div className="mb-4">
-                  <label className="block font-semibold mb-1">Foto Produk</label>
-                  <div className="flex flex-wrap gap-3 mb-2">
-                    {/* Gambar lama (dari form.images) */}
-                    {Array.isArray(form.images) && form.images.map((img, idx) => (
-                      <div key={img + idx} className="relative group">
-                        <img src={img} alt={`Foto lama ${idx + 1}`} className="w-24 h-24 object-cover rounded border" />
-                        {/* Tombol hapus gambar lama */}
-                        <button type="button" onClick={() => handleRemoveOldImage(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-80 hover:opacity-100">&times;</button>
-                      </div>
-                    ))}
-                    {/* Gambar baru (preview sebelum upload) */}
-                    {images.map((img, idx) => (
-                      <div key={idx} className="relative group">
-                        <img src={typeof img === "string" ? img : URL.createObjectURL(img)} alt={`Foto baru ${idx + 1}`} className="w-24 h-24 object-cover rounded border" />
-                        {/* Tombol hapus gambar baru */}
-                        <button type="button" onClick={() => handleRemoveNewImage(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-80 hover:opacity-100">&times;</button>
-                      </div>
-                    ))}
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={async e => {
-                      const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
-                      // Resize otomatis saat upload
-                      const processed = await Promise.all(files.map(f => processImage(f, 0)));
-                      setImages(files); // simpan file asli untuk preview/rotate
-                      setEditedImages(processed); // simpan hasil resize
-                      setRotates(files.map(() => 0)); // reset rotate
-                    }}
-                    className="block border rounded px-2 py-1 w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 font-semibold text-gray-800 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">Deskripsi</label>
-                  <textarea name="description" value={form.description} onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })} className="w-full border px-3 py-2 rounded dark:bg-gray-700 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out" rows={3} required />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 transition dark:bg-blue-800 dark:hover:bg-blue-900 transition-colors duration-[900ms] ease-in-out"
-                  >
-                    {editId ? "Simpan Perubahan" : "Tambah Produk"}
-                  </button>
-                  {editId && (
-                    <button type="button" onClick={handleCancelEdit} className="bg-gray-300 text-gray-800 px-6 py-2 rounded font-bold hover:bg-gray-400 transition dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition-colors duration-[900ms] ease-in-out">Batal Edit</button>
-                  )}
-                </div>
-                {success && <div className="text-green-700 font-semibold mt-2">{success}</div>}
-                {error && <div className="text-red-600 font-semibold mt-2">{error}</div>}
-              </form>
-            </div>
-            {/* Panel preview selalu muncul, update otomatis dengan form */}
-            <ProductPreviewPanel
-              product={{
-                name: form.name,
-                price: form.price,
-                description: form.description,
-              }}
-              images={editedImages.map(img => URL.createObjectURL(img))}
-              onRemoveImage={(index) => {
-                setImages(images => images.filter((_, i) => i !== index));
-                setEditedImages(editedImages => editedImages.filter((_, i) => i !== index));
-                setRotates(rotates => rotates.filter((_, i) => i !== index));
-              }}
-            />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20 md:pt-24 transition-colors duration-[900ms] ease-in-out p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Product Management</h1>
+            <p className="text-gray-500 dark:text-gray-400">Inventory & Catalog</p>
           </div>
-        </section>
 
-        {/* Product List Section */}
-        <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 transition-colors duration-[900ms] ease-in-out">
-          <h2 className="text-xl font-bold mb-6 text-blue-700 dark:text-blue-200">Daftar Produk</h2>
-          {deleteLoading && <div className="text-yellow-600 mb-2">Menghapus produk...</div>}
-          {deleteError && <div className="text-red-600 mb-2">{deleteError}</div>}
-          {deleteSuccess && <div className="text-green-600 mb-2">{deleteSuccess}</div>}
+          <div className="flex gap-4 w-full md:w-auto">
+            {/* Search & Filter Bar */}
+            <input
+              type="text"
+              placeholder="Search product..."
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            />
+            <select
+              value={filterStock}
+              onChange={(e) => setFilterStock(e.target.value)}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            >
+              <option value="All">All Status</option>
+              <option value="In Stock">In Stock</option>
+              <option value="Low Stock">Low Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
+
+            <button
+              onClick={() => { handleCancelEdit(); setIsFormOpen(true); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition whitespace-nowrap"
+            >
+              + Add Product
+            </button>
+          </div>
+        </div>
+
+        {/* Product List */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           {loading ? (
-            <div>Memuat produk...</div>
+            <div className="p-8 text-center text-gray-500">Loading products...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-700">
-                    <th className="sticky top-0 z-10 px-4 py-2 border-b font-semibold text-left bg-gray-100 dark:bg-gray-700">Gambar</th>
-                    <th className="sticky top-0 z-10 px-4 py-2 border-b font-semibold text-left bg-gray-100 dark:bg-gray-700">Nama</th>
-                    <th className="sticky top-0 z-10 px-4 py-2 border-b font-semibold text-left bg-gray-100 dark:bg-gray-700">Harga</th>
-                    <th className="sticky top-0 z-10 px-4 py-2 border-b font-semibold text-left bg-gray-100 dark:bg-gray-700">Stok</th>
-                    <th className="sticky top-0 z-10 px-4 py-2 border-b font-semibold text-left bg-gray-100 dark:bg-gray-700">Aksi</th>
+              <table className="min-w-full text-left">
+                <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Product</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Price</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Stock Status</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product.id} className="transition-colors duration-[900ms] ease-in-out">
-                      <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-300 whitespace-nowrap transition-colors duration-[900ms] ease-in-out">
-                        <img
-                          src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/150"}
-                          alt={product.name}
-                          className="h-20 mt-2 object-contain bg-gray-100 dark:bg-gray-700 rounded border transition-colors duration-[900ms] ease-in-out"
-                          style={{ maxWidth: '100%', height: 'auto' }}
-                          onClick={() => handleImageClick(Array.isArray(product.images) ? product.images : [], 0)}
-                          onError={(e) => {
-                            console.log("Image error, using placeholder");
-                            e.target.src = "https://via.placeholder.com/150";
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-300 whitespace-nowrap transition-colors duration-[900ms] ease-in-out">{product.name}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-300 whitespace-nowrap transition-colors duration-[900ms] ease-in-out">Rp {product.price?.toLocaleString("id-ID")}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-300 whitespace-nowrap transition-colors duration-[900ms] ease-in-out">
-                        {product.stock !== undefined && product.stock !== null ? product.stock
-                          : product.stok !== undefined && product.stok !== null ? product.stok
-                            : product.qty !== undefined && product.qty !== null ? product.qty
-                              : product.quantity !== undefined && product.quantity !== null ? product.quantity
-                                : 0}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-300 whitespace-nowrap transition-colors duration-[900ms] ease-in-out">
-                        <button onClick={() => handleEdit(product)} className="px-3 py-1 bg-yellow-400 text-white rounded font-semibold hover:bg-yellow-500 transition dark:bg-yellow-500 dark:hover:bg-yellow-600 transition-colors duration-[900ms] ease-in-out">Edit</button>
-                        <button onClick={() => handleDelete(product.id)} className="px-3 py-1 bg-red-600 text-white rounded font-semibold hover:bg-red-700 transition dark:bg-red-700 dark:hover:bg-red-800 transition-colors duration-[900ms] ease-in-out">Hapus</button>
-                      </td>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {filteredProducts.map((product) => {
+                    const stock = product.stock || 0;
+                    let stockBadge = stock > 10
+                      ? <span className="text-green-600 bg-green-100 px-2 py-1 rounded text-xs font-bold">{stock} in stock</span>
+                      : stock > 0
+                        ? <span className="text-orange-600 bg-orange-100 px-2 py-1 rounded text-xs font-bold">{stock} low stock</span>
+                        : <span className="text-red-600 bg-red-100 px-2 py-1 rounded text-xs font-bold">Out of stock</span>;
+
+                    return (
+                      <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                        <td className="px-6 py-4 flex items-center gap-4">
+                          <img
+                            src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/150"}
+                            alt={product.name}
+                            className="h-12 w-12 object-cover rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer"
+                            onClick={() => handleImageClick(Array.isArray(product.images) ? product.images : [], 0)}
+                          />
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
+                            <div className="text-xs text-gray-500">SKU: {product.id}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">Rp {product.price?.toLocaleString("id-ID")}</td>
+                        <td className="px-6 py-4">
+                          {stockBadge}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:underline text-sm font-bold">Edit</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredProducts.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">No products found. Add one to get started!</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Modal Gallery Foto Produk */}
+        {/* NEW SIDE DRAWER (Split View: Form + Preview) */}
+        <div className={`fixed inset-y-0 right-0 z-50 w-full md:w-[95vw] max-w-7xl bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 ease-in-out ${isFormOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className="h-full flex flex-col">
+            {/* Drawer Header */}
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                {editId ? "Edit Product" : "Add New Product"}
+              </h2>
+              <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-600 transition">
+                <span className="text-2xl">&times;</span>
+              </button>
+            </div>
+
+            {/* Split Layout Content */}
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-gray-50 dark:bg-gray-900">
+
+              {/* LEFT COLUMN: FORM */}
+              <div className="flex-1 overflow-y-auto p-6 lg:p-10 bg-white dark:bg-gray-800">
+                <form id="drawer-form" onSubmit={handleSubmit} className="space-y-8 max-w-3xl mx-auto">
+
+                  {/* Image Upload Area */}
+                  <div className="bg-gray-50 dark:bg-gray-700/20 p-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
+                    <label className="block text-sm font-bold mb-4 dark:text-white flex justify-between">
+                      <span>Product Images</span>
+                      <span className="text-xs font-normal text-gray-500">Min. 1 image required</span>
+                    </label>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
+                      {Array.isArray(form.images) && form.images.map((img, idx) => (
+                        <div key={`old-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm group">
+                          <img src={img} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="old" />
+                          <div onClick={() => handleRemoveOldImage(idx)} className="absolute top-1 right-1 bg-white text-red-600 rounded-full w-6 h-6 flex items-center justify-center cursor-pointer shadow hover:bg-red-50 z-10 font-bold">×</div>
+                        </div>
+                      ))}
+                      {images.map((img, idx) => (
+                        <div key={`new-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border-2 border-green-500 bg-white shadow-sm group">
+                          <img src={URL.createObjectURL(img)} className="w-full h-full object-cover" alt="new" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                            <button type="button" onClick={(e) => handleCropClick(img, idx, e)} className="p-2 bg-white rounded-full text-blue-600 hover:scale-110 shadow" title="Crop">✏️</button>
+                            <button type="button" onClick={() => handleRemoveNewImage(idx)} className="p-2 bg-white rounded-full text-red-600 hover:scale-110 shadow" title="Remove">🗑️</button>
+                          </div>
+                        </div>
+                      ))}
+                      <label className="aspect-square border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-white hover:border-blue-500 dark:hover:bg-gray-700 transition group bg-white dark:bg-gray-700/50">
+                        <input type="file" multiple accept="image/*" onChange={async e => {
+                          const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+                          if (files.length === 0) return;
+                          const processed = await Promise.all(files.map(f => processImage(f, 0)));
+                          setImages([...images, ...files]);
+                          setEditedImages([...editedImages, ...processed]);
+                        }} className="hidden" />
+                        <span className="text-3xl text-gray-400 group-hover:text-blue-500 mb-1">+</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-blue-500">Add Photo</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Basic Info */}
+                  <div className="grid grid-cols-1 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold mb-2 dark:text-white">Product Name</label>
+                      <input
+                        name="name"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
+                        className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow shadow-sm outline-none font-medium"
+                        placeholder="e.g. Kaos Distro Premium Github style"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Price (Rp)</label>
+                        <input
+                          name="price"
+                          type="number"
+                          value={form.price}
+                          onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
+                          className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow shadow-sm outline-none font-mono"
+                          placeholder="0"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Total Stock</label>
+                        <input
+                          name="stock"
+                          type="number"
+                          value={Object.values(form.sizes || { S: 0, M: 0, L: 0, XL: 0 }).reduce((a, b) => Number(a) + Number(b), 0)}
+                          readOnly
+                          className="w-full px-5 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 font-mono cursor-not-allowed dark:bg-gray-800 dark:border-gray-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Variants */}
+                  <div>
+                    <label className="block text-sm font-bold mb-3 dark:text-white">Stock Variants (Size)</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                      {['S', 'M', 'L', 'XL'].map(size => (
+                        <div key={size} className="relative">
+                          <label className="block text-[10px] font-bold mb-1 text-center text-gray-500 uppercase tracking-wide">{size}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={form.sizes?.[size] || 0}
+                            onChange={(e) => setForm({
+                              ...form,
+                              sizes: { ...form.sizes, [size]: Number(e.target.value) }
+                            })}
+                            className="w-full px-2 py-3 border border-gray-200 rounded-lg text-center font-bold focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 shadow-sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-bold mb-2 dark:text-white">Description</label>
+                    <textarea
+                      name="description"
+                      rows={8}
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
+                      className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow shadow-sm outline-none resize-none leading-relaxed"
+                      placeholder="Explain your product details..."
+                      required
+                    />
+                  </div>
+                </form>
+              </div>
+
+              {/* RIGHT COLUMN: PREVIEW */}
+              <div className="hidden lg:flex w-[420px] bg-gray-100 dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex-col items-center pt-8 overflow-hidden relative">
+                <div className="text-center mb-6">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Mobile Preview</h3>
+                </div>
+
+                {/* Phone Mockup */}
+                <div className="w-[320px] bg-white dark:bg-gray-800 rounded-[35px] shadow-[0_30px_70px_-20px_rgba(0,0,0,0.4)] border-[10px] border-gray-900 overflow-hidden relative h-[650px] flex flex-col mx-auto transform hover:scale-[1.02] transition-transform duration-500">
+
+                  {/* Notch */}
+                  <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 z-20 flex justify-center">
+                    <div className="w-24 h-5 bg-black rounded-b-xl"></div>
+                  </div>
+
+                  {/* Navbar Mock */}
+                  <div className="h-14 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center px-4 pt-4 z-10 shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="flex-1 text-center font-bold text-sm">Preview</div>
+                    <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                  </div>
+
+                  {/* Scrollable Content */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-800">
+                    {/* Image Preview Carousel Mock */}
+                    <div className="aspect-square bg-gray-200 w-full relative">
+                      {((images.length > 0) || (form.images && form.images.length > 0)) ? (
+                        <img
+                          src={images.length > 0 ? URL.createObjectURL(images[0]) : form.images[0]}
+                          className="w-full h-full object-cover"
+                          alt="preview"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                          <span className="text-4xl mb-2">📷</span>
+                          <span className="text-xs">No Image</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-bold px-3 py-1 rounded-full backdrop-blur-sm">
+                        1 / {(images.length + (form.images ? form.images.length : 0)) || 1}
+                      </div>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      {/* Title & Price */}
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-[18px] font-bold text-[#FF0000]">
+                            Rp {(Number(form.price) || 0).toLocaleString('id-ID')}
+                          </div>
+                          <div className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded">-50%</div>
+                        </div>
+                        <h3 className="font-medium text-gray-900 dark:text-white mt-1 leading-snug line-clamp-2">
+                          {form.name || "Nama Produk Anda"}
+                        </h3>
+                      </div>
+
+                      {/* Sold Count Mock */}
+                      <div className="flex items-center gap-3 text-[11px] text-gray-500 border-b border-gray-100 dark:border-gray-700 pb-3">
+                        <div className="flex items-center gap-1">
+                          <span className="text-yellow-400">⭐️</span> 4.9
+                        </div>
+                        <div className="w-px h-3 bg-gray-300"></div>
+                        <div>100+ Terjual</div>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <h4 className="font-bold text-sm mb-2 dark:text-gray-200">Rincian Produk</h4>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
+                          {form.description || "Deskripsi lengkap produk akan muncul di area ini. Pastikan deskripsi menarik untuk pembeli!"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Bar Mock */}
+                  <div className="h-14 bg-white dark:bg-gray-800 border-t border-gray-100 flex items-center px-4 gap-2 z-10 shrink-0">
+                    <div className="w-10 h-10 bg-green-500/10 rounded flex items-center justify-center">💬</div>
+                    <div className="flex-1 h-10 bg-[#FF0000] text-white flex items-center justify-center text-xs font-bold rounded shadow-lg opacity-90">
+                      Beli Sekarang
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-end gap-3 z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+              {editId && (
+                <button type="button" onClick={() => handleDelete(editId)} className="text-red-500 hover:text-red-700 text-sm font-bold mr-auto px-2">Delete Product</button>
+              )}
+              <button onClick={handleCancelEdit} className="px-6 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-bold border border-gray-200 transition">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200/50 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 transition flex items-center gap-2">
+                {submitting ? (
+                  <>
+                    <span className="animate-spin text-lg">↻</span> Saving...
+                  </>
+                ) : (
+                  <>
+                    <span>✓</span> Save Product
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Overlay for Drawer */}
+        {isFormOpen && (
+          <div onClick={handleCancelEdit} className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"></div>
+        )}
+
+        {/* Gallery Modal */}
         {galleryOpen && (
           <ProductImageGalleryModal
             images={galleryImages}
@@ -414,6 +654,15 @@ const ProductAdmin = () => {
             onClose={() => setGalleryOpen(false)}
           />
         )}
+
+        {/* Image Cropper Modal */}
+        <ImageCropperModal
+          isOpen={cropperOpen}
+          imageFile={cropperFile}
+          onClose={() => setCropperOpen(false)}
+          onSave={handleCropSave}
+        />
+
       </div>
     </div>
   );

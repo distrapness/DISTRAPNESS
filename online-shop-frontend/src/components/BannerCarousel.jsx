@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useCurrency } from "../components/CurrencyContext";
+import { useCurrency } from "../components/CurrencyContext.jsx";
 
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";

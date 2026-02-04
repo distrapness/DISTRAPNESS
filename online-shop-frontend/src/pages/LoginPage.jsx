@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError("");
     try {
       const res = await axios.post(`${config.API_URL}/api/login`, { email, password });
-      login(res.data.token, res.data.email); // update context & localStorage
+      login(res.data.token, res.data.email, res.data.role); // update context & localStorage
       setSuccess("Login berhasil!");
       navigate("/"); // langsung redirect tanpa timeout
     } catch (err) {

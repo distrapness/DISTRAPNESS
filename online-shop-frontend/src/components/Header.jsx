@@ -1,25 +1,37 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "./CartContext";
-import { useCurrency, CURRENCY_OPTIONS } from "../components/CurrencyContext";
-import { useAuth } from "../contexts/AuthContext";
-
+import { useCurrency, CURRENCY_OPTIONS } from "../components/CurrencyContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
-
+import { useWishlist } from "./WishlistContext";
 
 const BRAND_API_URL = `${config.API_URL}/api/brand`;
 
-const Header = ({ onCartClick }) => {
+const Header = ({ onCartClick, onWishlistClick }) => {
   const [brand, setBrand] = useState({ brandName: "Online Shop", logo: "", logoWhite: "" });
   const { currency, setCurrency, dark, setDark, language, setLanguage, t } = useCurrency();
-  const { isLoggedIn, userEmail, logout } = useAuth();
+  const { isLoggedIn, userEmail, userRole, logout } = useAuth();
   const { cart } = useCart();
+  const { wishlist } = useWishlist();
   const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Dropdown state: 'lang', 'currency', or null
   const [activeDropdown, setActiveDropdown] = useState(null);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchTerm)}`);
+      setSearchOpen(false);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -109,6 +121,11 @@ const Header = ({ onCartClick }) => {
           <Link to="/contact" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.contact')}</Link>
           <Link to="/store" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.store')}</Link>
           <Link to="/about" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.about')}</Link>
+          {userRole === 'admin' && (
+            <Link to="/admin" className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 hover:text-[#FF0000] transition-colors border border-blue-600 dark:border-blue-400 px-3 py-1 rounded">
+              Admin Panel
+            </Link>
+          )}
         </div>
 
         {/* SPACER for Right Alignment */}
@@ -187,18 +204,40 @@ const Header = ({ onCartClick }) => {
             </button>
           </div>
 
-          {/* Search (Desktop) */}
-          <button className="hidden md:block hover:text-[#FF0000] transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
 
-          {/* Wishlist (Desktop) - Optional based on ref */}
-          <button className="hidden md:block hover:text-[#FF0000] transition-colors">
+
+          {/* Search (Desktop) */}
+          <div className="hidden md:flex items-center">
+            <div className={`overflow-hidden transition-all duration-300 ${searchOpen ? 'w-48 opacity-100 mr-2' : 'w-0 opacity-0'}`}>
+              <form onSubmit={handleSearch}>
+                <input
+                  autoFocus={searchOpen}
+                  type="text"
+                  placeholder="Search..."
+                  className="w-full bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none text-sm pb-1 text-gray-900 dark:text-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onBlur={() => !searchTerm && setSearchOpen(false)}
+                />
+              </form>
+            </div>
+            <button onClick={() => setSearchOpen(!searchOpen)} className="hover:text-[#FF0000] transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Wishlist (Desktop) */}
+          <button onClick={onWishlistClick} className="hidden md:block hover:text-[#FF0000] relative transition-colors group">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
+            {wishlist.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[#FF0000] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
+                {wishlist.length}
+              </span>
+            )}
           </button>
 
           {/* Cart Icon */}
@@ -248,6 +287,9 @@ const Header = ({ onCartClick }) => {
           <Link to="/store" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Store</Link>
           <Link to="/about" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">About</Link>
           <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Contact</Link>
+          {userRole === 'admin' && (
+            <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400">Admin Panel</Link>
+          )}
           <div className="pt-4">
             <button onClick={() => setDark(!dark)} className="text-sm font-bold bg-gray-100 px-4 py-2 rounded">{dark ? "Light Mode" : "Dark Mode"}</button>
           </div>
