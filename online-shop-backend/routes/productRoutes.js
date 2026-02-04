@@ -6,13 +6,13 @@ const pool = require('../db');
 router.get('/', (req, res) => {
   pool.query('SELECT * FROM products', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    // Parse images field (JSON array)
+    // Parse images and sizes field
     const products = results.map(product => {
-      // Remove sku, category, weight, and dimensions from response if present
       const { sku, category, weight, dimensions, ...rest } = product;
       return {
         ...rest,
         images: product.images ? JSON.parse(product.images) : (product.image ? [product.image] : []),
+        sizes: product.sizes ? JSON.parse(product.sizes) : { S: 0, M: 0, L: 0, XL: 0 }
       };
     });
     res.json(products);
@@ -26,44 +26,46 @@ router.get('/:id', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!results || results.length === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
     const product = results[0];
-    // Remove sku, category, weight, and dimensions from response if present
     const { sku, category, weight, dimensions, ...rest } = product;
     rest.images = product.images ? JSON.parse(product.images) : (product.image ? [product.image] : []);
+    rest.sizes = product.sizes ? JSON.parse(product.sizes) : { S: 0, M: 0, L: 0, XL: 0 };
     res.json(rest);
   });
 });
 
 // POST /api/products
 router.post('/', (req, res) => {
-  const { name, price, images, description, stock } = req.body;
+  const { name, price, images, description, stock, sizes } = req.body;
   if (!name || !price) {
-    console.error('[POST /api/products] Field wajib kosong:', { name, price });
     return res.status(400).json({ error: 'Nama dan harga produk wajib diisi.' });
   }
   let imagesToSave = images;
   if (!Array.isArray(imagesToSave)) {
-    try {
-      imagesToSave = images ? JSON.parse(images) : [];
-    } catch (e) {
-      imagesToSave = [];
-    }
+    try { imagesToSave = images ? JSON.parse(images) : []; } catch (e) { imagesToSave = []; }
   }
+
+  // Calculate total stock from sizes if provided, otherwise use stock field
+  let totalStock = Number(stock) || 0;
+  let sizesToSave = sizes || { S: 0, M: 0, L: 0, XL: 0 };
+
+  if (sizes) {
+    // If sizes provided, update total stock
+    totalStock = Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0);
+  }
+
   try {
     pool.query(
-      'INSERT INTO products (name, price, images, description, stock) VALUES (?, ?, ?, ?, ?)',
-      [name, price, JSON.stringify(imagesToSave), description, Number(stock) || 0],
+      'INSERT INTO products (name, price, images, description, stock, sizes) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, price, JSON.stringify(imagesToSave), description, totalStock, JSON.stringify(sizesToSave)],
       (err, result) => {
         if (err) {
-          if (err.message.includes('no such column: images')) {
-            return res.status(500).json({ error: 'Kolom images belum ada di database. Jalankan migrasi SQL: ALTER TABLE products ADD COLUMN images TEXT;' });
-          }
+          // Handle missing column by trying to add it on the fly? Better rely on migration in server.js
           return res.status(500).json({ error: err.message });
         }
-        res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: Number(stock) || 0 });
+        res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave });
       }
     );
   } catch (err) {
-    console.error('[POST /api/products] Fatal Error:', err);
     res.status(500).json({ error: 'Unexpected error saat menyimpan produk.' });
   }
 });
@@ -71,48 +73,40 @@ router.post('/', (req, res) => {
 // PUT /api/products/:id
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { name, price, images, description, stock } = req.body;
-  if (!name || !price) {
-    console.error('[PUT /api/products/:id] Field wajib kosong:', { name, price });
-    return res.status(400).json({ error: 'Nama dan harga produk wajib diisi.' });
-  }
-  // Ambil gambar lama dari database
+  const { name, price, images, description, stock, sizes } = req.body;
+
+  // Ambil data lama dulu untuk gambar
   pool.query('SELECT images FROM products WHERE id=?', [id], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
+
     let oldImages = [];
     if (results && results.length > 0 && results[0].images) {
-      try {
-        oldImages = JSON.parse(results[0].images);
-      } catch (e) {
-        oldImages = [];
-      }
+      try { oldImages = JSON.parse(results[0].images); } catch (e) { oldImages = []; }
     }
+
     let imagesToSave = images;
     if (!Array.isArray(imagesToSave)) {
-      try {
-        imagesToSave = images ? JSON.parse(images) : [];
-      } catch (e) {
-        imagesToSave = [];
-      }
+      try { imagesToSave = images ? JSON.parse(images) : []; } catch (e) { imagesToSave = []; }
     }
-    // Gabungkan gambar lama dan baru, lalu filter agar tidak ada duplikat
     const mergedImages = Array.from(new Set([...(oldImages || []), ...(imagesToSave || [])]));
+
+    // Calculate total stock from sizes
+    let totalStock = Number(stock) || 0;
+    let sizesToSave = sizes || { S: 0, M: 0, L: 0, XL: 0 };
+    if (sizes) {
+      totalStock = Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0);
+    }
+
     try {
       pool.query(
-        'UPDATE products SET name=?, price=?, images=?, description=?, stock=? WHERE id=?',
-        [name, price, JSON.stringify(mergedImages), description, Number(stock) || 0, id],
+        'UPDATE products SET name=?, price=?, images=?, description=?, stock=?, sizes=? WHERE id=?',
+        [name, price, JSON.stringify(mergedImages), description, totalStock, JSON.stringify(sizesToSave), id],
         (err, result) => {
-          if (err) {
-            if (err.message.includes('no such column: images')) {
-              return res.status(500).json({ error: 'Kolom images belum ada di database. Jalankan migrasi SQL: ALTER TABLE products ADD COLUMN images TEXT;' });
-            }
-            return res.status(500).json({ error: err.message });
-          }
-          res.json({ id, name, price, images: mergedImages, description, stock: Number(stock) || 0 });
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ id, name, price, images: mergedImages, description, stock: totalStock, sizes: sizesToSave });
         }
       );
     } catch (err) {
-      console.error('[PUT /api/products/:id] Fatal Error:', err);
       res.status(500).json({ error: 'Unexpected error saat update produk.' });
     }
   });

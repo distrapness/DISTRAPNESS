@@ -5,35 +5,43 @@ const multer = require('multer');
 const router = express.Router();
 
 const BANNERS_JSON = path.join(__dirname, '../banners.json');
-const UPLOADS_DIR = path.join(__dirname, '../uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, UPLOADS_DIR);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
-  }
+// Memory Storage for Base64 (Serverless friendly)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 4 * 1024 * 1024 } // 4MB Limit
 });
-const upload = multer({ storage });
 
-// UPLOAD banner image
+// UPLOAD banner image -> Base64
 router.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const url = `/uploads/${req.file.filename}`;
+
+  const b64 = Buffer.from(req.file.buffer).toString('base64');
+  const mime = req.file.mimetype;
+  const url = `data:${mime};base64,${b64}`;
+
   res.json({ url });
 });
 
 // Helper: read banners
 function readBanners() {
-  if (!fs.existsSync(BANNERS_JSON)) return [];
-  const data = fs.readFileSync(BANNERS_JSON, 'utf8');
-  try { return JSON.parse(data); } catch { return []; }
+  try {
+    if (!fs.existsSync(BANNERS_JSON)) return [];
+    const data = fs.readFileSync(BANNERS_JSON, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error("Read banners error:", err);
+    return [];
+  }
 }
 // Helper: write banners
 function writeBanners(banners) {
-  fs.writeFileSync(BANNERS_JSON, JSON.stringify(banners, null, 2));
+  try {
+    fs.writeFileSync(BANNERS_JSON, JSON.stringify(banners, null, 2));
+  } catch (err) {
+    console.error("Write banners error (Read-Only):", err);
+  }
 }
 
 // GET all banners

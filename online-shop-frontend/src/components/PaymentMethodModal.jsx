@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import config from "../config";
 
 const PaymentMethodModal = ({ open, onClose, onSelect }) => {
   const [methods, setMethods] = useState([]);
@@ -9,7 +10,7 @@ const PaymentMethodModal = ({ open, onClose, onSelect }) => {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch("http://localhost:5001/api/midtrans/methods")
+    fetch(`${config.API_URL}/api/midtrans/methods`)
       .then(res => {
         if (!res.ok) throw new Error("Gagal mengambil metode pembayaran");
         return res.json();

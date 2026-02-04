@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import config from "../config";
 
 const PaymentList = () => {
   const [payments, setPayments] = useState([]);
@@ -9,7 +10,7 @@ const PaymentList = () => {
     const fetchPayments = async () => {
       setLoading(true);
       try {
-        const res = await fetch("http://localhost:5001/api/midtrans/payments");
+        const res = await fetch(`${config.API_URL}/api/midtrans/payments`);
         if (!res.ok) throw new Error("Gagal mengambil data pembayaran");
         const data = await res.json();
         setPayments(data);

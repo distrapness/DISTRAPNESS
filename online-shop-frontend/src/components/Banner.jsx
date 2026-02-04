@@ -1,4 +1,5 @@
 import React from "react";
+import config from "../config";
 
 /**
  * Banner component for displaying a responsive banner image.
@@ -13,7 +14,7 @@ const Banner = ({ src, alt = "Banner", className = "" }) => {
   const [error, setError] = React.useState(false);
   const [fallback, setFallback] = React.useState(false);
   // Pastikan path gambar selalu full URL jika /uploads/
-  const realSrc = src && src.startsWith('/uploads/') ? `http://localhost:5001${src}` : src;
+  const realSrc = src && src.startsWith('/uploads/') ? `${config.API_URL}${src}` : src;
   const handleError = (e) => {
     if (!error) {
       setError(true);
@@ -30,12 +31,12 @@ const Banner = ({ src, alt = "Banner", className = "" }) => {
     }
   };
   return (
-    <div className={`w-full flex justify-center items-center overflow-hidden rounded-lg shadow-md my-4 ${className}`} style={{minHeight: 120, maxHeight: 400}}>
+    <div className={`w-full flex justify-center items-center overflow-hidden rounded-lg shadow-md my-4 ${className}`} style={{ minHeight: 120, maxHeight: 400 }}>
       <img
         src={fallback ? "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80" : error ? "/assets/placeholder-banner.jpg" : realSrc}
         alt={alt}
         className="w-full h-auto object-cover object-center"
-        style={{maxHeight: 400, width: '100%', height: 'auto'}}
+        style={{ maxHeight: 400, width: '100%', height: 'auto' }}
         onError={handleError}
       />
     </div>

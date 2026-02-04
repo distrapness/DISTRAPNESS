@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import config from "../config";
 
 const PaymentMethod = () => {
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -9,7 +10,7 @@ const PaymentMethod = () => {
   useEffect(() => {
     const fetchPaymentMethods = async () => {
       try {
-        const response = await axios.get('http://localhost:5001/api/midtrans/methods');
+        const response = await axios.get(`${config.API_URL}/api/midtrans/methods`);
         setPaymentMethods(response.data);
         setLoading(false);
       } catch (err) {
@@ -32,13 +33,13 @@ const PaymentMethod = () => {
           <h1 className="text-2xl font-bold mb-6">Pilih Metode Pembayaran</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {paymentMethods.map((method) => (
-              <div 
-                key={method.code} 
+              <div
+                key={method.code}
                 className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition"
               >
-                <img 
-                  src={method.icon} 
-                  alt={method.name} 
+                <img
+                  src={method.icon}
+                  alt={method.name}
                   className="w-16 h-16 mx-auto mb-4"
                 />
                 <h2 className="text-center font-semibold">{method.name}</h2>
@@ -65,8 +66,8 @@ const PaymentMethod = () => {
             </div>
             <div className="mb-4">
               <strong className="block text-lg mb-2">Telepon:</strong>
-              <a 
-                href="tel:02112345678" 
+              <a
+                href="tel:02112345678"
                 className="text-blue-600 hover:underline"
               >
                 021-12345678

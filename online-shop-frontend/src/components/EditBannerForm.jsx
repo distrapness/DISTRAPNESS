@@ -1,12 +1,13 @@
 import React, { useState, useRef } from "react";
+import config from "../config";
 
-const API_URL = "http://localhost:5001/api/banners";
-const UPLOAD_API_URL = "http://localhost:5001/api/banners/upload";
+const API_URL = `${config.API_URL}/api/banners`;
+const UPLOAD_API_URL = `${config.API_URL}/api/banners/upload`;
 
 const EditBannerForm = ({ banner, onBannerUpdated, onClose }) => {
   const [title, setTitle] = useState(banner?.title || "");
   const [imageFile, setImageFile] = useState(null);
-  const [preview, setPreview] = useState(banner?.image ? (banner.image.startsWith("/uploads/") ? `http://localhost:5001${banner.image}` : banner.image) : null);
+  const [preview, setPreview] = useState(banner?.image ? (banner.image.startsWith("/uploads/") ? `${config.API_URL}${banner.image}` : banner.image) : null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const inputRef = useRef();

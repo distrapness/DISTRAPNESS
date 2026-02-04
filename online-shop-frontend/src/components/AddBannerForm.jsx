@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
+import config from "../config";
 
-const API_URL = "http://localhost:5001/api/banners";
-const UPLOAD_API_URL = "http://localhost:5001/api/banners/upload";
+const API_URL = `${config.API_URL}/api/banners`;
+const UPLOAD_API_URL = `${config.API_URL}/api/banners/upload`;
 const initialState = { title: "" };
 
 const AddBannerForm = ({ onBannerAdded }) => {

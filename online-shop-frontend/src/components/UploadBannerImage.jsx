@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
+import config from "../config";
 
-const API_URL = "http://localhost:5001/api/banners/upload";
+const API_URL = `${config.API_URL}/api/banners/upload`;
 
 const UploadBannerImage = ({ onUploaded }) => {
   const [file, setFile] = useState(null);

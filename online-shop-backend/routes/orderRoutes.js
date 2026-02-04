@@ -19,7 +19,7 @@ const upload = multer({ storage });
 
 // CREATE ORDER
 router.post('/', async (req, res) => {
-  const { userId, items, total, paymentMethod, status } = req.body;
+  const { userId, items, total, paymentMethod, status, shippingAddress, couponCode, discountAmount } = req.body;
 
   // Fix: userId di database kemungkinan INT, tapi frontend kirim Email (String) untuk guest.
   // Jika userId bukan angka, set ke NULL.
@@ -28,8 +28,8 @@ router.post('/', async (req, res) => {
   try {
     // Insert order
     pool.query(
-      'INSERT INTO orders (userId, items, total, paymentMethod, status, createdAt) VALUES (?, ?, ?, ?, ?, NOW())',
-      [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending'],
+      'INSERT INTO orders (userId, items, total, paymentMethod, status, shipping_address, coupon_code, discount_amount, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending', JSON.stringify(shippingAddress || {}), couponCode || null, discountAmount || 0],
       (err, result) => {
         if (err) return res.status(500).json({ error: 'Database error', detail: err });
 
@@ -82,7 +82,11 @@ router.post('/upload-proof/:orderId', upload.single('paymentProof'), (req, res) 
 router.get('/', (req, res) => {
   pool.query('SELECT * FROM orders ORDER BY createdAt DESC', (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
-    res.json(results);
+    const data = results.map(r => ({
+      ...r,
+      shipping_address: r.shipping_address ? JSON.parse(r.shipping_address) : null
+    }));
+    res.json(data);
   });
 });
 
@@ -92,15 +96,26 @@ router.get('/:orderId', (req, res) => {
   pool.query('SELECT * FROM orders WHERE id=?', [orderId], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
     if (!results.length) return res.status(404).json({ error: 'Order not found' });
-    res.json(results[0]);
+    const order = results[0];
+    try { order.shipping_address = JSON.parse(order.shipping_address); } catch (e) { }
+    res.json(order);
   });
 });
 
 // UPDATE ORDER STATUS (Admin)
 router.put('/status/:orderId', (req, res) => {
   const { orderId } = req.params;
-  const { status } = req.body;
-  pool.query('UPDATE orders SET status=? WHERE id=?', [status, orderId], (err, result) => {
+  const { status, trackingNumber } = req.body;
+
+  let query = 'UPDATE orders SET status=? WHERE id=?';
+  let params = [status, orderId];
+
+  if (trackingNumber !== undefined) {
+    query = 'UPDATE orders SET status=?, tracking_number=? WHERE id=?';
+    params = [status, trackingNumber, orderId];
+  }
+
+  pool.query(query, params, (err, result) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
     res.json({ success: true });
   });

@@ -1,7 +1,4 @@
-// socket.js
-const { Server } = require('socket.io');
-
-function setupSocket(server) {
+module.exports = function setupSocket(server) {
   const io = new Server(server, {
     cors: {
       origin: '*',
@@ -9,18 +6,15 @@ function setupSocket(server) {
   });
 
   io.on('connection', (socket) => {
-    console.log('Admin connected:', socket.id);
-    // Example event handler
-    socket.on('chat_message', (msg) => {
-      // Broadcast to all connected admins/clients
-      io.emit('chat_message', msg);
-    });
+    // Broadcast visitor count
+    const count = io.engine.clientsCount;
+    io.emit('visitor_count', count);
+
+    // Handle admin things
     socket.on('disconnect', () => {
-      console.log('Admin disconnected:', socket.id);
+      io.emit('visitor_count', io.engine.clientsCount);
     });
   });
 
   return io;
-}
-
-module.exports = setupSocket;
+};

@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
+import config from "../config";
 
 // Helper to get cropped image as blob
 function getCroppedImg(imageSrc, croppedAreaPixels) {
@@ -34,7 +35,7 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
 async function uploadBannerToBackend(blob) {
   const formData = new FormData();
   formData.append('image', blob, 'banner.jpg');
-  const response = await fetch('http://localhost:5001/api/banners/upload', {
+  const response = await fetch(`${config.API_URL}/api/banners/upload`, {
     method: 'POST',
     body: formData
   });
@@ -161,7 +162,7 @@ const BannerUploader = ({ onConfirm }) => {
               src={croppedImage}
               alt="Preview Banner"
               className="w-full h-auto rounded shadow object-cover object-center"
-              style={{maxHeight: 300}}
+              style={{ maxHeight: 300 }}
             />
           </div>
           <div className="flex gap-4 mt-4">
