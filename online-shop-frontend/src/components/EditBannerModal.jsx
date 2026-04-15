@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import Modal from "./Modal.jsx";
 import Cropper from "react-easy-crop";
+import config from "../config.js";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -38,8 +39,9 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
   const [preview, setPreview] = useState(null);
 
   // Path gambar crop/preview cukup /uploads/xxx.jpg (tanpa domain) agar tidak cross-origin jika pakai proxy
+  // Path gambar crop/preview harus full URL jika dari folder uploads
   const imageSrc = banner.image && banner.image.startsWith('/uploads/')
-    ? banner.image
+    ? `${config.API_URL}${banner.image}`
     : banner.image;
 
   console.log("EDIT BANNER IMAGE PATH:", imageSrc);
