@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import Modal from "./Modal.jsx";
 import Cropper from "react-easy-crop";
-import config from "../config.js";
+import config from "../config";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {

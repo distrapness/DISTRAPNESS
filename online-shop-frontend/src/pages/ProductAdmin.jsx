@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
 import ImageCropperModal from "../components/ImageCropperModal.jsx";
-import config from '../config.js';
+import config from '../config';
 import { getImageUrl } from "../utils/imageHelper";
 
 const API_URL = `${config.API_URL}/api/products`;
