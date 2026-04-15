@@ -31,6 +31,20 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
   });
 }
 
+// Tambahkan fungsi upload ke backend dan simpan path statis
+async function uploadBannerToBackend(blob) {
+  const formData = new FormData();
+  formData.append('image', blob, 'banner.jpg');
+  const response = await fetch(`${config.API_URL}/api/banners/upload`, {
+    method: 'POST',
+    headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` },
+    body: formData
+  });
+  if (!response.ok) throw new Error('Gagal upload gambar');
+  const data = await response.json();
+  return data.url; // path statis (Base64 atau URI)
+}
+
 const EditBannerModal = ({ open, onClose, banner, onSave }) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -49,20 +63,6 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
   const onCropComplete = useCallback((_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
-
-  // Tambahkan fungsi upload ke backend dan simpan path statis
-  async function uploadBannerToBackend(blob) {
-    const formData = new FormData();
-    formData.append('image', blob, 'banner.jpg');
-    const response = await fetch(`${config.API_URL}/api/banners/upload`, {
-      method: 'POST',
-      headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` },
-      body: formData
-    });
-    if (!response.ok) throw new Error('Gagal upload gambar');
-    const data = await response.json();
-    return data.url; // path statis (Base64 atau URI)
-  }
 
   const handlePreview = useCallback(async () => {
     if (!imageSrc || !croppedAreaPixels) return;
