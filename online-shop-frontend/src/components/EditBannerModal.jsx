@@ -6,6 +6,7 @@ import config from "../config";
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
     const image = new window.Image();
+    image.crossOrigin = "anonymous"; // PENTING: Mencegah Tainted Canvas Error
     image.src = imageSrc;
     image.onload = () => {
       const canvas = document.createElement('canvas');

@@ -90,7 +90,7 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full md:aspect-[16/5] aspect-[16/8] max-w-[1400px] mx-auto overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing rounded-none md:rounded-2xl md:mt-4 md:shadow-xl"
+      className="relative w-full aspect-[16/5] max-w-[1400px] mx-auto overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing rounded-none md:rounded-2xl md:mt-4 md:shadow-xl"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => { setHover(false); onMouseLeave(); }}
 
