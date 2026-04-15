@@ -90,8 +90,7 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full max-w-[1400px] mx-auto overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing rounded-none md:rounded-2xl md:mt-4 md:shadow-xl"
-      style={{ aspectRatio: '16 / 5' }}
+      className="relative w-full md:aspect-[16/5] aspect-[16/8] max-w-[1400px] mx-auto overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing rounded-none md:rounded-2xl md:mt-4 md:shadow-xl"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => { setHover(false); onMouseLeave(); }}
 
@@ -114,7 +113,7 @@ const BannerCarousel = () => {
       {/* Overlay Gradient for better text readability */}
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col items-start justify-end w-full h-full text-left px-4 md:px-12 pb-8 md:pb-16 max-w-[1400px] mx-auto pointer-events-none">
+      <div className="absolute inset-0 z-10 flex flex-col items-start justify-end text-left px-4 md:px-12 pb-8 md:pb-16 max-w-[1400px] mx-auto pointer-events-none">
         {banner.title && (
           <h2 className="text-4xl md:text-6xl font-[900] text-white uppercase tracking-tighter leading-none mb-2 font-sans drop-shadow-md">
             {banner.title}
