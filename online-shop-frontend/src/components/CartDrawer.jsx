@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useCart } from "./CartContext";
 import { useNavigate } from "react-router-dom";
 import { getImageUrl } from "../utils/imageHelper";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const CartDrawer = ({ open, onClose }) => {
   const { cart, removeFromCart, updateQty } = useCart();
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
@@ -21,7 +23,11 @@ const CartDrawer = ({ open, onClose }) => {
   const handleCheckout = () => {
     onClose();
     setTimeout(() => {
-      navigate("/payment");
+      if (isLoggedIn) {
+        navigate("/payment");
+      } else {
+        navigate("/login");
+      }
     }, 300);
   };
 

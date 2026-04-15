@@ -20,6 +20,7 @@ import CartDrawer from './components/CartDrawer.jsx';
 import WishlistDrawer from './components/WishlistDrawer.jsx';
 import Toast from './components/Toast.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
+import WhatsAppButton from './components/WhatsAppButton';
 import { useCurrency } from './components/CurrencyContext.jsx';
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -30,10 +31,16 @@ import HowToOrder from "./pages/HowToOrder.jsx";
 import AdminOrderDashboard from "./pages/AdminOrderDashboard";
 import AdminOrderDetail from "./pages/AdminOrderDetail";
 import DiscountManager from "./pages/DiscountManager.jsx";
+import CategoryManager from './pages/CategoryManager.jsx';
+import AdminSettings from './pages/AdminSettings.jsx'; // Imported here
 import AdminChat from "./pages/AdminChat";
 import MobileBottomNav from './components/MobileBottomNav.jsx';
 import CartPage from './pages/CartPage.jsx';
 import AdminLayout from './components/AdminLayout.jsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
+import TermsPage from './pages/TermsPage.jsx';
+import MarketingPopup from './components/MarketingPopup.jsx';
+import FAQPage from './pages/FAQPage.jsx';
 
 function App() {
   const [cartOpen, setCartOpen] = useState(false);
@@ -82,6 +89,7 @@ function App() {
             <WishlistDrawer open={wishlistOpen} onClose={() => setWishlistOpen(false)} />
             <Toast show={toast.show} message={toast.message} />
             {!cartOpen && <ChatWidget />}
+            {!cartOpen && <WhatsAppButton />}
           </>
         )}
 
@@ -157,18 +165,17 @@ function App() {
                 </AdminLayout>
               </ProtectedRoute>
             } />
-            {/* New Admin Routes Placeholders */}
             <Route path="/admin/categories" element={
               <ProtectedRoute role="admin">
                 <AdminLayout>
-                  <div className="p-4">Category Management (Coming Soon)</div>
+                  <CategoryManager />
                 </AdminLayout>
               </ProtectedRoute>
             } />
             <Route path="/admin/settings" element={
               <ProtectedRoute role="admin">
                 <AdminLayout>
-                  <div className="p-4">Site Settings (Coming Soon)</div>
+                  <AdminSettings />
                 </AdminLayout>
               </ProtectedRoute>
             } />
@@ -176,9 +183,13 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/store" element={<StorePage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-conditions" element={<TermsPage />} />
+            <Route path="/faq" element={<FAQPage />} />
           </Routes>
         </div>
         {!isAdminRoute && <MobileBottomNav />}
+        {!isAdminRoute && <MarketingPopup />}
       </div>
     </div>
   );

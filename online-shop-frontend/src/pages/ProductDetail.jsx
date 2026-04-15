@@ -32,6 +32,7 @@ const ProductDetail = () => {
   // Accordion state
   const [openMaterial, setOpenMaterial] = useState(false);
   const [openShipping, setOpenShipping] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -141,8 +142,8 @@ const ProductDetail = () => {
 
               {/* Header Section (Name & Price) */}
               <div className="mb-6 text-right">
-                <h1 className="text-3xl font-bold uppercase tracking-wider mb-2 font-sans">{product.name}</h1>
-                <div className="text-xl font-medium text-gray-900 dark:text-gray-100">
+                <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-wider mb-2 font-sans">{product.name}</h1>
+                <div className="text-lg md:text-xl font-medium text-gray-900 dark:text-gray-100">
                   {convertPrice(product.price)}
                 </div>
               </div>
@@ -168,7 +169,10 @@ const ProductDetail = () => {
 
                 {/* Size Selector (Buttons) */}
                 <div className="w-full max-w-[300px] flex flex-col items-end">
-                  <label className="text-sm font-bold uppercase tracking-wider mb-2">Size</label>
+                  <div className="flex justify-between w-full mb-2">
+                    <button onClick={() => setSizeGuideOpen(true)} className="text-xs text-gray-500 underline hover:text-black dark:hover:text-white">Size Guide</button>
+                    <label className="text-sm font-bold uppercase tracking-wider">Size</label>
+                  </div>
                   <div className="flex flex-wrap justify-end gap-2">
                     {['S', 'M', 'L', 'XL'].map((size) => {
                       const stock = product.sizes?.[size] || 0;
@@ -250,8 +254,10 @@ const ProductDetail = () => {
           </div>
         </div>
 
+
+
         {/* Style With (Related Products) */}
-        <div className="mt-24 border-t border-gray-100 dark:border-gray-800 pt-16">
+        <div className="mt-16 border-t border-gray-100 dark:border-gray-800 pt-16">
           <div className="flex justify-between items-end mb-8">
             <h2 className="text-2xl font-[900] uppercase tracking-tighter">{t('productDetail.styleWith')}</h2>
             <Link to="/shop" className="text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white transition-colors">{t('productDetail.viewCollection')} →</Link>
@@ -271,15 +277,47 @@ const ProductDetail = () => {
         />
       )}
 
+      {/* Size Guide Modal */}
+      {sizeGuideOpen && <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />}
+
       <Footer />
     </div>
   );
 };
 
+const SizeGuideModal = ({ onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+    <div className="bg-white dark:bg-gray-800 p-8 max-w-lg w-full relative z-10 shadow-2xl rounded-sm">
+      <button onClick={onClose} className="absolute top-4 right-4 text-2xl font-bold">&times;</button>
+      <h3 className="text-xl font-bold uppercase tracking-widest mb-6 border-b pb-4">Size Guide</h3>
+      <table className="w-full text-sm text-left">
+        <thead>
+          <tr className="border-b dark:border-gray-700">
+            <th className="py-2">Size</th>
+            <th className="py-2">Chest (cm)</th>
+            <th className="py-2">Length (cm)</th>
+            <th className="py-2">Sleeve (cm)</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y dark:divide-gray-700">
+          <tr><td className="py-3 font-bold">S</td><td>92</td><td>68</td><td>20</td></tr>
+          <tr><td className="py-3 font-bold">M</td><td>98</td><td>70</td><td>21</td></tr>
+          <tr><td className="py-3 font-bold">L</td><td>104</td><td>72</td><td>22</td></tr>
+          <tr><td className="py-3 font-bold">XL</td><td>110</td><td>74</td><td>23</td></tr>
+        </tbody>
+      </table>
+      <div className="mt-6 text-xs text-gray-500">
+        * Measurements are in centimeters. Fit may vary by style.
+      </div>
+    </div>
+  </div>
+);
 
 
 const RelatedProducts = ({ currentProduct }) => {
   const [products, setProducts] = useState([]);
+  const [activeImageIndex, setActiveImageIndex] = useState({});
 
   useEffect(() => {
     if (!currentProduct) return;
@@ -314,7 +352,19 @@ const RelatedProducts = ({ currentProduct }) => {
           key={prod.id}
           className="group cursor-pointer flex flex-col items-start"
         >
-          <div className="w-full aspect-[3/4] overflow-hidden mb-4 bg-gray-50 dark:bg-gray-800 rounded-sm relative">
+          <div 
+            className="w-full aspect-[3/4] overflow-hidden mb-4 bg-gray-50 dark:bg-gray-800 rounded-sm relative"
+            onMouseEnter={() => {
+              if (Array.isArray(prod.images) && prod.images.length > 1) {
+                setActiveImageIndex(prev => ({ ...prev, [prod.id]: 1 }));
+              }
+            }}
+            onMouseLeave={() => {
+              if (Array.isArray(prod.images) && prod.images.length > 1) {
+                setActiveImageIndex(prev => ({ ...prev, [prod.id]: 0 }));
+              }
+            }}
+          >
             {/* Badge */}
             {prod.stock > 0 && prod.stock < 5 && (
               <div className="absolute top-2 left-2 z-10 bg-black text-white text-[9px] font-bold px-2 py-1 uppercase tracking-wider">
@@ -322,9 +372,9 @@ const RelatedProducts = ({ currentProduct }) => {
               </div>
             )}
             <img
-              src={getImageUrl(prod.image || (prod.images && prod.images[0]))}
+              src={Array.isArray(prod.images) && prod.images.length > 0 ? getImageUrl(prod.images[activeImageIndex[prod.id] || 0]) : getImageUrl(prod.image)}
               alt={prod.name}
-              className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-105"
+              className="object-contain w-full h-full p-2 transition-transform duration-700 ease-out group-hover:scale-105"
               onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + prod.name; }}
             />
           </div>

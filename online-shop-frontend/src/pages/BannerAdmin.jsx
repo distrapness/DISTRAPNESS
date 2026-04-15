@@ -28,70 +28,71 @@ const BannerAdmin = () => {
     setEditingBanner(banner);
   };
 
-  // Fungsi untuk fetch ulang setelah edit
-  const refreshBanners = () => {
-    if (typeof window !== 'undefined' && window.location) {
-      window.location.reload(); // solusi cepat agar homepage/parent sinkron
-    }
-    // Jika ingin lebih elegan, bisa panggil fetchBanners dari context
-  };
-
   // Callback setelah edit banner berhasil
   const handleEditSave = async (imageUrl) => {
     if (editingBanner) {
+      setSaving(true);
       await editBanner(editingBanner.id, imageUrl);
       setEditingBanner(null);
-      refreshBanners();
+      setSaving(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <div className="flex justify-between mb-6">
+    <div className="max-w-5xl mx-auto py-12 px-6">
+      <div className="flex justify-between items-center mb-8">
         <BackButton />
+        <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">Banner Management</h1>
       </div>
-      <h1 className="text-2xl font-bold mb-6">Admin Banner</h1>
       {error && <div className="text-red-500 mb-2">{error}</div>}
       {!adding && (
-        <button
-          className="mb-6 px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 font-bold"
-          onClick={() => setAdding(true)}
-        >
-          Tambah Banner
-        </button>
+        <div className="mb-10 text-center">
+          <button
+            className="px-8 py-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 font-black uppercase tracking-widest transition-all transform hover:scale-105"
+            onClick={() => setAdding(true)}
+          >
+            + Add New Banner
+          </button>
+        </div>
       )}
       {adding && (
-        <div className="mb-8">
+        <div className="mb-12 bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700">
+          <h2 className="text-xl font-bold mb-4 dark:text-white">Create New Banner</h2>
           <BannerUploader onConfirm={handleAddBanner} />
-          <button
-            className="mt-4 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
-            onClick={() => setAdding(false)}
-            disabled={saving}
-          >
-            Batal
-          </button>
-          {saving && <div className="text-blue-600 mt-2">Menyimpan...</div>}
+          <div className="flex justify-center mt-6">
+            <button
+              className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full font-bold hover:bg-gray-300 transition-all"
+              onClick={() => setAdding(false)}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+          </div>
+          {saving && <div className="text-indigo-600 dark:text-indigo-400 mt-4 text-center font-bold animate-pulse">Uploading to Database...</div>}
         </div>
       )}
       <div className="space-y-6">
         {loading && <div className="text-gray-500">Memuat banner...</div>}
         {banners.length === 0 && !loading && <div className="text-gray-500">Belum ada banner.</div>}
-        {banners.map(banner => (
-          <div key={banner.id} className="relative group border rounded-lg shadow p-2 bg-white">
-            <Banner src={banner.image} alt={`Banner ${banner.id}`} />
-            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+        {banners.map((banner, idx) => (
+          <div key={banner.id} className="relative group rounded-3xl overflow-hidden shadow-xl border-4 border-white dark:border-gray-800 transform transition hover:scale-[1.01]">
+            <Banner src={banner.image} alt={`Banner ${idx + 1}`} className="!my-0 !rounded-none" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
               <button
                 onClick={() => handleEdit(banner)}
-                className="px-3 py-1 bg-yellow-500 text-white rounded shadow hover:bg-yellow-600 font-bold"
+                className="px-6 py-2 bg-white text-gray-900 rounded-full shadow-lg font-black uppercase text-xs tracking-widest hover:bg-gray-100 transition"
               >
                 Edit
               </button>
               <button
                 onClick={() => handleDelete(banner.id)}
-                className="px-3 py-1 bg-red-600 text-white rounded shadow hover:bg-red-700 font-bold"
+                className="px-6 py-2 bg-red-600 text-white rounded-full shadow-lg font-black uppercase text-xs tracking-widest hover:bg-red-700 transition"
               >
-                Hapus
+                Delete
               </button>
+            </div>
+            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded">
+              Order: {idx + 1}
             </div>
           </div>
         ))}

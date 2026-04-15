@@ -19,32 +19,11 @@ const server = http.createServer(app);
 app.use(cors());
 
 
-// ====== MIDDLEWARE: Verify Token ======
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader) return res.status(403).json({ message: 'No token provided' });
+// ====== MIDDLEWARE: Verify Token & Admin ======
+const { verifyToken, verifyAdmin } = require('./middleware/auth');
 
-  const token = authHeader.split(' ')[1]; // Bearer <token>
-  if (!token) return res.status(403).json({ message: 'Malformed token' });
-
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) return res.status(401).json({ message: 'Unauthorized / Invalid Token' });
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
-    req.userEmail = decoded.email;
-    next();
-  });
-};
-
-// ====== MIDDLEWARE: Verify Admin ======
-const verifyAdmin = (req, res, next) => {
-  if (req.userRole !== 'admin') {
-    return res.status(403).json({ message: 'Require Admin Role!' });
-  }
-  next();
-};
-
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ====== Static file uploads dengan header CORS ======
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
@@ -166,6 +145,7 @@ app.get('/api/setup-admin', async (req, res) => {
     await connection.query(`ALTER TABLE users ADD COLUMN role ENUM('admin', 'customer') DEFAULT 'customer'`).catch(() => { });
     await connection.query(`CREATE TABLE IF NOT EXISTS categories (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, slug VARCHAR(255) NOT NULL UNIQUE, image VARCHAR(500), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await connection.query(`CREATE TABLE IF NOT EXISTS settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(255) NOT NULL UNIQUE, setting_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS banners (id INT AUTO_INCREMENT PRIMARY KEY, image LONGTEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, sort_order INT DEFAULT 0)`);
 
     // Ensure images column is LONGTEXT for Base64 support
     try {
@@ -182,6 +162,20 @@ app.get('/api/setup-admin', async (req, res) => {
       // Ignore if exists
     }
 
+    // Ensure category column exists
+    try {
+      await connection.query(`ALTER TABLE products ADD COLUMN category VARCHAR(100)`);
+    } catch (e) {
+      // Ignore if exists
+    }
+
+    // Ensure weight column exists
+    try {
+      await connection.query(`ALTER TABLE products ADD COLUMN weight INT DEFAULT 1000`);
+    } catch (e) {
+      // Ignore if exists
+    }
+
     // Ensure orders table columns (shipping_address, tracking_number)
     // Ensure orders table columns (shipping_address, tracking_number)
     try {
@@ -190,6 +184,14 @@ app.get('/api/setup-admin', async (req, res) => {
     try {
       await connection.query(`ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(100)`);
     } catch (e) { }
+
+    // Ensure paymentProof column (LONGTEXT for Base64)
+    try {
+      await connection.query(`ALTER TABLE orders ADD COLUMN paymentProof LONGTEXT`);
+    } catch (e) {
+      // If exists, modify
+      try { await connection.query(`ALTER TABLE orders MODIFY paymentProof LONGTEXT`); } catch (e2) { }
+    }
 
     // Ensure coupon columns in orders
     try {
@@ -293,17 +295,52 @@ const safeJsonParse = (str) => {
 app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const [orders] = await pool.promise().query('SELECT COUNT(*) as count FROM orders');
-    const [revenue] = await pool.promise().query('SELECT SUM(total_amount) as total FROM orders WHERE status = "paid"');
+    const [revenue] = await pool.promise().query('SELECT SUM(total) as total FROM orders WHERE status = "paid"');
     const [products] = await pool.promise().query('SELECT COUNT(*) as count FROM products');
 
     // Low Stock ( < 10 )
     const [lowStock] = await pool.promise().query('SELECT id, name, stock, images FROM products WHERE stock < 10 LIMIT 3');
 
-    // Best Sellers (Mock logic for now, or complicated SQL)
-    const [trending] = await pool.promise().query('SELECT id, name, price, images FROM products ORDER BY RAND() LIMIT 4');
+    // Chart Data (Real Revenue Last 7 Days)
+    const [allOrders] = await pool.promise().query('SELECT total, createdAt, items FROM orders WHERE status != "cancelled" AND status != "failed"');
+    
+    // Process real chart data
+    const chartData = [0, 0, 0, 0, 0, 0, 0]; // Day -6 to Day 0 (Today)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    // Process real best sellers
+    const productSales = {};
 
-    // Chart Data (Mock last 7 days)
-    const chartData = [1200000, 2100000, 800000, 1600000, 2400000, 3200000, 1800000];
+    allOrders.forEach(o => {
+      // Calculate Chart Data
+      const orderDate = new Date(o.createdAt);
+      const diffTime = Math.abs(today - orderDate);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 0 && diffDays < 7) {
+        chartData[6 - diffDays] += Number(o.total) || 0;
+      }
+
+      // Calculate Best Sellers
+      try {
+        const items = JSON.parse(o.items || '[]');
+        items.forEach(item => {
+          if (!productSales[item.id]) {
+            productSales[item.id] = { id: item.id, name: item.name, price: item.price, sales: 0, images: item.images || [item.image] };
+          }
+          productSales[item.id].sales += Number(item.qty) || 1;
+        });
+      } catch (e) {}
+    });
+
+    const realBestSellers = Object.values(productSales)
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 4)
+      .map(p => ({
+        ...p,
+        growth: Math.floor(Math.random() * 5) + 1 // Genuine growth logic usually requires history, mock slight growth
+      }));
 
     res.json({
       totalOrders: orders[0].count,
@@ -313,12 +350,7 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
         ...p,
         images: safeJsonParse(p.images)
       })),
-      bestSellers: trending.map(p => ({
-        ...p,
-        sales: Math.floor(Math.random() * 50) + 10,
-        growth: Math.floor(Math.random() * 20),
-        images: safeJsonParse(p.images)
-      })),
+      bestSellers: realBestSellers,
       chartData
     });
   } catch (err) {
@@ -363,13 +395,55 @@ app.put('/api/settings', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// Categories API (Placeholder)
+// Categories API
 app.get('/api/categories', async (req, res) => {
   try {
     const [rows] = await pool.promise().query('SELECT * FROM categories ORDER BY created_at DESC');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Categories fetch error' });
+  }
+});
+
+app.post('/api/categories', verifyToken, verifyAdmin, async (req, res) => {
+  const { name, image } = req.body;
+  if (!name) return res.status(400).json({ error: 'Category name required' });
+  const slug = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
+  try {
+    const [result] = await pool.promise().query(
+      'INSERT INTO categories (name, slug, image) VALUES (?, ?, ?)',
+      [name, slug, image || null]
+    );
+    res.json({ id: result.insertId, name, slug, image });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/categories/:id', verifyToken, verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, image } = req.body;
+  const slug = name ? name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '') : undefined;
+
+  try {
+    if (name) {
+      await pool.promise().query('UPDATE categories SET name=?, slug=?, image=? WHERE id=?', [name, slug, image, id]);
+    } else {
+      await pool.promise().query('UPDATE categories SET image=? WHERE id=?', [image, id]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/categories/:id', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    await pool.promise().query('DELETE FROM categories WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -384,6 +458,35 @@ app.use('/api/orders', orderRoutes);
 
 const midtransRoutes = require('./routes/midtrans');
 app.use('/api/midtrans', midtransRoutes);
+
+// NEWSLETTER & CONTACT API
+app.post('/api/newsletter', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  try {
+    await pool.promise().query('CREATE TABLE IF NOT EXISTS subscribers (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+    await pool.promise().query('INSERT INTO subscribers (email) VALUES (?)', [email]);
+    res.json({ success: true, message: 'Subscribed successfully!' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.json({ success: true, message: 'Already subscribed!' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+  if (!email || !message) return res.status(400).json({ error: 'Email and message required' });
+  try {
+    await pool.promise().query('CREATE TABLE IF NOT EXISTS contact_messages (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255), message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+    await pool.promise().query('INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)', [name, email, message]);
+    res.json({ success: true, message: 'Message sent!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const shippingRoutes = require('./routes/shippingRoutes');
+app.use('/api/shipping', shippingRoutes);
 
 const couponRoutes = require('./routes/couponRoutes');
 app.use('/api/coupons', couponRoutes);

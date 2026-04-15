@@ -10,8 +10,14 @@ const snap = new midtransClient.Snap({
   clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx'
 });
 
-// Dummy endpoint untuk generate token & data pembayaran tanpa Midtrans
 // Generate Snap Token
+router.get('/config', (req, res) => {
+  res.json({ 
+    clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
+    isProduction: process.env.NODE_ENV === 'production' && !process.env.MIDTRANS_CLIENT_KEY?.includes('SB-')
+  });
+});
+
 router.post('/token', async (req, res) => {
   const { orderId, total, email } = req.body;
 

@@ -3,9 +3,11 @@ import { useCart } from '../components/CartContext';
 import { Link } from 'react-router-dom';
 import { getImageUrl } from "../utils/imageHelper";
 import config from '../config.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 const CartPage = () => {
     const { cart, removeFromCart, updateQty } = useCart();
+    const { isLoggedIn } = useAuth();
 
     // Validation State
     const [realProducts, setRealProducts] = React.useState({});
@@ -48,7 +50,7 @@ const CartPage = () => {
                 stock = real.sizes[item.selectedSize];
             }
 
-            if (stock < item.quantity) return { invalid: true, reason: 'Out of Stock' };
+            if (stock < item.qty) return { invalid: true, reason: 'Out of Stock' };
         }
         return { invalid: false };
     };
@@ -57,7 +59,7 @@ const CartPage = () => {
 
     // Calculate totals only for VALID items? Or all, but prevent checkout?
     // Usually prevent checkout is safer.
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const shipping = subtotal > 300000 ? 0 : 25000;
     const total = subtotal + shipping;
 
@@ -65,7 +67,7 @@ const CartPage = () => {
         <div className="bg-gray-50 dark:bg-gray-900 min-h-screen pt-4 pb-32">
 
             <div className="max-w-7xl mx-auto px-4">
-                <h1 className="text-3xl font-[900] uppercase tracking-tighter mb-8 text-black dark:text-white">My Bag ({cart.reduce((a, c) => a + c.quantity, 0)} Items)</h1>
+                <h1 className="text-3xl font-[900] uppercase tracking-tighter mb-8 text-black dark:text-white">My Bag ({cart.reduce((a, c) => a + c.qty, 0)} Items)</h1>
 
                 {/* Free Shipping Bar */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg mb-8 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -122,9 +124,9 @@ const CartPage = () => {
                                                 </button>
 
                                                 <div className="flex items-center border border-gray-300 rounded">
-                                                    <button onClick={() => !status.invalid && updateQty(item.id, item.selectedSize, Math.max(1, item.quantity - 1))} disabled={status.invalid} className="px-3 py-1 text-gray-500 hover:text-black disabled:cursor-not-allowed">-</button>
-                                                    <span className="px-2 font-bold text-sm w-8 text-center">{item.quantity}</span>
-                                                    <button onClick={() => !status.invalid && updateQty(item.id, item.selectedSize, item.quantity + 1)} disabled={status.invalid} className="px-3 py-1 text-gray-500 hover:text-black disabled:cursor-not-allowed">+</button>
+                                                    <button onClick={() => !status.invalid && updateQty(item.id, item.selectedSize, Math.max(1, item.qty - 1))} disabled={status.invalid} className="px-3 py-1 text-gray-500 hover:text-black disabled:cursor-not-allowed">-</button>
+                                                    <span className="px-2 font-bold text-sm w-8 text-center">{item.qty}</span>
+                                                    <button onClick={() => !status.invalid && updateQty(item.id, item.selectedSize, item.qty + 1)} disabled={status.invalid} className="px-3 py-1 text-gray-500 hover:text-black disabled:cursor-not-allowed">+</button>
                                                 </div>
                                             </div>
                                             {status.reason === 'Out of Stock' && (
@@ -142,7 +144,7 @@ const CartPage = () => {
 
                             <div className="space-y-4 mb-6">
                                 <div className="flex justify-between text-gray-600">
-                                    <span>Subtotal ({cart.reduce((a, c) => a + c.quantity, 0)} items)</span>
+                                    <span>Subtotal ({cart.reduce((a, c) => a + c.qty, 0)} items)</span>
                                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                                 </div>
                                 <div className="flex justify-between text-gray-600">
@@ -173,10 +175,10 @@ const CartPage = () => {
                                 </button>
                             ) : (
                                 <Link
-                                    to="/payment"
+                                    to={isLoggedIn ? "/payment" : "/login"}
                                     className="block w-full bg-[#FF0000] text-white text-center py-4 font-bold uppercase tracking-widest hover:bg-red-700 transition shadow-lg rounded"
                                 >
-                                    Secure Checkout &rarr;
+                                    {isLoggedIn ? "Secure Checkout \u2192" : "Login to Checkout \u2192"}
                                 </Link>
                             )}
 

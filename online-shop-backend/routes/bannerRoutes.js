@@ -1,20 +1,18 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const multer = require('multer');
 const router = express.Router();
-
-const BANNERS_JSON = path.join(__dirname, '../banners.json');
+const pool = require('../db');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
 // Memory Storage for Base64 (Serverless friendly)
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 4 * 1024 * 1024 } // 4MB Limit
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB Limit for Banners
 });
 
 // UPLOAD banner image -> Base64
-router.post('/upload', upload.single('image'), (req, res) => {
+router.post('/upload', verifyToken, verifyAdmin, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const b64 = Buffer.from(req.file.buffer).toString('base64');
@@ -24,72 +22,82 @@ router.post('/upload', upload.single('image'), (req, res) => {
   res.json({ url });
 });
 
-// Helper: read banners
-function readBanners() {
-  try {
-    if (!fs.existsSync(BANNERS_JSON)) return [];
-    const data = fs.readFileSync(BANNERS_JSON, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    console.error("Read banners error:", err);
-    return [];
-  }
-}
-// Helper: write banners
-function writeBanners(banners) {
-  try {
-    fs.writeFileSync(BANNERS_JSON, JSON.stringify(banners, null, 2));
-  } catch (err) {
-    console.error("Write banners error (Read-Only):", err);
-  }
-}
-
 // GET all banners
-router.get('/', (req, res) => {
-  res.json(readBanners());
+router.get('/', async (req, res) => {
+  try {
+    const [rows] = await pool.promise().query('SELECT * FROM banners ORDER BY sort_order ASC, created_at DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error("GET Banners Error:", err);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
 });
 
 // POST new banner
-router.post('/', (req, res) => {
-  const banners = readBanners();
+router.post('/', verifyToken, verifyAdmin, async (req, res) => {
   const { image } = req.body;
   if (!image) return res.status(400).json({ error: 'Gambar wajib diisi' });
-  const id = Date.now().toString();
-  const banner = { id, image };
-  banners.push(banner);
-  writeBanners(banners);
-  res.json(banner);
+  
+  try {
+    const [result] = await pool.promise().query('INSERT INTO banners (image) VALUES (?)', [image]);
+    res.json({ id: result.insertId.toString(), image });
+  } catch (err) {
+    console.error("POST Banners Error:", err);
+    res.status(500).json({ error: 'Failed to add banner' });
+  }
 });
 
 // PUT update banner
-router.put('/:id', (req, res) => {
-  const banners = readBanners();
-  const idx = banners.findIndex(b => b.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Banner tidak ditemukan' });
-  banners[idx] = { ...banners[idx], ...req.body };
-  writeBanners(banners);
-  res.json(banners[idx]);
+router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { image } = req.body;
+  
+  if (!image) return res.status(400).json({ error: 'Gambar wajib diisi' });
+
+  try {
+    const [result] = await pool.promise().query('UPDATE banners SET image=? WHERE id=?', [image, id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Banner tidak ditemukan' });
+    res.json({ id, image });
+  } catch (err) {
+    console.error("PUT Banners Error:", err);
+    res.status(500).json({ error: 'Failed to update banner' });
+  }
 });
 
 // DELETE banner
-router.delete('/:id', (req, res) => {
-  let banners = readBanners();
-  const before = banners.length;
-  banners = banners.filter(b => b.id !== req.params.id);
-  if (banners.length === before) return res.status(404).json({ error: 'Banner tidak ditemukan' });
-  writeBanners(banners);
-  res.json({ success: true });
+router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.promise().query('DELETE FROM banners WHERE id=?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Banner tidak ditemukan' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE Banners Error:", err);
+    res.status(500).json({ error: 'Failed to delete banner' });
+  }
 });
 
 // PUT /sort : reorder banners
-router.put('/sort', (req, res) => {
+router.put('/sort', verifyToken, verifyAdmin, async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids)) return res.status(400).json({ error: 'Format tidak valid' });
-  const banners = readBanners();
-  const newOrder = ids.map(id => banners.find(b => b.id === id)).filter(Boolean);
-  if (newOrder.length !== banners.length) return res.status(400).json({ error: 'Urutan tidak valid' });
-  writeBanners(newOrder);
-  res.json({ success: true });
+  
+  const connection = await pool.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    for (let i = 0; i < ids.length; i++) {
+        await connection.query('UPDATE banners SET sort_order=? WHERE id=?', [i, ids[i]]);
+    }
+    await connection.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await connection.rollback();
+    console.error("SORT Banners Error:", err);
+    res.status(500).json({ error: 'Failed to reorder banners' });
+  } finally {
+    connection.release();
+  }
 });
 
 module.exports = router;

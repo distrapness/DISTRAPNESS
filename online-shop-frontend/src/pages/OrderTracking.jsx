@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getImageUrl } from "../utils/imageHelper";
 
 const dummyTracking = {
@@ -23,6 +23,8 @@ const dummyTracking = {
 };
 
 const OrderTracking = () => {
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get("orderId");
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
 
@@ -53,7 +55,7 @@ const OrderTracking = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Track Your Order</h1>
-            <p className="text-gray-500 text-sm mt-1">Order Number: <span className="text-black dark:text-gray-300 font-mono font-bold">#{dummyTracking.orderId}</span></p>
+            <p className="text-gray-500 text-sm mt-1">Order Number: <span className="text-black dark:text-gray-300 font-mono font-bold">#{orderId ? `INV${orderId}` : dummyTracking.orderId}</span></p>
           </div>
           <Link to="/order-status" className="text-red-500 font-bold text-sm hover:underline">
             &larr; Back to Orders

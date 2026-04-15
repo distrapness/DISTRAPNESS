@@ -19,10 +19,7 @@ const TopBar = () => {
 
             {/* Right: Controls */}
             <div className="flex items-center gap-6">
-                {/* Language (MockUP) */}
-                <button className="hover:opacity-70 transition-opacity">EN</button>
-
-                {/* Currency */}
+            {/* Currency */}
                 <div className="flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity relative group">
                     <span>{currency.code}</span>
                     <div className="hidden group-hover:block absolute top-full right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg py-1 min-w-[80px] z-50">

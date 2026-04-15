@@ -24,7 +24,9 @@ const AdminOrderDetail = () => {
     const printRef = useRef();
 
     useEffect(() => {
-        fetch(`${config.API_URL}/api/orders/${id}`)
+        fetch(`${config.API_URL}/api/orders/${id}`, {
+            headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+        })
             .then(res => res.json())
             .then(data => {
                 setOrder(data);
@@ -40,7 +42,10 @@ const AdminOrderDetail = () => {
         try {
             const res = await fetch(`${config.API_URL}/api/orders/status/${id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('token')}`
+                },
                 body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) {
@@ -58,7 +63,10 @@ const AdminOrderDetail = () => {
         try {
             const res = await fetch(`${config.API_URL}/api/orders/status/${id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('token')}`
+                },
                 body: JSON.stringify({ status: 'shipped', trackingNumber: trackingInput })
             });
             if (res.ok) {
@@ -84,9 +92,7 @@ const AdminOrderDetail = () => {
         win.print();
     };
 
-    if (loading) return <div className="p-8 text-center">Loading...</div>;
-    if (!order) return <div className="p-8 text-center text-red-500">Order not found</div>;
-
+    // Fix: Hooks must act indiscriminately of conditional returns
     const items = React.useMemo(() => {
         if (!order?.items) return [];
         try {
@@ -101,6 +107,9 @@ const AdminOrderDetail = () => {
             return typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address;
         } catch (e) { return {}; }
     }, [order?.shipping_address]);
+
+    if (loading) return <div className="p-8 text-center">Loading...</div>;
+    if (!order) return <div className="p-8 text-center text-red-500">Order not found</div>;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pt-24">

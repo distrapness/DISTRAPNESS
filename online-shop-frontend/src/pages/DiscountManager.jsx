@@ -50,7 +50,10 @@ const DiscountManager = () => {
         try {
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
                 body: JSON.stringify(form)
             });
             const data = await res.json();
@@ -69,7 +72,10 @@ const DiscountManager = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Yakin hapus kupon ini?")) return;
         try {
-            await fetch(`${config.API_URL}/api/coupons/${id}`, { method: 'DELETE' });
+            await fetch(`${config.API_URL}/api/coupons/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
             fetchCoupons();
         } catch (error) {
             alert("Gagal menghapus");
@@ -115,7 +121,7 @@ const DiscountManager = () => {
                     </button>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200">
                             <tr>

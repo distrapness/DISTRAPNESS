@@ -37,6 +37,7 @@ async function uploadBannerToBackend(blob) {
   formData.append('image', blob, 'banner.jpg');
   const response = await fetch(`${config.API_URL}/api/banners/upload`, {
     method: 'POST',
+    headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` },
     body: formData
   });
   if (!response.ok) throw new Error('Gagal upload gambar');
@@ -52,6 +53,8 @@ const BannerUploader = ({ onConfirm }) => {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [croppedImage, setCroppedImage] = useState(null);
   const [step, setStep] = useState('upload'); // upload | crop | preview
+
+  const [uploading, setUploading] = useState(false);
 
   const onFileChange = async (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -82,15 +85,22 @@ const BannerUploader = ({ onConfirm }) => {
 
   const handleConfirm = async () => {
     if (onConfirm && croppedImage) {
-      // Konversi croppedImage (blob url) ke blob
-      const blob = await fetch(croppedImage).then(r => r.blob());
-      // Upload ke backend
-      const staticUrl = await uploadBannerToBackend(blob);
-      onConfirm(staticUrl); // Kirim path statis ke admin
+      setUploading(true);
+      try {
+        // Konversi croppedImage (blob url) ke blob
+        const blob = await fetch(croppedImage).then(r => r.blob());
+        // Upload ke backend
+        const staticUrl = await uploadBannerToBackend(blob);
+        onConfirm(staticUrl); // Kirim path statis ke admin
+        setImageSrc(null);
+        setCroppedImage(null);
+        setStep('upload');
+      } catch (err) {
+        alert("Gagal menyimpan banner: " + err.message);
+      } finally {
+        setUploading(false);
+      }
     }
-    setImageSrc(null);
-    setCroppedImage(null);
-    setStep('upload');
   };
 
   const handleEdit = () => {
@@ -110,7 +120,7 @@ const BannerUploader = ({ onConfirm }) => {
           />
           <button
             onClick={() => inputRef.current.click()}
-            className="px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 font-bold"
+            className="px-8 py-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 font-black uppercase tracking-widest transition-all transform hover:scale-105"
           >
             Pilih Gambar Banner
           </button>
@@ -118,7 +128,7 @@ const BannerUploader = ({ onConfirm }) => {
       )}
       {step === 'crop' && imageSrc && (
         <div className="w-full flex flex-col items-center">
-          <div className="relative w-full max-w-2xl h-64 bg-gray-100 rounded overflow-hidden">
+          <div className="relative w-full max-w-2xl h-64 bg-gray-100 dark:bg-gray-900 rounded-3xl overflow-hidden shadow-inner mb-6">
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -129,59 +139,66 @@ const BannerUploader = ({ onConfirm }) => {
               onCropComplete={onCropComplete}
             />
           </div>
-          <div className="flex gap-4 mt-4 items-center">
-            <label className="font-bold">Zoom:</label>
-            <input
-              type="range"
-              min={1}
-              max={3}
-              step={0.01}
-              value={zoom}
-              onChange={e => setZoom(Number(e.target.value))}
-              className="w-40"
-            />
-            <button
-              onClick={showCroppedImage}
-              className="px-6 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 font-bold"
-            >
-              Preview
-            </button>
-            <button
-              onClick={() => setStep('upload')}
-              className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
-            >
-              Ganti Gambar
-            </button>
+          <div className="flex flex-wrap justify-center gap-6 items-center">
+            <div className="flex items-center gap-3 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-full">
+              <label className="font-bold text-sm text-gray-600 dark:text-gray-300">Zoom:</label>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={zoom}
+                onChange={e => setZoom(Number(e.target.value))}
+                className="w-32 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={showCroppedImage}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-full shadow-lg font-bold hover:bg-indigo-700 transition-all uppercase text-xs tracking-widest"
+              >
+                Preview Banner
+              </button>
+              <button
+                onClick={() => setStep('upload')}
+                className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full font-bold hover:bg-gray-300 transition-all uppercase text-xs tracking-widest"
+              >
+                Ganti Gambar
+              </button>
+            </div>
           </div>
         </div>
       )}
       {step === 'preview' && croppedImage && (
-        <div className="w-full flex flex-col items-center">
-          <div className="w-full max-w-2xl">
+        <div className="w-full flex flex-col items-center animate-fadeIn">
+          <div className="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 mb-6">
             <img
               src={croppedImage}
               alt="Preview Banner"
-              className="w-full h-auto rounded shadow object-cover object-center"
+              className="w-full h-auto object-cover object-center"
               style={{ maxHeight: 300 }}
             />
           </div>
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-4">
             <button
               onClick={handleEdit}
-              className="px-6 py-2 bg-yellow-500 text-white rounded shadow hover:bg-yellow-600 font-bold"
+              className="px-8 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full font-black uppercase tracking-widest transition-all hover:bg-gray-300 text-sm"
+              disabled={uploading}
             >
-              Edit
+              Edit Crop
             </button>
             <button
               onClick={handleConfirm}
-              className="px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 font-bold"
+              className="px-10 py-3 bg-green-600 text-white rounded-full shadow-lg font-black uppercase tracking-widest transition-all hover:bg-green-700 transform hover:scale-105 active:scale-95 disabled:opacity-50 text-sm"
+              disabled={uploading}
             >
-              Konfirmasi
+              {uploading ? 'Menyimpan...' : 'Simpan Banner'}
             </button>
           </div>
         </div>
       )}
     </div>
+
   );
 };
 

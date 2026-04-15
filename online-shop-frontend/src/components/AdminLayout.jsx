@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     FaHome, FaBoxOpen, FaShoppingCart, FaTags,
-    FaCog, FaSignOutAlt, FaBars, FaTimes, FaArrowLeft
+    FaCog, FaSignOutAlt, FaBars, FaTimes, FaArrowLeft, FaImage
 } from 'react-icons/fa';
 
 const AdminLayout = ({ children }) => {
@@ -17,6 +17,7 @@ const AdminLayout = ({ children }) => {
         { path: '/admin/orders', label: 'Orders', icon: <FaShoppingCart /> },
         { path: '/product-admin', label: 'Products', icon: <FaBoxOpen /> },
         { path: '/admin/categories', label: 'Categories', icon: <FaTags /> },
+        { path: '/banner-admin', label: 'Banners', icon: <FaImage /> },
         { path: '/admin/settings', label: 'Settings', icon: <FaCog /> },
     ];
 

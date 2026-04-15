@@ -66,6 +66,32 @@ export const translations = {
             sizeGuide: "Size Guide",
             shippingNote: "Free shipping on orders over Rp 500.000. Returns accepted within 14 days of delivery.",
             materialNote: "100% Heavyweight Cotton. Machine wash cold."
+        },
+        about: {
+            title: "About Us",
+            p1: "DISTRAPNESS is an online store established in 2025 with the vision of providing the best service and an easy, safe, and enjoyable online shopping experience for all customers in Indonesia.",
+            p2: "We provide various high-quality products at affordable prices and transparent transaction processes. Customer satisfaction is our top priority.",
+            p3: "Contact us for collaborations or further inquiries. Thank you for entrusting your shopping needs to DISTRAPNESS!"
+        },
+        contact: {
+            title: "Contact Us",
+            name: "Name",
+            email: "Email",
+            message: "Message",
+            send: "Send",
+            sending: "Sending...",
+            success: "Message sent successfully!",
+            error: "Please fill the form correctly!"
+        },
+        store: {
+            title: "Our Store",
+            desc: "Visit our physical store at the following address for a direct shopping experience and the best service from our team.",
+            address: "Address",
+            addressValue: "Jl. Raya Pajajaran, Bogor, West Java 16143",
+            hours: "Business Hours",
+            hoursValue1: "Monday - Saturday: 09.00 - 18.00 WIB",
+            hoursValue2: "Sunday & Public Holidays: Closed",
+            phone: "Phone"
         }
     },
     ID: {
@@ -135,6 +161,32 @@ export const translations = {
             sizeGuide: "Panduan Ukuran",
             shippingNote: "Gratis ongkir untuk pesanan di atas Rp 500.000. Pengembalian diterima dalam 14 hari.",
             materialNote: "100% Katun Berat. Cuci dengan air dingin."
+        },
+        about: {
+            title: "Tentang Kami",
+            p1: "DISTRAPNESS adalah toko online yang berdiri sejak 2025 dengan visi memberikan pelayanan terbaik dan pengalaman belanja online yang mudah, aman, serta menyenangkan untuk semua pelanggan di Indonesia.",
+            p2: "Kami menyediakan berbagai produk berkualitas dengan harga terjangkau dan proses transaksi yang transparan. Kepuasan pelanggan adalah prioritas utama kami.",
+            p3: "Hubungi kami untuk kerjasama atau pertanyaan lebih lanjut. Terima kasih telah mempercayakan kebutuhan belanja Anda kepada DISTRAPNESS!"
+        },
+        contact: {
+            title: "Kontak Kami",
+            name: "Nama",
+            email: "Email",
+            message: "Pesan",
+            send: "Kirim",
+            sending: "Mengirim...",
+            success: "Pesan berhasil dikirim!",
+            error: "Mohon isi data dengan benar!"
+        },
+        store: {
+            title: "Toko Kami",
+            desc: "Kunjungi toko fisik kami di alamat berikut untuk pengalaman belanja langsung dan layanan terbaik dari tim kami.",
+            address: "Alamat",
+            addressValue: "Jl. Raya Pajajaran, Bogor, Jawa Barat 16143",
+            hours: "Jam Operasional",
+            hoursValue1: "Senin - Sabtu: 09.00 - 18.00 WIB",
+            hoursValue2: "Minggu & Libur Nasional: Tutup",
+            phone: "Telepon"
         }
     }
 };

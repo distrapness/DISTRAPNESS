@@ -4,62 +4,124 @@ const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { sendOrderConfirmation } = require('../services/emailService');
+const { sendOrderConfirmation, sendAdminNotification } = require('../services/emailService');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
+
 
 // Multer setup for payment proof uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
+// Multer setup for payment proof uploads (Memory for Base64)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
-const upload = multer({ storage });
 
-// CREATE ORDER
+// GET USER ORDERS (By Email in Shipping Address)
+router.get('/user', (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.json([]);
+
+  // Use LIKE to find email in JSON string (Compatible with most MySQL versions)
+  // Pattern matches "email":"value" structure roughly
+  const search = `%"email":"${email}"%`;
+
+  pool.query('SELECT * FROM orders WHERE shipping_address LIKE ? ORDER BY createdAt DESC', [search], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Database error', detail: err });
+    const data = results.map(r => ({
+      ...r,
+      shipping_address: r.shipping_address ? JSON.parse(r.shipping_address) : null,
+      items: r.items ? JSON.parse(r.items) : []
+    }));
+    res.json(data);
+  });
+});
+
+// CREATE ORDER (With Stock Management)
 router.post('/', async (req, res) => {
-  const { userId, items, total, paymentMethod, status, shippingAddress, couponCode, discountAmount } = req.body;
+  const { userId, items, total, paymentMethod, status, shippingAddress, couponCode, discountAmount, email } = req.body;
 
-  // Fix: userId di database kemungkinan INT, tapi frontend kirim Email (String) untuk guest.
-  // Jika userId bukan angka, set ke NULL.
-  const dbUserId = (userId && !isNaN(userId)) ? userId : null;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Keranjang belanja kosong' });
+  }
+
+  const connection = await pool.promise().getConnection();
 
   try {
-    // Insert order
-    pool.query(
-      'INSERT INTO orders (userId, items, total, paymentMethod, status, shipping_address, coupon_code, discount_amount, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending', JSON.stringify(shippingAddress || {}), couponCode || null, discountAmount || 0],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: 'Database error', detail: err });
+    await connection.beginTransaction();
 
-        // Kirim email konfirmasi (asynchronous, tidak perlu tunggu selesai)
-        // Kita perlu ambil email user dulu. 
-        // NOTE: Di codingan lama, userId disimpan, tapi kita butuh email.
-        // Asumsi: userId yang dikirim dari frontend adalah email (jika login pakai email) 
-        // ATAU kita perlu query user table.
-        // Untuk amannya, kita query user table berdasarkan userId (jika userId itu ID)
-        // TAPI, jika userId itu sebenarnya string email (karena auth sederhana), langsung pakai.
-        // Mari kita cek db schema user... 
+    // 1. Cek Stok (Locking with FOR UPDATE)
+    for (const item of items) {
+      const [rows] = await connection.query('SELECT stock, name FROM products WHERE id = ? FOR UPDATE', [item.id]);
 
-        // SEMENTARA: Kita asumsikan backend menerima field 'userEmail' di body request juga agar lebih mudah.
-        // Jika tidak ada request body email, kita coba gunakan userId kalau bentuknya email.
-        const targetEmail = req.body.email || (userId && userId.includes('@') ? userId : null);
-
-        if (targetEmail) {
-          sendOrderConfirmation({
-            email: targetEmail,
-            orderId: result.insertId,
-            cart: items,
-            total: total
-          });
-        }
-
-        res.json({ success: true, orderId: result.insertId });
+      if (rows.length === 0) {
+        throw new Error(`Produk "${item.name}" tidak ditemukan.`);
       }
+
+      const product = rows[0];
+      if (product.stock < item.qty) {
+        throw new Error(`Stok habis untuk "${product.name}". Tersisa hanya ${product.stock}.`);
+      }
+    }
+
+    // 2. Siapkan Data
+    const dbUserId = (userId && !isNaN(userId)) ? userId : null;
+    const finalShipping = {
+      ...(shippingAddress || {}),
+      email: email || (userId && typeof userId === 'string' && userId.includes('@') ? userId : '')
+    };
+
+    // 3. Simpan Order
+    const [result] = await connection.query(
+      'INSERT INTO orders (userId, items, total, paymentMethod, status, shipping_address, coupon_code, discount_amount, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending', JSON.stringify(finalShipping), couponCode || null, discountAmount || 0]
     );
+
+    const newOrderId = result.insertId;
+
+    // 4. Kurangi Stok
+    for (const item of items) {
+      await connection.query('UPDATE products SET stock = stock - ? WHERE id = ?', [item.qty, item.id]);
+    }
+
+    await connection.commit();
+
+    // 5. Kirim Email ke Customer (safe)
+    const targetEmail = email || (userId && typeof userId === 'string' && userId.includes('@') ? userId : null);
+    if (targetEmail) {
+      try {
+        sendOrderConfirmation({
+          email: targetEmail,
+          orderId: newOrderId,
+          cart: items,
+          total: total
+        });
+      } catch (e) {
+        console.warn("Email confirmation warning:", e.message);
+      }
+    }
+
+    // 6. Kirim Email Notifikasi ke Admin (safe)
+    try {
+      sendAdminNotification({
+        orderId: newOrderId,
+        cart: items,
+        total: total,
+        email: targetEmail,
+        paymentMethod: paymentMethod,
+        shippingAddress: finalShipping
+      });
+    } catch (e) {
+      console.warn("Admin email warning:", e.message);
+    }
+
+    res.json({ success: true, orderId: newOrderId });
+
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error', detail: err });
+    await connection.rollback();
+    console.error("Order Transaction Error:", err.message);
+    res.status(400).json({ error: err.message || 'Gagal memproses pesanan' });
+  } finally {
+    connection.release();
   }
 });
 
@@ -67,7 +129,12 @@ router.post('/', async (req, res) => {
 router.post('/upload-proof/:orderId', upload.single('paymentProof'), (req, res) => {
   const { orderId } = req.params;
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const url = `/uploads/${req.file.filename}`;
+
+  // Convert buffer to Base64 for Vercel/Serverless compatibility
+  const b64 = Buffer.from(req.file.buffer).toString('base64');
+  const mime = req.file.mimetype;
+  const url = `data:${mime};base64,${b64}`;
+
   pool.query(
     'UPDATE orders SET paymentProof=?, status=? WHERE id=?',
     [url, 'waiting_verification', orderId],
@@ -79,7 +146,7 @@ router.post('/upload-proof/:orderId', upload.single('paymentProof'), (req, res) 
 });
 
 // GET ALL ORDERS (Admin)
-router.get('/', (req, res) => {
+router.get('/', verifyToken, verifyAdmin, (req, res) => {
   pool.query('SELECT * FROM orders ORDER BY createdAt DESC', (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
     const data = results.map(r => ({
@@ -103,7 +170,7 @@ router.get('/:orderId', (req, res) => {
 });
 
 // UPDATE ORDER STATUS (Admin)
-router.put('/status/:orderId', (req, res) => {
+router.put('/status/:orderId', verifyToken, verifyAdmin, (req, res) => {
   const { orderId } = req.params;
   const { status, trackingNumber } = req.body;
 

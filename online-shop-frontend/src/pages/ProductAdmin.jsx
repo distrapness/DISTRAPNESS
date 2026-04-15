@@ -1,28 +1,40 @@
 import React, { useEffect, useState } from "react";
-import BackButton from "../components/BackButton.jsx";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
-import ProductPreviewPanel from "../components/ProductPreviewPanel.jsx";
 import ImageCropperModal from "../components/ImageCropperModal.jsx";
-import { Link } from "react-router-dom";
 import config from '../config.js';
+import { getImageUrl } from "../utils/imageHelper";
 
 const API_URL = `${config.API_URL}/api/products`;
 const UPLOAD_URL = `${config.API_URL}/api/upload`;
+const CATEGORIES_URL = `${config.API_URL}/api/categories`;
 
 const ProductAdmin = () => {
   // Product State
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [form, setForm] = useState({ name: "", price: "", images: [], description: "", stock: "", sizes: { S: 0, M: 0, L: 0, XL: 0 } });
-  const [images, setImages] = useState([]); // File asli
-  const [editedImages, setEditedImages] = useState([]); // Hasil edit (resize & rotate)
-  const [rotates, setRotates] = useState([]); // Derajat rotasi per gambar
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [uploadError, setUploadError] = useState('');
+
+  // Form State
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    images: [],
+    description: "",
+    stock: "",
+    hasSizes: true,
+    sizes: { S: 0, M: 0, L: 0, XL: 0 },
+    category: ""
+  });
+
+  // Categories
+  const [categories, setCategories] = useState([]);
+
+  // Image Handling
+  const [images, setImages] = useState([]); // New file objects
+  const [editedImages, setEditedImages] = useState([]); // Edited blobs
+
+  // Submitting
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState("");
   const [editId, setEditId] = useState(null);
 
   // UI State
@@ -30,40 +42,49 @@ const ProductAdmin = () => {
   const [filterSearch, setFilterSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterStock, setFilterStock] = useState("All");
+  
+  // Custom Category State
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   // Cropper State
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperFile, setCropperFile] = useState(null);
   const [cropperIndex, setCropperIndex] = useState(null);
 
-  // Delete State
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
-  const [deleteSuccess, setDeleteSuccess] = useState("");
-
-  // State untuk modal gallery
+  // Gallery State
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
-  // Fetch Products
-  const fetchProducts = () => {
+  // Fetch Products & Categories
+  const fetchData = async () => {
     setLoading(true);
-    fetch(API_URL)
-      .then((res) => res.json())
-      .then(setProducts)
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
+    try {
+      const [prodRes, catRes] = await Promise.all([
+        fetch(API_URL),
+        fetch(CATEGORIES_URL)
+      ]);
+      const prodData = await prodRes.json();
+      const catData = await catRes.json();
+
+      setProducts(Array.isArray(prodData) ? prodData : []);
+      setCategories(Array.isArray(catData) ? catData : []);
+    } catch (err) {
+      setError("Gagal memuat data.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
 
   // Filter Logic
   const filteredProducts = products.filter(product => {
     const matchSearch = product.name.toLowerCase().includes(filterSearch.toLowerCase());
-    const matchCategory = true;
+    const matchCategory = filterCategory === "All" || product.category === filterCategory;
 
     let matchStock = true;
     const stock = product.stock || 0;
@@ -136,16 +157,27 @@ const ProductAdmin = () => {
   };
 
   const handleCropSave = (blob) => {
-    const newFile = new File([blob], cropperFile.name, { type: 'image/jpeg' });
+    const newFile = new File([blob], cropperFile.name || "edited.jpg", { type: 'image/jpeg' });
 
-    // Update 'images' and 'editedImages' at index
-    const newImages = [...images];
-    newImages[cropperIndex] = newFile;
-    setImages(newImages);
+    if (cropperIndex && typeof cropperIndex === 'object' && cropperIndex.type === 'existing') {
+      const oldIndex = cropperIndex.index;
+      // Add to new images list
+      setImages(prev => [...prev, newFile]);
+      setEditedImages(prev => [...prev, blob]);
+      // Remove from existing list
+      setForm(prev => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== oldIndex)
+      }));
+    } else {
+      const newImages = [...images];
+      newImages[cropperIndex] = newFile;
+      setImages(newImages);
 
-    const newEditedImages = [...editedImages];
-    newEditedImages[cropperIndex] = blob; // blob acts as file
-    setEditedImages(newEditedImages);
+      const newEditedImages = [...editedImages];
+      newEditedImages[cropperIndex] = blob;
+      setEditedImages(newEditedImages);
+    }
 
     setCropperOpen(false);
     setCropperFile(null);
@@ -156,8 +188,6 @@ const ProductAdmin = () => {
     e.preventDefault();
     setSubmitting(true);
     setError('');
-    setUploadStatus('');
-    setUploadError('');
 
     try {
       // Upload semua gambar baru (jika ada)
@@ -165,7 +195,6 @@ const ProductAdmin = () => {
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
         const formData = new FormData();
-        // Critical Fix: Ensure we use the edited blob if available, otherwise the original file.
         const fileToUpload = editedImages[i] || img;
         formData.append("image", fileToUpload);
 
@@ -174,62 +203,78 @@ const ProductAdmin = () => {
             method: "POST",
             body: formData,
           });
-          if (!uploadRes.ok) {
-            setUploadError("Gagal upload gambar ke server");
-            continue;
-          }
+          if (!uploadRes.ok) continue;
           const data = await uploadRes.json();
           imageUrls.push(data.url);
         } catch (err) {
-          setUploadError("Gagal upload gambar: " + err.message);
+          console.error("Upload error", err);
         }
       }
+
       // Gabungkan gambar lama dan baru saat edit
       let finalImages = imageUrls;
       if (editId) {
-        // Jika edit, gabungkan gambar lama (form.images) dan gambar baru (imageUrls)
         const oldImages = Array.isArray(form.images) ? form.images : [];
         finalImages = Array.from(new Set([...oldImages, ...imageUrls]));
       }
 
-      // Hitung stock otomatis dari sizes jika belum
-      const sizes = form.sizes || { S: 0, M: 0, L: 0, XL: 0 };
-      const totalStock = Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0);
+      // Calculate total stock based on whether sizes are used
+      const sizes = form.hasSizes ? (form.sizes || { S: 0, M: 0, L: 0, XL: 0 }) : { S: 0, M: 0, L: 0, XL: 0 };
+      const totalStock = form.hasSizes 
+        ? Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0)
+        : Number(form.stock) || 0;
 
       const productData = {
         ...form,
         sizes,
         stock: totalStock,
         price: Number(form.price) || 0,
-        images: finalImages.length > 0 ? finalImages : (form.images || [])
+        images: finalImages.length > 0 ? finalImages : (form.images || []),
+        category: isNewCategory ? newCategoryName : form.category // Include Category properly
       };
 
-      // Jika editId ada, lakukan update produk (PUT), jika tidak, tambah produk (POST)
+      // If new category, create it first
+      if (isNewCategory && newCategoryName) {
+        try {
+          await fetch(CATEGORIES_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ name: newCategoryName })
+          });
+        } catch (e) { console.error("Failed to save new category", e); }
+      }
+
       const method = editId ? "PUT" : "POST";
       const url = editId ? `${API_URL}/${editId}` : API_URL;
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(productData),
       });
 
       if (!res.ok) {
         const errText = await res.text();
-        setError((editId ? "Gagal mengedit produk: " : "Gagal menyimpan produk: ") + errText);
+        setError(errText);
         setSubmitting(false);
-        console.error('API error:', errText);
         return;
       }
 
-      setForm({ name: "", price: "", images: [], description: "", stock: "", sizes: { S: 0, M: 0, L: 0, XL: 0 } });
+      // Reset Form
+      setForm({ name: "", price: "", images: [], description: "", stock: "", hasSizes: true, sizes: { S: 0, M: 0, L: 0, XL: 0 }, category: "" });
       setImages([]);
       setEditedImages([]);
-      setRotates([]);
       setEditId(null);
-      setSuccess(editId ? "Produk berhasil diedit" : "Produk berhasil ditambahkan");
-      setIsFormOpen(false); // Close Modal
-      fetchProducts();
+      setIsFormOpen(false);
+      setIsNewCategory(false);
+      setNewCategoryName("");
+      fetchData(); // Refresh Data
     } catch (err) {
       setError("Error submit produk: " + err.message);
     } finally {
@@ -244,40 +289,42 @@ const ProductAdmin = () => {
       images: product.images,
       description: product.description,
       stock: product.stock ?? 0,
-      sizes: product.sizes || { S: 0, M: 0, L: 0, XL: 0 }
+      hasSizes: product.sizes && Object.values(product.sizes).some(v => v > 0),
+      sizes: product.sizes || { S: 0, M: 0, L: 0, XL: 0 },
+      category: product.category || ""
     });
-    setImages([]); // gambar baru (belum diupload)
+    setImages([]);
     setEditedImages([]);
-    setRotates([]);
     setEditId(product.id);
-    setSuccess("");
     setError(null);
-    setIsFormOpen(true); // Open Modal
+    setIsNewCategory(false);
+    setNewCategoryName("");
+    setIsFormOpen(true);
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Yakin hapus?")) return;
-    setDeleteLoading(true);
     try {
-      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      fetchProducts();
-      setIsFormOpen(false); // Close drawer after delete
+      await fetch(`${API_URL}/${id}`, { 
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+      });
+      fetchData();
+      setIsFormOpen(false);
     } catch (err) {
       console.error(err);
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
   const handleCancelEdit = () => {
-    setForm({ name: "", price: "", images: [], description: "", stock: "" });
+    setForm({ name: "", price: "", images: [], description: "", stock: "", hasSizes: true, category: "", sizes: { S: 0, M: 0, L: 0, XL: 0 } });
     setImages([]);
     setEditedImages([]);
-    setRotates([]);
     setEditId(null);
-    setSuccess("");
     setError(null);
-    setIsFormOpen(false); // Close Modal
+    setIsFormOpen(false);
+    setIsNewCategory(false);
+    setNewCategoryName("");
   };
 
   const handleImageClick = (images, idx) => {
@@ -286,7 +333,6 @@ const ProductAdmin = () => {
     setGalleryOpen(true);
   };
 
-  // Fungsi hapus gambar lama dari form.images (sebelum submit)
   const handleRemoveOldImage = (idx) => {
     setForm((prev) => ({
       ...prev,
@@ -294,11 +340,9 @@ const ProductAdmin = () => {
     }));
   };
 
-  // Fungsi hapus gambar baru dari images (sebelum submit)
   const handleRemoveNewImage = (idx) => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
     setEditedImages((prev) => prev.filter((_, i) => i !== idx));
-    setRotates((prev) => prev.filter((_, i) => i !== idx));
   };
 
   return (
@@ -307,11 +351,11 @@ const ProductAdmin = () => {
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Product Management</h1>
-            <p className="text-gray-500 dark:text-gray-400">Inventory & Catalog</p>
+            <p className="text-gray-500 dark:text-gray-400">Inventory & Catalog + Category</p>
           </div>
 
           <div className="flex gap-4 w-full md:w-auto">
-            {/* Search & Filter Bar */}
+            {/* Search */}
             <input
               type="text"
               placeholder="Search product..."
@@ -319,6 +363,19 @@ const ProductAdmin = () => {
               onChange={(e) => setFilterSearch(e.target.value)}
               className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
             />
+            {/* Category Filter */}
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            >
+              <option value="All">All Categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+              <option value="Uncategorized">Uncategorized</option>
+            </select>
+
             <select
               value={filterStock}
               onChange={(e) => setFilterStock(e.target.value)}
@@ -345,10 +402,12 @@ const ProductAdmin = () => {
             <div className="p-8 text-center text-gray-500">Loading products...</div>
           ) : (
             <div className="overflow-x-auto">
+              {error && <div className="p-4 bg-red-100 text-red-600">{error}</div>}
               <table className="min-w-full text-left">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                   <tr>
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Product</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Category</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Price</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Stock Status</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">Actions</th>
@@ -367,7 +426,7 @@ const ProductAdmin = () => {
                       <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                         <td className="px-6 py-4 flex items-center gap-4">
                           <img
-                            src={Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : "https://via.placeholder.com/150"}
+                            src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[0]) : "https://via.placeholder.com/150"}
                             alt={product.name}
                             className="h-12 w-12 object-cover rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer"
                             onClick={() => handleImageClick(Array.isArray(product.images) ? product.images : [], 0)}
@@ -376,6 +435,9 @@ const ProductAdmin = () => {
                             <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
                             <div className="text-xs text-gray-500">SKU: {product.id}</div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                          <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold">{product.category || 'Uncategorized'}</span>
                         </td>
                         <td className="px-6 py-4 text-gray-600 dark:text-gray-300">Rp {product.price?.toLocaleString("id-ID")}</td>
                         <td className="px-6 py-4">
@@ -389,7 +451,7 @@ const ProductAdmin = () => {
                   })}
                   {filteredProducts.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">No products found. Add one to get started!</td>
+                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">No products found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -425,10 +487,32 @@ const ProductAdmin = () => {
                       <span className="text-xs font-normal text-gray-500">Min. 1 image required</span>
                     </label>
                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
-                      {Array.isArray(form.images) && form.images.map((img, idx) => (
+                      {Array.isArray(form.images) && form.images.map((imgUrl, idx) => (
                         <div key={`old-${idx}`} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm group">
-                          <img src={img} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="old" />
-                          <div onClick={() => handleRemoveOldImage(idx)} className="absolute top-1 right-1 bg-white text-red-600 rounded-full w-6 h-6 flex items-center justify-center cursor-pointer shadow hover:bg-red-50 z-10 font-bold">×</div>
+                          <img src={getImageUrl(imgUrl)} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="old" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                try {
+                                  const response = await fetch(getImageUrl(imgUrl));
+                                  const blob = await response.blob();
+                                  const file = new File([blob], "edited-existing.jpg", { type: "image/jpeg" });
+                                  setCropperFile(file);
+                                  setCropperIndex({ type: 'existing', index: idx });
+                                  setCropperOpen(true);
+                                } catch (err) {
+                                  alert("Gagal load gambar.");
+                                }
+                              }}
+                              className="p-2 bg-white rounded-full text-blue-600 hover:scale-110 shadow"
+                              title="Edit"
+                            >
+                              ✏️
+                            </button>
+                            <div onClick={() => handleRemoveOldImage(idx)} className="p-2 bg-white rounded-full text-red-600 cursor-pointer shadow hover:scale-110 font-bold">🗑️</div>
+                          </div>
                         </div>
                       ))}
                       {images.map((img, idx) => (
@@ -482,38 +566,85 @@ const ProductAdmin = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold mb-2 dark:text-white">Total Stock</label>
-                        <input
-                          name="stock"
-                          type="number"
-                          value={Object.values(form.sizes || { S: 0, M: 0, L: 0, XL: 0 }).reduce((a, b) => Number(a) + Number(b), 0)}
-                          readOnly
-                          className="w-full px-5 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 font-mono cursor-not-allowed dark:bg-gray-800 dark:border-gray-700"
-                        />
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Category</label>
+                        <select
+                          name="category"
+                          value={isNewCategory ? "New" : form.category}
+                          onChange={(e) => {
+                            if (e.target.value === "New") {
+                              setIsNewCategory(true);
+                            } else {
+                              setIsNewCategory(false);
+                              setForm({ ...form, category: e.target.value });
+                            }
+                          }}
+                          className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                          <option value="">Select Category</option>
+                          {categories.map(c => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))}
+                          <option value="New">Create New Category...</option>
+                        </select>
+                        {isNewCategory && (
+                          <input
+                            type="text"
+                            value={newCategoryName}
+                            placeholder="Enter new category name"
+                            className="mt-2 w-full px-5 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Variants */}
                   <div>
-                    <label className="block text-sm font-bold mb-3 dark:text-white">Stock Variants (Size)</label>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                      {['S', 'M', 'L', 'XL'].map(size => (
-                        <div key={size} className="relative">
-                          <label className="block text-[10px] font-bold mb-1 text-center text-gray-500 uppercase tracking-wide">{size}</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={form.sizes?.[size] || 0}
-                            onChange={(e) => setForm({
-                              ...form,
-                              sizes: { ...form.sizes, [size]: Number(e.target.value) }
-                            })}
-                            className="w-full px-2 py-3 border border-gray-200 rounded-lg text-center font-bold focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 shadow-sm"
-                          />
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-3 mb-3">
+                      <label className="text-sm font-bold dark:text-white">Product Options</label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={form.hasSizes} 
+                          onChange={(e) => setForm({ ...form, hasSizes: e.target.checked })}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Has Sizes (S, M, L, XL)</span>
+                      </label>
                     </div>
+
+                    {form.hasSizes ? (
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                        {['S', 'M', 'L', 'XL'].map(size => (
+                          <div key={size} className="relative">
+                            <label className="block text-[10px] font-bold mb-1 text-center text-gray-500 uppercase tracking-wide">{size}</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={form.sizes?.[size] || 0}
+                              onChange={(e) => setForm({
+                                ...form,
+                                sizes: { ...form.sizes, [size]: Number(e.target.value) }
+                              })}
+                              className="w-full px-2 py-3 border border-gray-200 rounded-lg text-center font-bold focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 shadow-sm"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="w-full md:w-1/3">
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Total Stock</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={form.stock || 0}
+                          onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
+                          className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow shadow-sm outline-none font-bold"
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Description */}
@@ -559,7 +690,7 @@ const ProductAdmin = () => {
                     <div className="aspect-square bg-gray-200 w-full relative">
                       {((images.length > 0) || (form.images && form.images.length > 0)) ? (
                         <img
-                          src={images.length > 0 ? URL.createObjectURL(images[0]) : form.images[0]}
+                          src={images.length > 0 ? URL.createObjectURL(images[0]) : getImageUrl(form.images[0])}
                           className="w-full h-full object-cover"
                           alt="preview"
                         />
@@ -586,6 +717,7 @@ const ProductAdmin = () => {
                         <h3 className="font-medium text-gray-900 dark:text-white mt-1 leading-snug line-clamp-2">
                           {form.name || "Nama Produk Anda"}
                         </h3>
+                        <div className="text-xs text-gray-500 mt-1">{form.category || "Uncategorized"}</div>
                       </div>
 
                       {/* Sold Count Mock */}

@@ -9,12 +9,19 @@ html, body, #root {
   padding: 0;
   background-color: #f4f4f5;
   color: #18181b;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition-property: background-color, color, border-color, box-shadow, fill, stroke;
   transition-duration: 900ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
   overflow-x: hidden;
   width: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 .dark, .dark body, .dark #root {
@@ -93,5 +100,18 @@ header, nav, .dark header, .dark nav {
   to { opacity: 1; transform: none; }
 }
 .animate-fadeIn {
-  animation: fadeIn 0.7s cubic-bezier(0.4,0,0.2,1) both;
+  animation: fadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Luxury button & image hovers */
+.hover-lux {
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hover-lux:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
+}
+
+.dark .hover-lux:hover {
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
 }

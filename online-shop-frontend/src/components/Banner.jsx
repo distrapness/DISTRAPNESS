@@ -31,12 +31,11 @@ const Banner = ({ src, alt = "Banner", className = "" }) => {
     }
   };
   return (
-    <div className={`w-full flex justify-center items-center overflow-hidden rounded-lg shadow-md my-4 ${className}`} style={{ minHeight: 120, maxHeight: 400 }}>
+    <div className={`w-full aspect-[16/5] overflow-hidden rounded-lg shadow-md my-4 ${className}`}>
       <img
         src={fallback ? "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80" : error ? "/assets/placeholder-banner.jpg" : realSrc}
         alt={alt}
-        className="w-full h-auto object-cover object-center"
-        style={{ maxHeight: 400, width: '100%', height: 'auto' }}
+        className="w-full h-full object-cover object-center"
         onError={handleError}
       />
     </div>

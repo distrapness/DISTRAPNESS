@@ -1,4 +1,4 @@
-import config from '../config';
+import config from '../config.js';
 
 export const getImageUrl = (url) => {
     if (!url) return "/assets/placeholder.jpg";

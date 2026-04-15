@@ -17,6 +17,13 @@ const PaymentDashboard = () => {
   const [address, setAddress] = useState({
     firstName: "", lastName: "", address: "", city: "", postalCode: "", phone: ""
   });
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`savedAddress_${userEmail || 'guest'}`);
+    if (saved) {
+      try { setAddress(JSON.parse(saved)); } catch(e){}
+    }
+  }, [userEmail]);
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
 
@@ -25,20 +32,30 @@ const PaymentDashboard = () => {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
 
+  // Manual methods (always available)
+  const staticMethods = [
+    { label: "Manual Transfer (Bank Mandiri)", value: "mandiri_tf" },
+    { label: "COD (Bayar di Tempat)", value: "cod" },
+    { label: "QRIS / E-Wallet (Midtrans)", value: "qris" },
+    { label: "Bank Transfer / VA (Midtrans)", value: "bca_va" }
+  ];
+
   useEffect(() => {
     // ... existing useEffect ...
+    // Merge static methods with API methods if any (or just use static for stability now)
+    setMethods(staticMethods);
+    setSelectedPaymentMethod(staticMethods[0].value);
+    setLoading(false);
+
+    /* 
+    // Jika ingin fetch Midtrans methods:
     fetch(`${config.API_URL}/api/midtrans/methods`)
-      .then(res => {
-        if (!res.ok) throw new Error("Gagal mengambil metode pembayaran");
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
-        setMethods(data);
-        if (data.length > 0) setSelectedPaymentMethod(data[0].value);
-        setError(null);
+         setMethods([...staticMethods, ...data]);
       })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch(err => console.log("Using static methods only"));
+    */
 
     // Load Cart
     const c = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -69,9 +86,78 @@ const PaymentDashboard = () => {
     }
   };
 
+  // RajaOngkir States
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [courier, setCourier] = useState("jne");
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedService, setSelectedService] = useState(null);
+
+  // Load Provinces
+  useEffect(() => {
+    fetch(`${config.API_URL}/api/shipping/provinces`)
+      .then(res => res.json())
+      .then(data => setProvinces(data))
+      .catch(err => console.error("Error loading provinces:", err));
+  }, []);
+
+  // Load Cities when Province changes
+  useEffect(() => {
+    if (selectedProvince) {
+      fetch(`${config.API_URL}/api/shipping/cities/${selectedProvince}`)
+        .then(res => res.json())
+        .then(data => setCities(data))
+        .catch(err => console.error("Error loading cities:", err));
+    } else {
+      setCities([]);
+    }
+  }, [selectedProvince]);
+
+  // Calculate Cost
+  useEffect(() => {
+    if (selectedCity && courier) {
+      // Calculate total weight (default 1000g per item if not specified)
+      const totalWeight = cart.reduce((sum, item) => sum + (item.weight || 1000) * item.qty, 0);
+      
+      fetch(`${config.API_URL}/api/shipping/cost`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: '151', // Jakarta Pusat (Example)
+          destination: selectedCity,
+          weight: totalWeight,
+          courier: courier
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          setShippingOptions(data[0].costs);
+          // Auto select first option if none selected
+          if (data[0].costs.length > 0 && !selectedService) {
+            handleServiceChange(data[0].costs[0]);
+          }
+        }
+      })
+      .catch(err => console.error("Error calculating cost:", err));
+    }
+  }, [selectedCity, courier, cart]);
+
+  const handleServiceChange = (service) => {
+    setSelectedService(service);
+    setShippingCost(service.cost[0].value);
+    setShippingMethod(`${courier.toUpperCase()} - ${service.service}`);
+  };
+
   const handleCreateOrder = async () => {
     if (!selectedPaymentMethod) {
       alert("Please select a payment method.");
+      return;
+    }
+    if (!selectedCity || !selectedService) {
+      alert("Pilih alamat pengiriman dan layanan kurir.");
       return;
     }
 
@@ -91,7 +177,12 @@ const PaymentDashboard = () => {
           total: finalTotal > 0 ? finalTotal : 0,
           paymentMethod: selectedPaymentMethod,
           status: 'pending',
-          shippingAddress: address,
+          shippingAddress: {
+            ...address,
+            provinceTitle: provinces.find(p => p.province_id === selectedProvince)?.province,
+            cityTitle: cities.find(c => c.city_id === selectedCity)?.city_name,
+            courierInfo: `${courier.toUpperCase()} ${selectedService.service}`
+          },
           couponCode: appliedCoupon,
           discountAmount: discountAmount
         })
@@ -103,17 +194,13 @@ const PaymentDashboard = () => {
       localStorage.setItem('lastOrderId', data.orderId);
       localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
       localStorage.setItem('cartTotal', finalTotal);
+      localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
 
       window.location.href = '/payment/confirm';
 
     } catch (e) {
       alert(e.message || "Gagal memproses pesanan");
     }
-  };
-
-  const handleShippingChange = (type) => {
-    setShippingMethod(type);
-    setShippingCost(type === 'express' ? 120000 : 0);
   };
 
   return (
@@ -146,23 +233,44 @@ const PaymentDashboard = () => {
                   value={address.lastName} onChange={e => setAddress({ ...address, lastName: e.target.value })}
                 />
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <select 
+                  className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black dark:text-white"
+                  value={selectedProvince}
+                  onChange={e => { setSelectedProvince(e.target.value); setSelectedCity(""); }}
+                >
+                  <option value="">Pilih Provinsi</option>
+                  {provinces.map(p => (
+                    <option key={p.province_id} value={p.province_id}>{p.province}</option>
+                  ))}
+                </select>
+
+                <select 
+                  className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black dark:text-white"
+                  value={selectedCity}
+                  onChange={e => setSelectedCity(e.target.value)}
+                  disabled={!selectedProvince}
+                >
+                  <option value="">Pilih Kota/Kabupaten</option>
+                  {cities.map(c => (
+                    <option key={c.city_id} value={c.city_id}>{c.type} {c.city_name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="mb-4">
-                <input
-                  type="text" placeholder="Address" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
+                <textarea
+                  placeholder="Detail Alamat (Jalan, No. Rumah, RT/RW)" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black min-h-[100px]"
                   value={address.address} onChange={e => setAddress({ ...address, address: e.target.value })}
                 />
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <input
-                  type="text" placeholder="City" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
-                  value={address.city} onChange={e => setAddress({ ...address, city: e.target.value })}
-                />
                 <input
                   type="text" placeholder="Postal Code" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
                   value={address.postalCode} onChange={e => setAddress({ ...address, postalCode: e.target.value })}
                 />
-              </div>
-              <div>
                 <input
                   type="text" placeholder="Phone Number" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
                   value={address.phone} onChange={e => setAddress({ ...address, phone: e.target.value })}
@@ -177,36 +285,45 @@ const PaymentDashboard = () => {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Method</h2>
               </div>
 
-              <div className="space-y-3">
-                <label className={`flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded shadow-sm cursor-pointer border ${shippingMethod === 'standard' ? 'border-red-500 bg-red-50 dark:bg-gray-700' : 'border-transparent'}`}>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio" name="shipping" value="standard" checked={shippingMethod === 'standard'}
-                      onChange={() => handleShippingChange('standard')}
-                      className="text-red-600 focus:ring-red-500"
-                    />
-                    <div>
-                      <div className="font-bold">Standard Delivery</div>
-                      <div className="text-xs text-gray-500">3-5 Business Days</div>
-                    </div>
-                  </div>
-                  <span className="font-bold">Free</span>
-                </label>
+              {/* Kurir Selection */}
+              <div className="flex gap-2 mb-6">
+                {['jne', 'pos', 'tiki'].map(c => (
+                  <button
+                    key={c}
+                    onClick={() => { setCourier(c); setSelectedService(null); }}
+                    className={`flex-1 py-3 font-bold rounded border transition-all uppercase ${courier === c ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-50 dark:bg-gray-800 text-gray-500 border-transparent hover:bg-gray-100'}`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
 
-                <label className={`flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded shadow-sm cursor-pointer border ${shippingMethod === 'express' ? 'border-red-500 bg-red-50 dark:bg-gray-700' : 'border-transparent'}`}>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio" name="shipping" value="express" checked={shippingMethod === 'express'}
-                      onChange={() => handleShippingChange('express')}
-                      className="text-red-600 focus:ring-red-500"
-                    />
-                    <div>
-                      <div className="font-bold">Express Shipping</div>
-                      <div className="text-xs text-gray-500">1-2 Business Days</div>
+              <div className="space-y-3">
+                {!selectedCity && (
+                  <p className="text-sm text-gray-500 italic text-center p-4 bg-gray-50 dark:bg-gray-800 rounded">Pilih kota pengiriman terlebih dahulu untuk melihat ongkir.</p>
+                )}
+                
+                {selectedCity && shippingOptions.length === 0 && (
+                  <p className="text-sm text-gray-500 italic text-center p-4">Loading shipping options...</p>
+                )}
+
+                {shippingOptions.map((opt, idx) => (
+                  <label key={idx} className={`flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded shadow-sm cursor-pointer border ${selectedService?.service === opt.service ? 'border-red-500 bg-red-50 dark:bg-gray-700' : 'border-transparent'}`}>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="radio" name="shipping" value={opt.service} 
+                        checked={selectedService?.service === opt.service}
+                        onChange={() => handleServiceChange(opt)}
+                        className="text-red-600 focus:ring-red-500"
+                      />
+                      <div>
+                        <div className="font-bold">{opt.service} - {opt.description}</div>
+                        <div className="text-xs text-gray-500">Estimasi: {opt.cost[0].etd} Hari</div>
+                      </div>
                     </div>
-                  </div>
-                  <span className="font-bold">Rp 120.000</span>
-                </label>
+                    <span className="font-bold text-red-600">Rp {opt.cost[0].value.toLocaleString('id-ID')}</span>
+                  </label>
+                ))}
               </div>
             </section>
 

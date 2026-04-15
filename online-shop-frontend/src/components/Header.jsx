@@ -70,9 +70,10 @@ const Header = ({ onCartClick, onWishlistClick }) => {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAccountMenu]);
 
-  // Close mobile menu when route changes
+  // Close mobile menu and dropdowns when route changes
   useEffect(() => {
     setMobileMenuOpen(false);
+    setShowAccountMenu(false);
   }, [location.pathname]);
 
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
@@ -94,23 +95,15 @@ const Header = ({ onCartClick, onWishlistClick }) => {
 
         {/* LOGO (Always Left and Visible) */}
         <div className="flex-1 md:flex-none flex justify-center md:justify-start">
-          <Link to="/" className="flex items-center gap-2">
-            {/* Mobile: Red Logo Text */}
-            <span className="md:hidden text-[#FF0000] font-[900] text-xl tracking-tighter uppercase font-sans">
+          <Link to="/" className="flex items-center gap-1 md:gap-2">
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="h-10 md:h-14 w-auto object-contain"
+            />
+            <span className="text-black dark:text-white font-[900] text-xl md:text-2xl tracking-tighter uppercase font-sans">
               DISTRAPNESS
             </span>
-
-            {/* Desktop: Clean Static Logo + Text */}
-            <div className="hidden md:flex items-center gap-1">
-              <img
-                src={logoUrl}
-                alt="Logo"
-                className="h-14 w-auto object-contain"
-              />
-              <span className="text-black dark:text-white font-[900] text-2xl tracking-tighter uppercase font-sans">
-                DISTRAPNESS
-              </span>
-            </div>
           </Link>
         </div>
 
@@ -132,10 +125,12 @@ const Header = ({ onCartClick, onWishlistClick }) => {
         <div className="flex-1"></div>
 
         {/* RIGHT ICONS */}
-        <div className="flex items-center gap-5 justify-end flex-initial">
+        {/* RIGHT ICONS */}
+        <div className="flex items-center gap-3 md:gap-5 justify-end flex-initial">
 
           {/* Desktop Controls: Language | Currency | Theme */}
           <div className="hidden md:flex items-center gap-4 mr-2 border-r border-gray-200 dark:border-gray-700 pr-6 h-6">
+            {/* ... (Language, Currency, Theme code remains) ... */}
             {/* Language Selector */}
             <div className="relative dropdown-container h-full flex items-center">
               <div
@@ -204,8 +199,6 @@ const Header = ({ onCartClick, onWishlistClick }) => {
             </button>
           </div>
 
-
-
           {/* Search (Desktop) */}
           <div className="hidden md:flex items-center">
             <div className={`overflow-hidden transition-all duration-300 ${searchOpen ? 'w-48 opacity-100 mr-2' : 'w-0 opacity-0'}`}>
@@ -227,6 +220,19 @@ const Header = ({ onCartClick, onWishlistClick }) => {
               </svg>
             </button>
           </div>
+
+          {/* Search (Mobile) */}
+          <button
+            className="md:hidden hover:text-[#FF0000] transition-colors"
+            onClick={() => {
+              setMobileMenuOpen(true);
+              // Ideally focus the input, but opening menu is enough for "Search" visibility
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
 
           {/* Wishlist (Desktop) */}
           <button onClick={onWishlistClick} className="hidden md:block hover:text-[#FF0000] relative transition-colors group">
@@ -264,13 +270,13 @@ const Header = ({ onCartClick, onWishlistClick }) => {
                 {isLoggedIn ? (
                   <>
                     <div className="px-4 py-2 text-xs text-gray-500 font-bold uppercase tracking-wider">{userEmail}</div>
-                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Profile</Link>
-                    <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700">Sign out</button>
+                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">{t('nav.profile')}</Link>
+                    <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700">{t('nav.signout')}</button>
                   </>
                 ) : (
                   <>
-                    <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Sign in</Link>
-                    <Link to="/register" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Register</Link>
+                    <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">{t('nav.signin')}</Link>
+                    <Link to="/register" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">{t('nav.register')}</Link>
                   </>
                 )}
               </div>
@@ -282,16 +288,83 @@ const Header = ({ onCartClick, onWishlistClick }) => {
       {/* Mobile Menu Dropdown */}
       <div className={`md:hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out border-t border-gray-200 dark:border-gray-700 ${mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <nav className="flex flex-col p-6 space-y-6">
-          <Link to="/" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Home</Link>
-          <Link to="/shop" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Shop</Link>
-          <Link to="/store" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Store</Link>
-          <Link to="/about" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">About</Link>
-          <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Contact</Link>
+          {/* Mobile Search */}
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (searchTerm.trim()) {
+              navigate(`/shop?search=${encodeURIComponent(searchTerm)}`);
+              setMobileMenuOpen(false);
+            }
+          }} className="relative">
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded-lg py-3 px-4 text-gray-900 dark:text-white"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </form>
+
+          <Link to="/" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.home').toUpperCase()}</Link>
+          <Link to="/shop" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.shop').toUpperCase()}</Link>
+          <Link to="/store" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.store').toUpperCase()}</Link>
+          <Link to="/about" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.about').toUpperCase()}</Link>
+          <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.contact').toUpperCase()}</Link>
           {userRole === 'admin' && (
-            <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400">Admin Panel</Link>
+            <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800 pb-2">Admin Panel</Link>
           )}
-          <div className="pt-4">
-            <button onClick={() => setDark(!dark)} className="text-sm font-bold bg-gray-100 px-4 py-2 rounded">{dark ? "Light Mode" : "Dark Mode"}</button>
+
+          {/* Settings Section (Lang, Currency, Theme) */}
+          <div className="pt-4 grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold uppercase text-gray-500">Language</span>
+              <div className="flex gap-2">
+                {['EN', 'ID'].map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    className={`px-3 py-1 rounded text-sm font-bold ${language === lang ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800'}`}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold uppercase text-gray-500">Currency</span>
+              <div className="flex gap-2">
+                {CURRENCY_OPTIONS.map(opt => (
+                  <button
+                    key={opt.code}
+                    onClick={() => setCurrency(opt)}
+                    className={`px-3 py-1 rounded text-sm font-bold ${currency.code === opt.code ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800'}`}
+                  >
+                    {opt.code}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button onClick={() => setDark(!dark)} className="w-full text-sm font-bold bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded flex items-center justify-center gap-2">
+              {dark ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                  Light Mode
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                  Dark Mode
+                </>
+              )}
+            </button>
           </div>
         </nav>
       </div>

@@ -1,15 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
-const safeJsonParse = (str, fallback) => {
-  try {
-    return str ? JSON.parse(str) : fallback;
-  } catch (e) {
-    return str ? [str] : fallback; // If str is a valid string but not JSON, maybe treat as single image? Or just fallback. 
-    // Actually for sizes, fallback is better. For images, single array.
-  }
-};
 // Safer version strictly for this file
 const parseImages = (str) => {
   try { return str ? JSON.parse(str) : []; } catch (e) { return str ? [str] : []; }
@@ -22,9 +15,10 @@ const parseSizes = (str) => {
 router.get('/', (req, res) => {
   pool.query('SELECT * FROM products', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    // Parse images and sizes field
+
     const products = results.map(product => {
-      const { sku, category, weight, dimensions, ...rest } = product;
+      // Weight is now included
+      const { sku, dimensions, ...rest } = product;
       return {
         ...rest,
         images: parseImages(product.images) || (product.image ? [product.image] : []),
@@ -42,7 +36,7 @@ router.get('/:id', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!results || results.length === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
     const product = results[0];
-    const { sku, category, weight, dimensions, ...rest } = product;
+    const { sku, dimensions, ...rest } = product;
     rest.images = parseImages(product.images) || (product.image ? [product.image] : []);
     rest.sizes = parseSizes(product.sizes);
     res.json(rest);
@@ -50,35 +44,29 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/products
-router.post('/', (req, res) => {
-  const { name, price, images, description, stock, sizes } = req.body;
+router.post('/', verifyToken, verifyAdmin, (req, res) => {
+  const { name, price, images, description, stock, sizes, category, weight } = req.body;
+
   if (!name || !price) {
     return res.status(400).json({ error: 'Nama dan harga produk wajib diisi.' });
   }
+
   let imagesToSave = images;
   if (!Array.isArray(imagesToSave)) {
     try { imagesToSave = images ? JSON.parse(images) : []; } catch (e) { imagesToSave = []; }
   }
 
-  // Calculate total stock from sizes if provided, otherwise use stock field
+  // Use stock field from payload
   let totalStock = Number(stock) || 0;
   let sizesToSave = sizes || { S: 0, M: 0, L: 0, XL: 0 };
 
-  if (sizes) {
-    // If sizes provided, update total stock
-    totalStock = Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0);
-  }
-
   try {
     pool.query(
-      'INSERT INTO products (name, price, images, description, stock, sizes) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, price, JSON.stringify(imagesToSave), description, totalStock, JSON.stringify(sizesToSave)],
+      'INSERT INTO products (name, price, images, description, stock, sizes, category, weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, price, JSON.stringify(imagesToSave), description, totalStock, JSON.stringify(sizesToSave), category || 'Uncategorized', weight || 1000],
       (err, result) => {
-        if (err) {
-          // Handle missing column by trying to add it on the fly? Better rely on migration in server.js
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave });
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });
       }
     );
   } catch (err) {
@@ -87,9 +75,9 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/products/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
   const { id } = req.params;
-  const { name, price, images, description, stock, sizes } = req.body;
+  const { name, price, images, description, stock, sizes, category, weight } = req.body;
 
   // Ambil data lama dulu untuk gambar
   pool.query('SELECT images FROM products WHERE id=?', [id], (err, results) => {
@@ -106,20 +94,17 @@ router.put('/:id', (req, res) => {
     }
     const mergedImages = Array.from(new Set([...(oldImages || []), ...(imagesToSave || [])]));
 
-    // Calculate total stock from sizes
+    // Use stock field from payload
     let totalStock = Number(stock) || 0;
     let sizesToSave = sizes || { S: 0, M: 0, L: 0, XL: 0 };
-    if (sizes) {
-      totalStock = Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0);
-    }
 
     try {
       pool.query(
-        'UPDATE products SET name=?, price=?, images=?, description=?, stock=?, sizes=? WHERE id=?',
-        [name, price, JSON.stringify(mergedImages), description, totalStock, JSON.stringify(sizesToSave), id],
+        'UPDATE products SET name=?, price=?, images=?, description=?, stock=?, sizes=?, category=?, weight=? WHERE id=?',
+        [name, price, JSON.stringify(mergedImages), description, totalStock, JSON.stringify(sizesToSave), category, weight, id],
         (err, result) => {
           if (err) return res.status(500).json({ error: err.message });
-          res.json({ id, name, price, images: mergedImages, description, stock: totalStock, sizes: sizesToSave });
+          res.json({ id, name, price, images: mergedImages, description, stock: totalStock, sizes: sizesToSave, category, weight });
         }
       );
     } catch (err) {
@@ -129,7 +114,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/products/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', verifyToken, verifyAdmin, (req, res) => {
   const { id } = req.params;
   pool.query(
     'DELETE FROM products WHERE id=?',

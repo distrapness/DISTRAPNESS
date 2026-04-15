@@ -14,7 +14,9 @@ const BrandAdmin = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(API_URL)
+    fetch(API_URL, {
+      headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+    })
       .then((res) => res.json())
       .then(setBrand)
       .catch(() => setBrand({ brandName: "", logo: "" }))
@@ -42,6 +44,7 @@ const BrandAdmin = () => {
         formData.append("image", logoFile);
         const uploadRes = await fetch(UPLOAD_URL, {
           method: "POST",
+          headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` },
           body: formData,
         });
         if (!uploadRes.ok) throw new Error("Gagal upload logo");
@@ -50,14 +53,19 @@ const BrandAdmin = () => {
       }
       const res = await fetch(API_URL, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ ...brand, logo: logoUrl }),
       });
       if (!res.ok) throw new Error("Gagal update brand");
       setSuccess("Brand berhasil diupdate!");
       setLogoFile(null);
       setLogoPreview("");
-      fetch(API_URL)
+      fetch(API_URL, {
+        headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+      })
         .then((res) => res.json())
         .then(setBrand);
     } catch (err) {

@@ -58,8 +58,16 @@ const HomePage = () => {
       <div className="pt-4 pb-12 bg-white dark:bg-gray-900 transition-colors duration-500 min-h-screen">
         <div className="max-w-7xl mx-auto px-4">
 
+          <div className="mb-8 md:mb-12">
+            <CategoryGrid />
+          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="container mx-auto px-4 mb-6 md:mb-8 flex justify-between items-end">
+            <h3 className="text-xl md:text-3xl font-[900] uppercase tracking-wider text-gray-900 dark:text-white">{t('home.newArrivals')}</h3>
+            <Link to="/shop" className="text-xs md:text-sm font-bold uppercase underline hover:text-gray-500">{t('home.viewAll')}</Link>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
@@ -73,18 +81,18 @@ const HomePage = () => {
               products.map((product) => (
                 <div
                   key={product.id || product._id}
-                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
+                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-3 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center hover-lux"
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
                   {/* Badge: Low Stock */}
                   {product.stock > 0 && product.stock < 5 && (
                     <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
-                      Low Stock
+                      {t('shop.lowStock')}
                     </div>
                   )}
 
                   <div
-                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative"
+                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative rounded bg-gray-50 dark:bg-gray-800"
                     onMouseEnter={() => {
                       if (Array.isArray(product.images) && product.images.length > 1) {
                         handleProductImageHover(product.id, product.images);
@@ -99,12 +107,12 @@ const HomePage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
+                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out p-2 ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
                       onError={e => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
                     />
                   </div>
                   <div className="text-center w-full mt-auto">
-                    <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider">{product.name}</div>
+                    <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider line-clamp-2">{product.name}</div>
                     <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
                   </div>
                 </div>

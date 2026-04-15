@@ -11,7 +11,9 @@ const AdminChat = () => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    fetch(`${config.API_URL}/chats`)
+    fetch(`${config.API_URL}/chats`, {
+      headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+    })
       .then(res => res.json())
       .then(data => setMessages(data));
     socket.on('chat_message', (msg) => {

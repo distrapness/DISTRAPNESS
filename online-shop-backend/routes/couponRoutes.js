@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
+
 
 // GET all coupons (Admin)
-router.get('/', (req, res) => {
+router.get('/', verifyToken, verifyAdmin, (req, res) => {
     pool.query('SELECT * FROM coupons ORDER BY created_at DESC', (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
@@ -11,7 +13,7 @@ router.get('/', (req, res) => {
 });
 
 // CREATE coupon (Admin)
-router.post('/', (req, res) => {
+router.post('/', verifyToken, verifyAdmin, (req, res) => {
     const { code, type, value, min_purchase, start_date, expiry_date, usage_limit, is_active } = req.body;
 
     if (!code || !value) return res.status(400).json({ error: "Code and Value are required" });
@@ -33,7 +35,7 @@ router.post('/', (req, res) => {
 });
 
 // UPDATE coupon (Admin)
-router.put('/:id', (req, res) => {
+router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
     const { id } = req.params;
     const { code, type, value, min_purchase, start_date, expiry_date, usage_limit, is_active } = req.body;
 
@@ -52,7 +54,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE coupon (Admin)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', verifyToken, verifyAdmin, (req, res) => {
     pool.query('DELETE FROM coupons WHERE id=?', [req.params.id], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, message: "Coupon deleted" });

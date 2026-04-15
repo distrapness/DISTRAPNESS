@@ -3,6 +3,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import config from "../config.js";
 import { io } from "socket.io-client";
+import { getImageUrl } from "../utils/imageHelper";
 import {
   FaBoxOpen, FaShoppingCart, FaMoneyBillWave, FaArrowRight,
   FaTags, FaCog, FaUserFriends, FaExclamationTriangle, FaChartLine
@@ -19,14 +20,6 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-
-    // Socket Connection for Active Visitors
-    const socket = io(config.API_URL.replace('/api', '')); // Connect to root
-    socket.on('visitor_count', (count) => {
-      setActiveVisitors(count);
-    });
-
-    return () => socket.disconnect();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -43,7 +36,11 @@ const AdminDashboard = () => {
       setRecentOrders(ordersRes.data.slice(0, 5));
     } catch (error) {
       console.error("Dashboard fetch error:", error);
-      // Removed auto-redirect for debugging
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        window.location.href = "/login";
+      }
     } finally {
       setLoading(false);
     }
@@ -97,7 +94,7 @@ const AdminDashboard = () => {
               trend="+5% vs last week"
               trendColor="text-green-500"
               icon={<FaShoppingCart className="text-blue-600 text-xl" />}
-              chartData={[10, 15, 8, 12, 20, 18, 25]} // Mock order data
+              chartData={stats.chartData}
               color="blue"
             />
           </div>
@@ -154,25 +151,7 @@ const AdminDashboard = () => {
         {/* RIGHT COLUMN (Sidebar) */}
         <div className="space-y-8">
 
-          {/* Active Visitors Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Active Visitors</p>
-                <h3 className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{activeVisitors}</h3>
-              </div>
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg text-purple-600 dark:text-purple-300">
-                <FaUserFriends className="text-xl" />
-              </div>
-            </div>
-            <div className="flex items-center text-green-500 text-sm font-bold gap-2">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-              </span>
-              Live currently on site
-            </div>
-          </div>
+
 
           {/* Inventory Alert */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -191,7 +170,7 @@ const AdminDashboard = () => {
               {stats.lowStock && stats.lowStock.map(p => (
                 <div key={p.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                   <img
-                    src={p.images[0] || "https://via.placeholder.com/50"}
+                    src={getImageUrl(p.images[0]) || "https://via.placeholder.com/50"}
                     className="w-12 h-12 object-cover rounded-md"
                     alt={p.name}
                   />

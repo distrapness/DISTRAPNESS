@@ -48,6 +48,20 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
+  // Tambahkan fungsi upload ke backend dan simpan path statis
+  async function uploadBannerToBackend(blob) {
+    const formData = new FormData();
+    formData.append('image', blob, 'banner.jpg');
+    const response = await fetch(`${config.API_URL}/api/banners/upload`, {
+      method: 'POST',
+      headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` },
+      body: formData
+    });
+    if (!response.ok) throw new Error('Gagal upload gambar');
+    const data = await response.json();
+    return data.url; // path statis (Base64 atau URI)
+  }
+
   const handlePreview = useCallback(async () => {
     if (!imageSrc || !croppedAreaPixels) return;
     const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
@@ -56,14 +70,19 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
 
   const handleSave = async () => {
     setSaving(true);
-    let imageUrl = banner.image;
-    if (croppedAreaPixels) {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      imageUrl = URL.createObjectURL(croppedBlob);
+    try {
+      let imageUrl = banner.image;
+      if (croppedAreaPixels) {
+        const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+        imageUrl = await uploadBannerToBackend(croppedBlob);
+      }
+      await onSave(imageUrl);
+      onClose();
+    } catch (e) {
+      alert("Gagal menyimpan banner: " + e.message);
+    } finally {
+      setSaving(false);
     }
-    await onSave(imageUrl);
-    setSaving(false);
-    onClose();
   };
 
   return (

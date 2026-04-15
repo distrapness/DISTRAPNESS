@@ -31,7 +31,10 @@ export const BannerProvider = ({ children }) => {
     try {
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ image: imageUrl }),
       });
       if (!res.ok) throw new Error("Gagal menambah banner");
@@ -44,7 +47,10 @@ export const BannerProvider = ({ children }) => {
   // Delete banner from backend
   const deleteBanner = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/${id}`, { 
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
+      });
       if (!res.ok) throw new Error("Gagal menghapus banner");
       await fetchBanners();
     } catch (err) {
@@ -57,7 +63,10 @@ export const BannerProvider = ({ children }) => {
     try {
       const res = await fetch(`${API_URL}/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ image: imageUrl }),
       });
       if (!res.ok) throw new Error("Gagal mengedit banner");

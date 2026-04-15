@@ -15,16 +15,13 @@ const Footer = () => {
   const { t } = useCurrency();
   return (
     <footer className="bg-white dark:bg-gray-950 text-black dark:text-white pt-16 pb-12 border-t border-gray-100 dark:border-gray-900">
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 md:gap-8">
 
         {/* Column 1: About */}
         <div className="flex flex-col gap-4">
           <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">{t('footer.about')}</h4>
           <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
             <Link to="/about" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.ourStory')}</Link>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.sustainability')}</a>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.careers')}</a>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.press')}</a>
           </div>
         </div>
 
@@ -33,9 +30,7 @@ const Footer = () => {
           <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">{t('footer.customerService')}</h4>
           <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
             <Link to="/contact" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.contactUs')}</Link>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.shipping')}</a>
-            <Link to="/orders" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.orderStatus')}</Link>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.sizeGuide')}</a>
+            <Link to="/faq" className="hover:text-black dark:hover:text-white transition-colors">FAQ</Link>
           </div>
         </div>
 
@@ -43,9 +38,8 @@ const Footer = () => {
         <div className="flex flex-col gap-4">
           <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">{t('footer.legal')}</h4>
           <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.terms')}</a>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.privacy')}</a>
-            <a href="#" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.cookie')}</a>
+            <Link to="/terms-conditions" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.terms')}</Link>
+            <Link to="/privacy-policy" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.privacy')}</Link>
           </div>
         </div>
 

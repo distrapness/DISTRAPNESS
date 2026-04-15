@@ -19,16 +19,18 @@ const ShopPage = () => {
   const [error, setError] = useState(null);
   const [searchParams] = useSearchParams(); // Get params
   const [search, setSearch] = useState(searchParams.get("search") || ""); // Init from param
-  const [selectedCategory, setSelectedCategory] = useState("Semua");
-  const { currency } = useCurrency();
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "Semua");
+  const [sortBy, setSortBy] = useState("newest");
+  const { currency, t } = useCurrency();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Update search if URL changes (optional, but good for back button)
     const query = searchParams.get("search");
-    if (query !== null) {
-      setSearch(query);
-    }
+    if (query !== null) setSearch(query);
+
+    const cat = searchParams.get("category");
+    if (cat !== null) setSelectedCategory(cat);
   }, [searchParams]);
 
   useEffect(() => {
@@ -49,12 +51,22 @@ const ShopPage = () => {
 
   const categories = ["Semua", ...getCategories(products)];
 
-  const filtered = products.filter(
+  let filtered = products.filter(
     (p) =>
       (selectedCategory === "Semua" || p.category === selectedCategory) &&
       (p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.description?.toLowerCase().includes(search.toLowerCase()))
   );
+
+  // Sorting Logic
+  filtered = filtered.sort((a, b) => {
+    switch (sortBy) {
+      case "price_asc": return a.price - b.price;
+      case "price_desc": return b.price - a.price;
+      case "name_asc": return a.name.localeCompare(b.name);
+      case "newest": default: return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    }
+  });
 
   const convertPrice = (price) => {
     if (currency.code === "IDR") return currency.symbol + " " + price.toLocaleString(currency.locale);
@@ -89,27 +101,52 @@ const ShopPage = () => {
     <>
       <div className="w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-700 pt-4 pb-16">
         <div className="max-w-7xl mx-auto px-4 mt-2 md:mt-4">
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-10 justify-between">
-            <div className="flex flex-row gap-2 items-center w-full md:w-auto">
+          <div className="grid grid-cols-2 md:flex md:flex-row gap-3 md:gap-4 mb-8 md:mb-10 items-center justify-between">
+            {/* Category Filter */}
+            <div className="w-full md:w-auto">
               <select
-                className="px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black text-sm font-semibold"
+                className="w-full px-4 py-3 md:py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-black text-xs md:text-sm font-bold uppercase tracking-wider appearance-none"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
+                style={{ backgroundImage: 'none' }} // Custom arrow if needed, but default is fine for now
               >
-                {categories.map((cat) => (
+                <option value="Semua">All Categories</option>
+                {categories.filter(c => c !== "Semua").map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
             </div>
-            <input
-              className="w-full md:w-72 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="Search Products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+
+            {/* Sort Filter */}
+            <div className="w-full md:w-auto">
+              <select
+                className="w-full px-4 py-3 md:py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-black text-xs md:text-sm font-bold uppercase tracking-wider appearance-none"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="newest">Newest</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="name_asc">Name: A-Z</option>
+              </select>
+            </div>
+
+            {/* Search Bar */}
+            <div className="col-span-2 md:col-span-1 w-full md:w-80">
+              <div className="relative">
+                <input
+                  className="w-full pl-10 pr-4 py-3 md:py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:border-black text-xs md:text-sm"
+                  placeholder={t('shop.search').toUpperCase()}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+            </div>
           </div>
           {/* Gallery grid ala jamesboogie.com: 4 kolom, jarak rapat, gambar besar, info di bawah */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {/* Gallery grid ala jamesboogie.com: 4 kolom, jarak rapat, gambar besar, info di bawah */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 gap-y-8 md:gap-6">
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
@@ -122,19 +159,19 @@ const ShopPage = () => {
               paginatedProducts.map((product) => (
                 <div
                   key={product.id || product._id}
-                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center"
+                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-3 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center hover-lux"
                   onClick={() => navigate(`/shop/${product.id}`)}
                 >
                   {/* Badge: Low Stock */}
                   {product.stock > 0 && product.stock < 5 && (
                     <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
-                      Low Stock
+                      {t('shop.lowStock')}
                     </div>
                   )}
 
                   {/* Image Container */}
                   <div
-                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-6 relative"
+                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-4 md:mb-6 relative rounded bg-gray-50 dark:bg-gray-800"
                     onMouseEnter={() => {
                       if (Array.isArray(product.images) && product.images.length > 1) {
                         setActiveImageIndex(prev => ({ ...prev, [product.id]: 1 }));
@@ -145,21 +182,22 @@ const ShopPage = () => {
                         setActiveImageIndex(prev => ({ ...prev, [product.id]: 0 }));
                       }
                     }}
+
                   >
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
+                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out p-2 ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
                       onError={handleImageError}
                     />
                   </div>
 
                   {/* Text Details */}
                   <div className="text-center w-full mt-auto">
-                    <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium">
+                    <div className="text-xs md:text-base text-gray-900 dark:text-gray-100 mb-1 md:mb-2 leading-tight font-medium uppercase tracking-wide line-clamp-2">
                       {product.name}
                     </div>
-                    <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">
+                    <div className="text-xs md:text-base text-gray-500 dark:text-gray-400">
                       {convertPrice(product.price)}
                     </div>
                   </div>
