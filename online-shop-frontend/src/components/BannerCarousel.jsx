@@ -108,7 +108,7 @@ const BannerCarousel = () => {
       <img
         src={banner.image}
         alt={banner.title || `Banner ${current + 1}`}
-        className="w-full h-full absolute inset-0 object-contain pointer-events-none select-none"
+        className="w-full h-full absolute inset-0 object-cover object-center pointer-events-none select-none"
       />
 
       {/* Overlay Gradient for better text readability */}

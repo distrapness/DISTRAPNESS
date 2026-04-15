@@ -107,7 +107,7 @@ const HomePage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out p-2 ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
+                      className={`object-cover object-center w-full h-full transition-transform duration-500 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
                       onError={e => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
                     />
                   </div>
