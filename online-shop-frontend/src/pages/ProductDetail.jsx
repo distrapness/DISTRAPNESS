@@ -277,14 +277,20 @@ const ProductDetail = () => {
 
               </div>
 
-              {/* Add to Cart Button */}
-              <div className="flex justify-end mb-4">
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 mb-4 w-full">
                 <button
                   onClick={() => addToCart({ ...product, selectedSize }, qty)}
-                  className="w-full max-w-[200px] bg-[#808080] hover:bg-[#666666] text-white py-4 font-bold uppercase tracking-widest text-sm transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#808080] hover:bg-[#666666] text-white py-4 font-bold uppercase tracking-widest text-sm transition-colors flex items-center justify-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                  <svg className="w-4 h-4 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   Add to Cart
+                </button>
+                <button
+                  onClick={handleBuyNow}
+                  className="flex-1 bg-black hover:bg-gray-800 text-white dark:bg-white dark:hover:bg-gray-200 dark:text-black py-4 font-bold uppercase tracking-widest text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  Beli Langsung
                 </button>
               </div>
 
