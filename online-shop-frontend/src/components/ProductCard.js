@@ -14,7 +14,6 @@ const ProductCard = ({ product, onAddToCart }) => {
         <div className="font-bold text-black text-base md:text-lg">Rp {product.price.toLocaleString('id-ID')}</div>
       </div>
       <p className="text-gray-500 text-sm mb-4 flex-1">{product.description}</p>
-      <button onClick={onAddToCart} className="mt-auto bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition">Tambah ke Keranjang</button>
     </div>
   );
 };

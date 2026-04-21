@@ -202,33 +202,19 @@ const ShopPage = () => {
                     />
                   </div>
 
-                  {/* Text Details */}
-                  <div className="text-center w-full mt-auto">
-                    <div className="text-xs md:text-base text-gray-900 dark:text-gray-100 mb-1 md:mb-2 leading-tight font-medium uppercase tracking-wide line-clamp-2">
-                      {product.name}
+                    {/* Text Details */}
+                    <div className="text-center w-full mt-auto">
+                      <div className="text-xs md:text-base text-gray-900 dark:text-gray-100 mb-1 md:mb-2 leading-tight font-medium uppercase tracking-wide line-clamp-2">
+                        {product.name}
+                      </div>
+                      <div className="text-xs md:text-base text-gray-500 dark:text-gray-400 mb-0">
+                        {convertPrice(product.price)}
+                      </div>
                     </div>
-                    <div className="text-xs md:text-base text-gray-500 dark:text-gray-400 mb-4">
-                      {convertPrice(product.price)}
-                    </div>
-                    
-                    {/* Buy Button */}
-                    <button
-                      disabled={product.stock <= 0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const availableSizes = product.sizes ? ['S', 'M', 'L', 'XL'].find(s => product.sizes[s] > 0) : 'M';
-                        addToCart({ ...product, selectedSize: availableSizes || 'M' }, 1);
-                        navigate('/cart');
-                      }}
-                      className={`w-full py-2 rounded font-bold uppercase text-[10px] md:text-xs tracking-widest transition-opacity ${product.stock <= 0 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-80'}`}
-                    >
-                      {product.stock <= 0 ? t('shop.outOfStock') : t('productDetail.buy')}
-                    </button>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
           {/* Pagination controls */}
           {totalPages > 1 && (
             <div className="flex justify-center mt-10 gap-2">
