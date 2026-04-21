@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import BackButton from '../components/BackButton';
 import config from '../config';
+import { useCurrency } from '../components/CurrencyContext.jsx';
 
 const DiscountManager = () => {
     const [coupons, setCoupons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingCoupon, setEditingCoupon] = useState(null);
+    const { t } = useCurrency();
 
     // Form State
     const [form, setForm] = useState({
@@ -111,13 +113,13 @@ const DiscountManager = () => {
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-4">
                         <BackButton to="/admin" />
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Kelola Kupon Diskon</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('admin.discount.title')}</h1>
                     </div>
                     <button
                         onClick={() => openModal()}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow font-bold"
                     >
-                        + Buat Kupon Baru
+                        {t('admin.discount.addCoupon')}
                     </button>
                 </div>
 
@@ -125,12 +127,12 @@ const DiscountManager = () => {
                     <table className="w-full text-left">
                         <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-200">
                             <tr>
-                                <th className="p-4">Kode</th>
-                                <th className="p-4">Diskon</th>
-                                <th className="p-4">Min. Belanja</th>
-                                <th className="p-4">Limit</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4">Aksi</th>
+                                <th className="p-4">{t('admin.discount.code')}</th>
+                                <th className="p-4">{t('admin.discount.value')}</th>
+                                <th className="p-4">{t('admin.discount.minOrder')}</th>
+                                <th className="p-4">{t('admin.discount.maxUses')}</th>
+                                <th className="p-4">{t('admin.discount.status')}</th>
+                                <th className="p-4">{t('admin.discount.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -146,18 +148,18 @@ const DiscountManager = () => {
                                     </td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded text-xs font-bold ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {c.is_active ? 'Aktif' : 'Non-Aktif'}
+                                            {c.is_active ? t('admin.discount.active') : t('admin.discount.inactive')}
                                         </span>
                                     </td>
                                     <td className="p-4 flex gap-2">
-                                        <button onClick={() => openModal(c)} className="text-blue-600 hover:underline">Edit</button>
-                                        <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline">Hapus</button>
+                                        <button onClick={() => openModal(c)} className="text-blue-600 hover:underline">{t('admin.discount.edit')}</button>
+                                        <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline">{t('admin.discount.delete')}</button>
                                     </td>
                                 </tr>
                             ))}
                             {coupons.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-gray-500">Belum ada kupon diskon.</td>
+                                <td colSpan="6" className="p-8 text-center text-gray-500">{t('admin.discount.noDiscounts')}</td>
                                 </tr>
                             )}
                         </tbody>
@@ -248,13 +250,13 @@ const DiscountManager = () => {
                                         type="button" onClick={() => setModalOpen(false)}
                                         className="px-4 py-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 rounded"
                                     >
-                                        Batal
+                                        {t('admin.discount.cancel')}
                                     </button>
                                     <button
                                         type="submit"
                                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold"
                                     >
-                                        Simpan
+                                        {t('admin.discount.save')}
                                     </button>
                                 </div>
                             </form>

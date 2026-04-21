@@ -3,6 +3,7 @@ import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx
 import ImageCropperModal from "../components/ImageCropperModal.jsx";
 import config from '../config';
 import { getImageUrl } from "../utils/imageHelper";
+import { useCurrency } from "../components/CurrencyContext.jsx";
 
 const API_URL = `${config.API_URL}/api/products`;
 const UPLOAD_URL = `${config.API_URL}/api/upload`;
@@ -13,6 +14,7 @@ const ProductAdmin = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { t } = useCurrency();
 
   // Form State
   const [form, setForm] = useState({
@@ -21,6 +23,7 @@ const ProductAdmin = () => {
     images: [],
     description: "",
     stock: "",
+    weight: 1000,
     hasSizes: true,
     sizes: { S: 0, M: 0, L: 0, XL: 0 },
     category: ""
@@ -229,6 +232,7 @@ const ProductAdmin = () => {
         sizes,
         stock: totalStock,
         price: Number(form.price) || 0,
+        weight: Number(form.weight) || 1000,
         images: finalImages.length > 0 ? finalImages : (form.images || []),
         category: isNewCategory ? newCategoryName : form.category // Include Category properly
       };
@@ -267,7 +271,7 @@ const ProductAdmin = () => {
       }
 
       // Reset Form
-      setForm({ name: "", price: "", images: [], description: "", stock: "", hasSizes: true, sizes: { S: 0, M: 0, L: 0, XL: 0 }, category: "" });
+      setForm({ name: "", price: "", images: [], description: "", stock: "", weight: 1000, hasSizes: true, sizes: { S: 0, M: 0, L: 0, XL: 0 }, category: "" });
       setImages([]);
       setEditedImages([]);
       setEditId(null);
@@ -289,6 +293,7 @@ const ProductAdmin = () => {
       images: product.images,
       description: product.description,
       stock: product.stock ?? 0,
+      weight: product.weight || 1000,
       hasSizes: product.sizes && Object.values(product.sizes).some(v => v > 0),
       sizes: product.sizes || { S: 0, M: 0, L: 0, XL: 0 },
       category: product.category || ""
@@ -350,7 +355,7 @@ const ProductAdmin = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Product Management</h1>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{t('admin.products.title')}</h1>
             <p className="text-gray-500 dark:text-gray-400">Inventory & Catalog + Category</p>
           </div>
 
@@ -358,7 +363,7 @@ const ProductAdmin = () => {
             {/* Search */}
             <input
               type="text"
-              placeholder="Search product..."
+              placeholder={t('admin.products.searchPlaceholder')}
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
               className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
@@ -391,7 +396,7 @@ const ProductAdmin = () => {
               onClick={() => { handleCancelEdit(); setIsFormOpen(true); }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition whitespace-nowrap"
             >
-              + Add Product
+              {t('admin.products.addProduct')}
             </button>
           </div>
         </div>
@@ -399,18 +404,18 @@ const ProductAdmin = () => {
         {/* Product List */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading products...</div>
+            <div className="p-8 text-center text-gray-500">{t('admin.products.loading')}</div>
           ) : (
             <div className="overflow-x-auto">
               {error && <div className="p-4 bg-red-100 text-red-600">{error}</div>}
               <table className="min-w-full text-left">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                   <tr>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Product</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Category</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Price</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Stock Status</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">Actions</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.name')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.category')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.price')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.stock')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">{t('admin.products.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -444,14 +449,14 @@ const ProductAdmin = () => {
                           {stockBadge}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
-                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:underline text-sm font-bold">Edit</button>
+                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:underline text-sm font-bold">{t('admin.products.edit')}</button>
                         </td>
                       </tr>
                     );
                   })}
                   {filteredProducts.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">No products found.</td>
+                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">{t('admin.products.noProducts')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -466,7 +471,7 @@ const ProductAdmin = () => {
             {/* Drawer Header */}
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                {editId ? "Edit Product" : "Add New Product"}
+                {editId ? t('admin.products.edit') + " Product" : t('admin.products.addProduct')}
               </h2>
               <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-600 transition">
                 <span className="text-2xl">&times;</span>
@@ -552,7 +557,7 @@ const ProductAdmin = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-3 gap-6">
                       <div>
                         <label className="block text-sm font-bold mb-2 dark:text-white">Price (Rp)</label>
                         <input
@@ -562,6 +567,18 @@ const ProductAdmin = () => {
                           onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
                           className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow shadow-sm outline-none font-mono"
                           placeholder="0"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Weight (grams)</label>
+                        <input
+                          name="weight"
+                          type="number"
+                          value={form.weight}
+                          onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
+                          className="w-full px-5 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow shadow-sm outline-none font-mono"
+                          placeholder="1000"
                           required
                         />
                       </div>
@@ -754,17 +771,17 @@ const ProductAdmin = () => {
             {/* Drawer Footer */}
             <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-end gap-3 z-20 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
               {editId && (
-                <button type="button" onClick={() => handleDelete(editId)} className="text-red-500 hover:text-red-700 text-sm font-bold mr-auto px-2">Delete Product</button>
+                <button type="button" onClick={() => handleDelete(editId)} className="text-red-500 hover:text-red-700 text-sm font-bold mr-auto px-2">{t('admin.products.delete')} Product</button>
               )}
-              <button onClick={handleCancelEdit} className="px-6 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-bold border border-gray-200 transition">Cancel</button>
+              <button onClick={handleCancelEdit} className="px-6 py-3 text-gray-600 hover:bg-gray-50 rounded-xl font-bold border border-gray-200 transition">{t('admin.products.cancel')}</button>
               <button onClick={handleSubmit} disabled={submitting} className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-200/50 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 transition flex items-center gap-2">
                 {submitting ? (
                   <>
-                    <span className="animate-spin text-lg">↻</span> Saving...
+                    <span className="animate-spin text-lg">↻</span> {t('admin.products.saving')}
                   </>
                 ) : (
                   <>
-                    <span>✓</span> Save Product
+                    <span>✓</span> {t('admin.products.saveProduct')}
                   </>
                 )}
               </button>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-const MobileBottomNav = () => {
+const MobileBottomNav = ({ onWishlistClick }) => {
     const location = useLocation();
 
     const isActive = (path) => location.pathname === path;
@@ -22,12 +22,12 @@ const MobileBottomNav = () => {
                 <span className="text-[10px] font-bold mt-1 uppercase tracking-wider">Shop</span>
             </Link>
 
-            <Link to="/wishlist" className={`flex flex-col items-center justify-center w-full h-full ${isActive('/wishlist') ? 'text-[#FF0000]' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill={isActive('/wishlist') ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <button onClick={onWishlistClick} className={`flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-900 dark:hover:text-white`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
                 <span className="text-[10px] font-bold mt-1 uppercase tracking-wider">Wishlist</span>
-            </Link>
+            </button>
 
             <Link to="/profile" className={`flex flex-col items-center justify-center w-full h-full ${isActive('/profile') ? 'text-[#FF0000]' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill={isActive('/profile') ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

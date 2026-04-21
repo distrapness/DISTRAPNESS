@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import config from '../config.js';
+import { useCurrency } from '../components/CurrencyContext.jsx';
 
 const CategoryManager = () => {
     const [categories, setCategories] = useState([]);
@@ -7,6 +8,7 @@ const CategoryManager = () => {
     const [form, setForm] = useState({ name: "", image: "" });
     const [editId, setEditId] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const { t } = useCurrency();
 
     const fetchCategories = async () => {
         setLoading(true);
@@ -21,9 +23,7 @@ const CategoryManager = () => {
         }
     };
 
-    useEffect(() => {
-        fetchCategories();
-    }, []);
+    useEffect(() => { fetchCategories(); }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,7 +48,7 @@ const CategoryManager = () => {
                 setEditId(null);
                 fetchCategories();
             } else {
-                alert("Failed to save category");
+                alert(t('admin.category.failedSave'));
             }
         } catch (e) {
             console.error(e);
@@ -63,7 +63,7 @@ const CategoryManager = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Delete this category?")) return;
+        if (!window.confirm(t('admin.category.confirmDelete'))) return;
         const token = localStorage.getItem('token');
         await fetch(`${config.API_URL}/api/categories/${id}`, {
             method: "DELETE",
@@ -75,15 +75,15 @@ const CategoryManager = () => {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pt-24">
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Category Management</h1>
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">{t('admin.category.title')}</h1>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Form */}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 h-fit">
-                        <h2 className="text-xl font-bold mb-4 dark:text-white">{editId ? 'Edit Category' : 'Add Category'}</h2>
+                        <h2 className="text-xl font-bold mb-4 dark:text-white">{editId ? t('admin.category.editCategory') : t('admin.category.addCategory')}</h2>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-bold mb-1 dark:text-white">Name</label>
+                                <label className="block text-sm font-bold mb-1 dark:text-white">{t('admin.category.name')}</label>
                                 <input
                                     value={form.name}
                                     onChange={e => setForm({ ...form, name: e.target.value })}
@@ -95,7 +95,7 @@ const CategoryManager = () => {
                                 disabled={submitting}
                                 className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"
                             >
-                                {submitting ? "Saving..." : (editId ? "Update" : "Create")}
+                                {submitting ? t('admin.category.saving') : (editId ? t('admin.category.update') : t('admin.category.create'))}
                             </button>
                             {editId && (
                                 <button
@@ -103,7 +103,7 @@ const CategoryManager = () => {
                                     onClick={() => { setEditId(null); setForm({ name: "", image: "" }); }}
                                     className="w-full bg-gray-200 text-gray-700 font-bold py-2 rounded-lg hover:bg-gray-300 transition"
                                 >
-                                    Cancel
+                                    {t('admin.category.cancel')}
                                 </button>
                             )}
                         </form>
@@ -111,19 +111,19 @@ const CategoryManager = () => {
 
                     {/* List */}
                     <div className="md:col-span-2 space-y-4">
-                        {loading ? <div>Loading...</div> : categories.map(cat => (
+                        {loading ? <div>{t('admin.category.loading')}</div> : categories.map(cat => (
                             <div key={cat.id} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                                 <div>
                                     <h3 className="font-bold text-lg dark:text-white">{cat.name}</h3>
                                     <p className="text-xs text-gray-500">Slug: {cat.slug}</p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => handleEdit(cat)} className="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200">Edit</button>
-                                    <button onClick={() => handleDelete(cat.id)} className="px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200">Delete</button>
+                                    <button onClick={() => handleEdit(cat)} className="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200">{t('admin.category.edit')}</button>
+                                    <button onClick={() => handleDelete(cat.id)} className="px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200">{t('admin.category.delete')}</button>
                                 </div>
                             </div>
                         ))}
-                        {categories.length === 0 && !loading && <div className="text-gray-500">No categories found.</div>}
+                        {categories.length === 0 && !loading && <div className="text-gray-500">{t('admin.category.noCategories')}</div>}
                     </div>
                 </div>
             </div>

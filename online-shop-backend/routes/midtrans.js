@@ -3,18 +3,43 @@ const router = express.Router();
 const midtransClient = require('midtrans-client');
 const pool = require('../db');
 
-// Ganti dengan Server Key dan Client Key sandbox Anda
-const snap = new midtransClient.Snap({
-  isProduction: false,
-  serverKey: process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx',
-  clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx'
-});
+const getMidtransConfig = async () => {
+    try {
+        const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('midtrans_server_key', 'midtrans_client_key')");
+        const settings = rows.reduce((acc, row) => {
+            acc[row.setting_key] = row.setting_value;
+            return acc;
+        }, {});
+        return {
+            serverKey: settings.midtrans_server_key || process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx',
+            clientKey: settings.midtrans_client_key || process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
+            isProduction: settings.midtrans_client_key ? (!settings.midtrans_client_key.includes('SB-')) : (process.env.NODE_ENV === 'production' && !process.env.MIDTRANS_CLIENT_KEY?.includes('SB-'))
+        };
+    } catch (err) {
+        console.error("Error fetching Midtrans config", err);
+        return {
+            serverKey: process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx',
+            clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
+            isProduction: false
+        };
+    }
+};
+
+const getSnapInstance = async () => {
+    const config = await getMidtransConfig();
+    return new midtransClient.Snap({
+        isProduction: config.isProduction,
+        serverKey: config.serverKey,
+        clientKey: config.clientKey
+    });
+};
 
 // Generate Snap Token
-router.get('/config', (req, res) => {
+router.get('/config', async (req, res) => {
+  const config = await getMidtransConfig();
   res.json({ 
-    clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
-    isProduction: process.env.NODE_ENV === 'production' && !process.env.MIDTRANS_CLIENT_KEY?.includes('SB-')
+    clientKey: config.clientKey,
+    isProduction: config.isProduction
   });
 });
 
@@ -36,6 +61,7 @@ router.post('/token', async (req, res) => {
   };
 
   try {
+    const snap = await getSnapInstance();
     const transaction = await snap.createTransaction(parameter);
     // transaction token
     const transactionToken = transaction.token;

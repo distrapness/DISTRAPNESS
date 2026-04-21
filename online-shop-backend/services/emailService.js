@@ -69,6 +69,129 @@ const sendOrderConfirmation = async (orderData) => {
     }
 };
 
+const sendStatusUpdateEmail = async (orderData) => {
+    const { email, orderId, status, trackingNumber } = orderData;
+
+    let statusText = status;
+    let messageBody = `Status pesanan Anda telah diperbarui menjadi <strong>${status}</strong>.`;
+
+    if (status === 'shipped') {
+        statusText = 'Dikirim';
+        messageBody = `Pesanan Anda telah dikirim! <br/> Nomor Resi: <strong>${trackingNumber || '-'}</strong>`;
+    } else if (status === 'paid') {
+        statusText = 'Lunas';
+        messageBody = `Pembayaran Anda telah kami terima. Pesanan sedang disiapkan untuk dikirim.`;
+    } else if (status === 'cancelled') {
+        statusText = 'Dibatalkan';
+        messageBody = `Pesanan Anda telah dibatalkan. Jika ini kesalahan, silakan hubungi kami.`;
+    }
+
+    const mailOptions = {
+        from: `"Distrapness Support" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: `Update Pesanan #${orderId} - ${statusText}`,
+        html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #efefef; border-radius: 10px; overflow: hidden;">
+        <div style="background-color: #000; color: #fff; padding: 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">DISTRAPNESS</h1>
+        </div>
+        <div style="padding: 30px; color: #333; line-height: 1.6;">
+          <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px;">Update Pesanan</h2>
+          <p>Halo,</p>
+          <p style="font-size: 16px;">${messageBody}</p>
+          
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>ID Pesanan:</strong> #${orderId}</p>
+            <p style="margin: 5px 0 0 0;"><strong>Status:</strong> ${statusText}</p>
+          </div>
+
+          <p>Anda dapat memantau detail pesanan melalui halaman profil Anda di situs kami.</p>
+          <a href="https://online-shop-beige-one.vercel.app/profile" style="display: inline-block; background-color: #000; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">Cek Pesanan Saya</a>
+        </div>
+        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 12px;">
+          <p>&copy; 2026 Distrapness. All Rights Reserved.</p>
+        </div>
+      </div>
+    `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Status update email sent to ${email} for order #${orderId}`);
+        return true;
+    } catch (error) {
+        console.error('Error sending status update email:', error);
+        return false;
+    }
+};
+
+const sendRegistrationWelcome = async (userEmail) => {
+    const mailOptions = {
+        from: `"Distrapness" <${process.env.EMAIL_USER}>`,
+        to: userEmail,
+        subject: `Selamat Datang di Distrapness!`,
+        html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #efefef; border-radius: 10px; overflow: hidden;">
+        <div style="background-color: #000; color: #fff; padding: 40px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px; letter-spacing: 4px;">WELCOME</h1>
+          <p style="margin-top: 10px; opacity: 0.8;">Thank you for joining us.</p>
+        </div>
+        <div style="padding: 40px; text-align: center; color: #333;">
+          <h2 style="color: #000; margin-bottom: 20px;">Halo ${userEmail.split('@')[0]}!</h2>
+          <p style="font-size: 16px; line-height: 1.6;">Akun Anda telah berhasil dibuat. Nikmati pengalaman belanja pakaian berkualitas dengan desain minimalis namun berkarakter hanya di Distrapness.</p>
+          
+          <div style="margin: 30px 0;">
+            <a href="https://online-shop-beige-one.vercel.app/shop" style="display: inline-block; background-color: #000; color: #fff; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Mulai Belanja</a>
+          </div>
+
+          <p style="font-size: 14px; color: #666;">Gunakan kode promo <strong style="color: #000;">WELCOME10</strong> untuk diskon 10% pada pembelian pertama Anda.</p>
+        </div>
+        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 12px;">
+          <p>&copy; 2026 Distrapness. All Rights Reserved.</p>
+        </div>
+      </div>
+    `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Welcome email sent to: ' + userEmail);
+    } catch (error) {
+        console.error('Error sending welcome email:', error);
+    }
+};
+
+const sendContactNotification = async (contactData) => {
+    const { name, email, message } = contactData;
+    const adminEmail = process.env.EMAIL_USER;
+
+    const mailOptions = {
+        from: `"Distrapness Contact" <${process.env.EMAIL_USER}>`,
+        to: adminEmail,
+        replyTo: email,
+        subject: `📩 Pesan Baru dari ${name}`,
+        html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+        <h2 style="color: #000; border-bottom: 2px solid #333; padding-bottom: 10px;">Pesan Kontak Baru</h2>
+        <p><strong>Nama:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px; border-left: 4px solid #000;">
+          <p><strong>Pesan:</strong></p>
+          <p style="white-space: pre-wrap;">${message}</p>
+        </div>
+      </div>
+    `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        return true;
+    } catch (error) {
+        console.error('Error sending contact email:', error);
+        return false;
+    }
+};
+
 const sendAdminNotification = async (orderData) => {
     const { orderId, cart, total, email, shippingAddress } = orderData;
     const adminEmail = process.env.EMAIL_USER || 'distrapness@gmail.com';
@@ -132,4 +255,10 @@ const sendAdminNotification = async (orderData) => {
     }
 };
 
-module.exports = { sendOrderConfirmation, sendAdminNotification };
+module.exports = { 
+    sendOrderConfirmation, 
+    sendAdminNotification, 
+    sendStatusUpdateEmail, 
+    sendRegistrationWelcome, 
+    sendContactNotification 
+};

@@ -3,25 +3,18 @@ import { useParams, Link } from "react-router-dom";
 import BackButton from "../components/BackButton.jsx";
 import config from '../config.js';
 import { getImageUrl } from "../utils/imageHelper";
-
-const statusLabels = {
-    pending: "Menunggu Pembayaran",
-    waiting_payment: "Menunggu Pembayaran",
-    waiting_verification: "Menunggu Verifikasi Admin",
-    paid: "Lunas (Siap Kirim)",
-    shipped: "Dikirim",
-    completed: "Selesai",
-    failed: "Gagal/Ditolak",
-    cancelled: "Dibatalkan"
-};
+import { useCurrency } from "../components/CurrencyContext.jsx";
 
 const AdminOrderDetail = () => {
     const { id } = useParams();
+    const { t } = useCurrency();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [trackingInput, setTrackingInput] = useState("");
     const printRef = useRef();
+
+    const getStatusLabel = (s) => t(`admin.status.${s}`) || s;
 
     useEffect(() => {
         fetch(`${config.API_URL}/api/orders/${id}`, {
@@ -37,7 +30,7 @@ const AdminOrderDetail = () => {
     }, [id]);
 
     const handleUpdateStatus = async (newStatus) => {
-        if (!window.confirm(`Ubah status menjadi ${statusLabels[newStatus]}?`)) return;
+        if (!window.confirm(`Ubah status menjadi ${getStatusLabel(newStatus)}?`)) return;
         setUpdating(true);
         try {
             const res = await fetch(`${config.API_URL}/api/orders/status/${id}`, {
@@ -108,7 +101,19 @@ const AdminOrderDetail = () => {
         } catch (e) { return {}; }
     }, [order?.shipping_address]);
 
-    if (loading) return <div className="p-8 text-center">Loading...</div>;
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (showStatusDropdown && !event.target.closest('.status-dropdown-parent')) {
+                setShowStatusDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showStatusDropdown]);
+
+    if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
     if (!order) return <div className="p-8 text-center text-red-500">Order not found</div>;
 
     return (
@@ -125,25 +130,34 @@ const AdminOrderDetail = () => {
                 ${order.status === 'paid' ? 'bg-green-100 text-green-700' :
                                     order.status === 'pending' ? 'bg-orange-100 text-orange-700' :
                                         order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-700'}`}>
-                                {statusLabels[order.status] || order.status}
+                                {getStatusLabel(order.status)}
                             </span>
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={handlePrint} className="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded hover:bg-gray-50 flex items-center gap-2">
-                            🖨️ Print Invoice
+                        <button onClick={handlePrint} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold py-2 px-4 rounded hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                            🖨️ {t('admin.print_invoice')}
                         </button>
-                        <div className="relative group">
-                            <button className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
+                        <div className="relative status-dropdown-parent">
+                            <button 
+                                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 flex items-center gap-2"
+                            >
                                 Update Status ▾
                             </button>
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded shadow-xl border z-50 hidden group-hover:block">
-                                {['pending', 'paid', 'shipped', 'completed', 'failed'].map(s => (
-                                    <button key={s} onClick={() => handleUpdateStatus(s)} className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
-                                        Set as {statusLabels[s]}
-                                    </button>
-                                ))}
-                            </div>
+                            {showStatusDropdown && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded shadow-xl border border-gray-100 dark:border-gray-700 z-50 py-1">
+                                    {['pending', 'paid', 'shipped', 'completed', 'failed'].map(s => (
+                                        <button 
+                                            key={s} 
+                                            onClick={() => { handleUpdateStatus(s); setShowStatusDropdown(false); }} 
+                                            className="block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-200"
+                                        >
+                                            Set as {getStatusLabel(s)}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

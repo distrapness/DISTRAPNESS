@@ -1,24 +1,30 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrency } from '../components/CurrencyContext.jsx';
 import {
     FaHome, FaBoxOpen, FaShoppingCart, FaTags,
-    FaCog, FaSignOutAlt, FaBars, FaTimes, FaArrowLeft, FaImage
+    FaCog, FaSignOutAlt, FaBars, FaTimes, FaArrowLeft, FaImage, FaStar
 } from 'react-icons/fa';
 
 const AdminLayout = ({ children }) => {
+    const { t } = useCurrency();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const { logout, userEmail } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
     const menuItems = [
-        { path: '/admin', label: 'Dashboard', icon: <FaHome /> },
-        { path: '/admin/orders', label: 'Orders', icon: <FaShoppingCart /> },
-        { path: '/product-admin', label: 'Products', icon: <FaBoxOpen /> },
-        { path: '/admin/categories', label: 'Categories', icon: <FaTags /> },
-        { path: '/banner-admin', label: 'Banners', icon: <FaImage /> },
-        { path: '/admin/settings', label: 'Settings', icon: <FaCog /> },
+        { path: '/admin', label: t('admin.dashboard') || 'Dashboard', icon: <FaHome /> },
+        { path: '/admin/orders', label: t('admin.orders') || 'Orders', icon: <FaShoppingCart /> },
+        { path: '/product-admin', label: t('admin.manageProducts') || 'Products', icon: <FaBoxOpen /> },
+        { path: '/admin/categories', label: t('admin.categories') || 'Categories', icon: <FaTags /> },
+        { path: '/admin/discounts', label: t('admin.discounts') || 'Discounts', icon: <FaTags /> },
+        { path: '/banner-admin', label: t('admin.banners') || 'Banners', icon: <FaImage /> },
+        { path: '/brand-admin', label: t('admin.brands') || 'Brand', icon: <FaImage /> },
+        { path: '/admin-chat', label: t('admin.chat') || 'Chat', icon: <FaBars /> },
+        { path: '/admin/reviews', label: t('admin.reviews') || 'Reviews', icon: <FaStar /> },
+        { path: '/admin/settings', label: t('admin.settings') || 'Settings', icon: <FaCog /> },
     ];
 
     const handleLogout = () => {
@@ -65,14 +71,14 @@ const AdminLayout = ({ children }) => {
                         className="flex items-center w-full px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors mb-1"
                     >
                         <FaArrowLeft className="mr-3" />
-                        Ke Website
+                        {t('admin.backToSite') || 'Back to Website'}
                     </Link>
                     <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     >
                         <FaSignOutAlt className="mr-3" />
-                        Logout
+                        {t('admin.logout') || 'Logout'}
                     </button>
                     <div className="mt-4 px-4 text-xs text-gray-400 truncate">
                         {userEmail}

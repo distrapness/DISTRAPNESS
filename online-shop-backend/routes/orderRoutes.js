@@ -4,7 +4,7 @@ const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { sendOrderConfirmation, sendAdminNotification } = require('../services/emailService');
+const { sendOrderConfirmation, sendAdminNotification, sendStatusUpdateEmail } = require('../services/emailService');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
 
@@ -184,6 +184,26 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, (req, res) => {
 
   pool.query(query, params, (err, result) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
+    
+    // Fetch order details to get email for notification
+    pool.query('SELECT shipping_address FROM orders WHERE id = ?', [orderId], (err2, results) => {
+      if (!err2 && results.length > 0) {
+        try {
+          const addr = JSON.parse(results[0].shipping_address);
+          if (addr && addr.email) {
+            sendStatusUpdateEmail({
+              email: addr.email,
+              orderId,
+              status,
+              trackingNumber
+            });
+          }
+        } catch (e) {
+          console.error("Failed to send status email:", e.message);
+        }
+      }
+    });
+
     res.json({ success: true });
   });
 });

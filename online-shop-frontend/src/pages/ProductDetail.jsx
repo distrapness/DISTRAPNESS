@@ -70,8 +70,8 @@ const ProductDetail = () => {
 
   const submitReview = (e) => {
     e.preventDefault();
-    if (!isLoggedIn) return alert("Anda harus login untuk mengulas.");
-    if (ratingInput < 1 || ratingInput > 5) return alert("Rating harus 1 hingga 5.");
+    if (!isLoggedIn) return alert(t('reviews.errorLogin'));
+    if (ratingInput < 1 || ratingInput > 5) return alert(t('reviews.errorRating'));
     
     setSubmittingReview(true);
     fetch(`${API_URL}/${id}/reviews`, {
@@ -89,7 +89,7 @@ const ProductDetail = () => {
         setCommentInput("");
         setRatingInput(5);
         fetchReviews();
-        alert("Terima kasih atas ulasannya!");
+        alert(t('reviews.success'));
       }
     })
     .catch(console.error)
@@ -194,10 +194,10 @@ const ProductDetail = () => {
                   {reviews.length > 0 ? (
                     <>
                       <span className="text-yellow-400">{'★'.repeat(Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length)) + '☆'.repeat(5 - Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length))}</span>
-                      <span className="text-sm text-gray-500">({reviews.length} ulasan)</span>
+                      <span className="text-sm text-gray-500">({reviews.length} {t('productDetail.ulasan')})</span>
                     </>
                   ) : (
-                    <span className="text-sm text-gray-500 italic">Belum ada ulasan</span>
+                    <span className="text-sm text-gray-500 italic">{t('reviews.noReviews')}</span>
                   )}
                 </div>
                 <div className="text-lg md:text-xl font-medium text-gray-900 dark:text-gray-100">
@@ -249,8 +249,8 @@ const ProductDetail = () => {
                       );
                     })}
                   </div>
-                  {product.sizes?.[selectedSize] <= 0 && <div className="text-red-500 text-xs mt-1 font-bold">Sold Out</div>}
-                  {product.sizes?.[selectedSize] > 0 && product.sizes?.[selectedSize] < 5 && <div className="text-orange-500 text-xs mt-1 font-bold">Only {product.sizes[selectedSize]} left!</div>}
+                  {product.sizes?.[selectedSize] <= 0 && <div className="text-red-500 text-xs mt-1 font-bold">{t('productDetail.soldOut')}</div>}
+                  {product.sizes?.[selectedSize] > 0 && product.sizes?.[selectedSize] < 5 && <div className="text-orange-500 text-xs mt-1 font-bold">{t('productDetail.onlyLeft')}{product.sizes[selectedSize]}{t('productDetail.leftItems')}</div>}
                 </div>
 
                 {/* Quantity Selector */}
@@ -284,13 +284,13 @@ const ProductDetail = () => {
                   className="flex-1 bg-[#808080] hover:bg-[#666666] text-white py-4 font-bold uppercase tracking-widest text-sm transition-colors flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                  Add to Cart
+                  {t('productDetail.addToCart')}
                 </button>
                 <button
                   onClick={handleBuyNow}
                   className="flex-1 bg-black hover:bg-gray-800 text-white dark:bg-white dark:hover:bg-gray-200 dark:text-black py-4 font-bold uppercase tracking-widest text-sm transition-colors flex items-center justify-center gap-2"
                 >
-                  Beli Langsung
+                  {t('productDetail.buy')}
                 </button>
               </div>
 
@@ -314,64 +314,104 @@ const ProductDetail = () => {
               </div>
 
               {/* Reviews Section */}
-              <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-700 w-full text-right">
-                <h3 className="font-bold text-sm uppercase tracking-wider mb-6">Ulasan & Rating Produk</h3>
+              <div className="mt-16 pt-12 border-t border-gray-100 dark:border-gray-800 w-full">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+                  <div>
+                    <h3 className="font-[900] text-xl uppercase tracking-tighter mb-1">{t('reviews.title')}</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="flex text-yellow-400 text-sm">
+                        {'★'.repeat(Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)))}{'☆'.repeat(5 - Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)))}
+                      </div>
+                      <span className="text-sm text-gray-500 font-medium">({reviews.length} {t('reviews.count') || 'Reviews'})</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => document.getElementById('review-form')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="text-xs font-bold uppercase tracking-widest border-b-2 border-black dark:border-white pb-1 hover:opacity-60 transition-opacity"
+                  >
+                    {t('reviews.writeReview') || 'Write a Review'}
+                  </button>
+                </div>
                 
                 {reviews.length > 0 ? (
-                  <div className="flex flex-col gap-4 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                     {reviews.map(rev => (
-                      <div key={rev.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded text-right flex flex-col items-end">
-                        <div className="flex gap-1 text-yellow-400 text-sm mb-1">
-                          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
+                      <div key={rev.id} className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex gap-3 items-center">
+                            <div className="w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-sm uppercase">
+                              {rev.user_email.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">{rev.user_email.split('@')[0]}</div>
+                              <div className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(rev.created_at).toLocaleDateString(currency.locale)}</div>
+                            </div>
+                          </div>
+                          <div className="flex text-yellow-400 text-xs">
+                            {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 mb-2">{rev.user_email.split('@')[0]} - {new Date(rev.created_at).toLocaleDateString('id-ID')}</p>
-                        <p className="text-sm font-light text-gray-800 dark:text-gray-200">{rev.comment || "Tidak ada komentar"}</p>
+                        <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300 font-light italic">
+                          "{rev.comment || "..."}"
+                        </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic mb-8">Jadilah yang pertama mengulas produk ini.</p>
+                  <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/20 rounded-2xl mb-12 border-2 border-dashed border-gray-100 dark:border-gray-700">
+                    <p className="text-sm text-gray-400 italic">{t('reviews.beFirst')}</p>
+                  </div>
                 )}
 
                 {/* Review Form */}
-                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6 rounded text-right">
-                  <h4 className="font-bold text-xs uppercase mb-4">Tinggalkan Ulasan</h4>
-                  {isLoggedIn ? (
-                    <form onSubmit={submitReview} className="flex flex-col items-end gap-4">
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm font-bold">Rating:</label>
-                        <select 
-                          value={ratingInput} 
-                          onChange={(e) => setRatingInput(Number(e.target.value))}
-                          className="border p-2 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 rounded text-black dark:text-white"
+                <div id="review-form" className="bg-black dark:bg-white text-white dark:text-black p-8 md:p-12 rounded-2xl shadow-2xl overflow-hidden relative group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 dark:bg-black/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
+                  
+                  <div className="relative z-10">
+                    <h4 className="font-[900] text-2xl uppercase tracking-tighter mb-8">{t('reviews.leaveReview')}</h4>
+                    {isLoggedIn ? (
+                      <form onSubmit={submitReview} className="space-y-6">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">{t('reviews.rating')}</label>
+                          <div className="flex gap-4">
+                            {[5, 4, 3, 2, 1].map(num => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => setRatingInput(num)}
+                                className={`flex-1 py-3 border-2 rounded-lg font-bold text-sm transition-all ${ratingInput === num ? 'bg-white text-black border-white dark:bg-black dark:text-white dark:border-black' : 'border-white/20 hover:border-white/50 dark:border-black/20 dark:hover:border-black/50'}`}
+                              >
+                                {num} ★
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">{t('reviews.comment') || 'Comment'}</label>
+                          <textarea
+                            className="w-full p-4 bg-white/10 dark:bg-black/5 border border-white/20 dark:border-black/10 rounded-xl text-sm focus:ring-2 focus:ring-white dark:focus:ring-black outline-none transition-all placeholder:text-white/30 dark:placeholder:text-black/30 min-h-[120px]"
+                            placeholder={t('reviews.placeholder')}
+                            value={commentInput}
+                            onChange={(e) => setCommentInput(e.target.value)}
+                          ></textarea>
+                        </div>
+                        <button 
+                          type="submit" 
+                          disabled={submittingReview}
+                          className="w-full bg-white dark:bg-black text-black dark:text-white font-[900] uppercase text-sm tracking-[0.2em] py-5 rounded-xl transition-all hover:scale-[0.98] active:scale-95 disabled:opacity-50 shadow-xl"
                         >
-                          <option value="5">5 - Sempurna</option>
-                          <option value="4">4 - Sangat Bagus</option>
-                          <option value="3">3 - Cukup</option>
-                          <option value="2">2 - Kurang</option>
-                          <option value="1">1 - Sangat Kurang</option>
-                        </select>
+                          {submittingReview ? t('reviews.submitting') : t('reviews.submit')}
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="text-center py-4 border-2 border-dashed border-white/20 dark:border-black/20 rounded-xl">
+                        <p className="text-sm opacity-60 mb-2">
+                          {t('reviews.loginRequired')}
+                        </p>
+                        <Link to="/login" className="text-sm font-bold underline uppercase tracking-widest">{t('reviews.login')}</Link>
                       </div>
-                      <textarea
-                        className="w-full text-right p-3 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 focus:outline-none dark:text-white resize-none"
-                        placeholder="Apa pendapat Anda tentang produk ini?"
-                        rows="3"
-                        value={commentInput}
-                        onChange={(e) => setCommentInput(e.target.value)}
-                      ></textarea>
-                      <button 
-                        type="submit" 
-                        disabled={submittingReview}
-                        className="bg-black text-white dark:bg-white dark:text-black font-bold uppercase text-xs tracking-widest px-6 py-2 transition hover:opacity-80 disabled:opacity-50"
-                      >
-                        {submittingReview ? 'Mengirim...' : 'Kirim Ulasan'}
-                      </button>
-                    </form>
-                  ) : (
-                    <p className="text-xs text-gray-500">
-                      Silakan <Link to="/login" className="text-black dark:text-white underline font-bold">Login</Link> terlebih dahulu untuk memberikan ulasan.
-                    </p>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
 

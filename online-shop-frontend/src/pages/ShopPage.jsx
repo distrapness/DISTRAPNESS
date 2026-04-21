@@ -104,19 +104,27 @@ const ShopPage = () => {
       <div className="w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-700 pt-4 pb-16">
         <div className="max-w-7xl mx-auto px-4 mt-2 md:mt-4">
           <div className="grid grid-cols-2 md:flex md:flex-row gap-3 md:gap-4 mb-8 md:mb-10 items-center justify-between">
-            {/* Category Filter */}
-            <div className="w-full md:w-auto">
-              <select
-                className="w-full px-4 py-3 md:py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-black text-xs md:text-sm font-bold uppercase tracking-wider appearance-none"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                style={{ backgroundImage: 'none' }} // Custom arrow if needed, but default is fine for now
-              >
-                <option value="Semua">All Categories</option>
-                {categories.filter(c => c !== "Semua").map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+            {/* Category Pills (Horizontal Scroll) */}
+            <div className="col-span-2 md:flex-1 overflow-x-auto scrollbar-hide py-2 flex items-center gap-2 md:gap-3">
+              {categories.map((cat) => {
+                const isActive = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                        setSelectedCategory(cat);
+                        setPage(1); // Reset page on category change
+                    }}
+                    className={`whitespace-nowrap px-5 md:px-7 py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] transition-all duration-300 border ${
+                      isActive 
+                        ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-lg' 
+                        : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500 dark:hover:border-gray-400'
+                    }`}
+                  >
+                    {cat === "Semua" ? t('nav.all') : cat}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Sort Filter */}
@@ -199,23 +207,22 @@ const ShopPage = () => {
                     <div className="text-xs md:text-base text-gray-900 dark:text-gray-100 mb-1 md:mb-2 leading-tight font-medium uppercase tracking-wide line-clamp-2">
                       {product.name}
                     </div>
-                    <div className="text-xs md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4">
+                    <div className="text-xs md:text-base text-gray-500 dark:text-gray-400 mb-4">
                       {convertPrice(product.price)}
                     </div>
-                    {/* Beli Langsung / Buy Now Button */}
+                    
+                    {/* Buy Button */}
                     <button
+                      disabled={product.stock <= 0}
                       onClick={(e) => {
                         e.stopPropagation();
-                        let firstSize = 'M';
-                        if (product.sizes) {
-                          firstSize = ['S', 'M', 'L', 'XL'].find(s => product.sizes[s] > 0) || 'M';
-                        }
-                        addToCart({ ...product, selectedSize: firstSize }, 1);
+                        const availableSizes = product.sizes ? ['S', 'M', 'L', 'XL'].find(s => product.sizes[s] > 0) : 'M';
+                        addToCart({ ...product, selectedSize: availableSizes || 'M' }, 1);
                         navigate('/cart');
                       }}
-                      className="w-full bg-black hover:bg-gray-800 text-white dark:bg-white dark:hover:bg-gray-200 dark:text-black font-bold uppercase text-[10px] md:text-xs tracking-widest py-2 md:py-3 transition-colors opacity-90 hover:opacity-100"
+                      className={`w-full py-2 rounded font-bold uppercase text-[10px] md:text-xs tracking-widest transition-opacity ${product.stock <= 0 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-80'}`}
                     >
-                      Beli Langsung
+                      {product.stock <= 0 ? t('shop.outOfStock') : t('productDetail.buy')}
                     </button>
                   </div>
                 </div>

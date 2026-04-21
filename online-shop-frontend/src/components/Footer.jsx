@@ -30,7 +30,9 @@ const Footer = () => {
           <h4 className="font-bold uppercase tracking-[0.2em] text-xs mb-2">{t('footer.customerService')}</h4>
           <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
             <Link to="/contact" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.contactUs')}</Link>
+            <Link to="/how-to-order" className="hover:text-black dark:hover:text-white transition-colors">{t('nav.howToOrder') || 'How to Order'}</Link>
             <Link to="/faq" className="hover:text-black dark:hover:text-white transition-colors">FAQ</Link>
+            <Link to="/profile" className="hover:text-black dark:hover:text-white transition-colors">{t('footer.orderStatus')}</Link>
           </div>
         </div>
 

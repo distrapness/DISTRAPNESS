@@ -114,9 +114,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
           <Link to="/contact" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.contact')}</Link>
           <Link to="/store" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.store')}</Link>
           <Link to="/about" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.about')}</Link>
-          {isLoggedIn && (
-            <Link to="/profile" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/profile" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>Riwayat Pesanan</Link>
-          )}
+
           {userRole === 'admin' && (
             <Link to="/admin" className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 hover:text-[#FF0000] transition-colors border border-blue-600 dark:border-blue-400 px-3 py-1 rounded">
               Admin Panel
@@ -318,9 +316,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
           <Link to="/store" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.store').toUpperCase()}</Link>
           <Link to="/about" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.about').toUpperCase()}</Link>
           <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.contact').toUpperCase()}</Link>
-          {isLoggedIn && (
-            <Link to="/profile" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">RIWAYAT PESANAN</Link>
-          )}
+
           {userRole === 'admin' && (
             <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800 pb-2">Admin Panel</Link>
           )}

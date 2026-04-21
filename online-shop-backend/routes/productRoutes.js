@@ -127,6 +127,20 @@ router.delete('/:id', verifyToken, verifyAdmin, (req, res) => {
   );
 });
 
+// GET ALL REVIEWS (Admin only)
+router.get('/reviews/all', verifyToken, verifyAdmin, (req, res) => {
+    const query = `
+      SELECT r.*, p.name as product_name 
+      FROM reviews r 
+      JOIN products p ON r.product_id = p.id 
+      ORDER BY r.created_at DESC
+    `;
+    pool.query(query, (err, results) => {
+      if (err) return res.status(500).json({ error: 'Database error' });
+      res.json(results);
+    });
+});
+
 // GET /api/products/:id/reviews
 router.get('/:id/reviews', (req, res) => {
   const { id } = req.params;
@@ -154,6 +168,15 @@ router.post('/:id/reviews', verifyToken, (req, res) => {
       res.json({ id: result.insertId, product_id: id, user_email, rating, comment });
     }
   );
+});
+
+// DELETE REVIEW (Admin only)
+router.delete('/reviews/:reviewId', verifyToken, verifyAdmin, (req, res) => {
+  const { reviewId } = req.params;
+  pool.query('DELETE FROM reviews WHERE id = ?', [reviewId], (err, result) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
+    res.json({ success: true, message: 'Review deleted' });
+  });
 });
 
 module.exports = router;

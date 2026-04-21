@@ -2,17 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaEye, FaCheck, FaTimes, FaSearch } from "react-icons/fa";
 import config from '../config.js';
-
-const statusLabels = {
-  pending: "Menunggu Pembayaran",
-  waiting_payment: "Menunggu Pembayaran",
-  waiting_verification: "Menunggu Verifikasi Admin",
-  paid: "Lunas",
-  shipped: "Dikirim",
-  completed: "Selesai",
-  failed: "Gagal",
-  cancelled: "Dibatalkan"
-};
+import { useCurrency } from '../components/CurrencyContext.jsx';
 
 const statusColors = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -32,8 +22,23 @@ const AdminOrderDashboard = () => {
   const [verifying, setVerifying] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-
   const navigate = useNavigate();
+  const { t } = useCurrency();
+
+  // Status labels use translations
+  const getStatusLabel = (status) => {
+    const map = {
+      pending: t('admin.orders.unpaid'),
+      waiting_payment: t('admin.orders.unpaid'),
+      waiting_verification: t('admin.orders.needVerification'),
+      paid: t('admin.orders.readyToShip'),
+      shipped: t('admin.orders.shipped'),
+      completed: t('admin.orders.completed'),
+      failed: t('admin.orders.failed'),
+      cancelled: t('admin.orders.failed'),
+    };
+    return map[status] || status;
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -43,7 +48,6 @@ const AdminOrderDashboard = () => {
       });
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Sort by ID desc (newest first)
         const sorted = data.sort((a, b) => b.id - a.id);
         setOrders(sorted);
         setFilteredOrders(sorted);
@@ -58,9 +62,7 @@ const AdminOrderDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
 
   useEffect(() => {
     let res = orders;
@@ -77,21 +79,20 @@ const AdminOrderDashboard = () => {
   }, [search, statusFilter, orders]);
 
   const handleVerify = async (orderId, status) => {
-    if (!window.confirm(status === 'paid' ? "Verifikasi pembayaran ini valid?" : "Tolak pembayaran ini?")) return;
-
+    if (!window.confirm(status === 'paid' ? t('admin.orders.confirmVerify') : t('admin.orders.confirmReject'))) return;
     setVerifying(true);
     try {
       await fetch(`${config.API_URL}/api/orders/status/${orderId}`, {
         method: "PUT",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({ status })
       });
-      fetchOrders(); // Refresh
+      fetchOrders();
     } catch (e) {
-      alert("Gagal update");
+      alert(t('admin.orders.errorUpdate'));
     } finally {
       setVerifying(false);
     }
@@ -103,8 +104,8 @@ const AdminOrderDashboard = () => {
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Order Management</h1>
-            <p className="text-gray-500 dark:text-gray-400">Verifikasi dan proses pesanan masuk.</p>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{t('admin.orders.title')}</h1>
+            <p className="text-gray-500 dark:text-gray-400">{t('admin.orders.subtitle')}</p>
           </div>
 
           <div className="flex gap-3 w-full md:w-auto">
@@ -112,7 +113,7 @@ const AdminOrderDashboard = () => {
               <FaSearch className="absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search Order ID or User..."
+                placeholder={t('admin.orders.searchPlaceholder')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
@@ -123,31 +124,31 @@ const AdminOrderDashboard = () => {
               onChange={e => setStatusFilter(e.target.value)}
               className="border rounded-lg px-4 py-2 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
             >
-              <option value="all">Semua Status</option>
-              <option value="waiting_verification">Perlu Verifikasi</option>
-              <option value="pending">Belum Bayar</option>
-              <option value="paid">Siap Kirim (Lunas)</option>
-              <option value="shipped">Dikirim</option>
-              <option value="completed">Selesai</option>
-              <option value="failed">Gagal</option>
+              <option value="all">{t('admin.orders.allStatus')}</option>
+              <option value="waiting_verification">{t('admin.orders.needVerification')}</option>
+              <option value="pending">{t('admin.orders.unpaid')}</option>
+              <option value="paid">{t('admin.orders.readyToShip')}</option>
+              <option value="shipped">{t('admin.orders.shipped')}</option>
+              <option value="completed">{t('admin.orders.completed')}</option>
+              <option value="failed">{t('admin.orders.failed')}</option>
             </select>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center">Loading orders...</div>
+          <div className="p-12 text-center">{t('admin.orders.loading')}</div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                   <tr>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Order ID</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">User / Info</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Total</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Date</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">Actions</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.orderId')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.userInfo')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.total')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.date')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.status')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">{t('admin.orders.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -166,7 +167,7 @@ const AdminOrderDashboard = () => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold inline-block ${statusColors[order.status] || 'bg-gray-100'}`}>
-                          {statusLabels[order.status] || order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -174,19 +175,18 @@ const AdminOrderDashboard = () => {
                           <button
                             onClick={() => navigate(`/admin/orders/${order.id}`)}
                             className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded text-gray-600 dark:text-white"
-                            title="Lihat Detail"
+                            title={t('admin.orders.viewDetail')}
                           >
                             <FaEye />
                           </button>
 
-                          {/* Quick Actions for Verifying */}
                           {order.status === "waiting_verification" && (
                             <>
                               <button
                                 className="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded font-bold"
                                 onClick={() => handleVerify(order.id, "paid")}
                                 disabled={verifying}
-                                title="Terima Pembayaran"
+                                title={t('admin.orders.accept')}
                               >
                                 <FaCheck />
                               </button>
@@ -194,7 +194,7 @@ const AdminOrderDashboard = () => {
                                 className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded font-bold"
                                 onClick={() => handleVerify(order.id, "failed")}
                                 disabled={verifying}
-                                title="Tolak"
+                                title={t('admin.orders.reject')}
                               >
                                 <FaTimes />
                               </button>
@@ -207,7 +207,7 @@ const AdminOrderDashboard = () => {
                   {filteredOrders.length === 0 && (
                     <tr>
                       <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                        No orders found matching your filters.
+                        {t('admin.orders.noOrders')}
                       </td>
                     </tr>
                   )}

@@ -237,6 +237,8 @@ app.get('/api/setup-admin', async (req, res) => {
   }
 });
 
+const { sendRegistrationWelcome, sendContactNotification } = require('./services/emailService');
+
 // REGISTER ENDPOINT
 app.post('/api/register', async (req, res) => {
   const { email, password } = req.body;
@@ -250,6 +252,14 @@ app.post('/api/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     pool.query('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword], (err2, result) => {
       if (err2) return res.status(500).json({ message: 'Gagal menyimpan user' });
+      
+      // Send Welcome Email (Safe, non-blocking)
+      try {
+        sendRegistrationWelcome(email);
+      } catch (e) {
+        console.warn("Welcome email failed:", e.message);
+      }
+
       res.json({ message: 'Registrasi berhasil' });
     });
   });
@@ -479,6 +489,14 @@ app.post('/api/contact', async (req, res) => {
   try {
     await pool.promise().query('CREATE TABLE IF NOT EXISTS contact_messages (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255), message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
     await pool.promise().query('INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)', [name, email, message]);
+    
+    // Send Email Notification to Admin
+    try {
+      sendContactNotification({ name, email, message });
+    } catch (e) {
+      console.warn("Contact email failed:", e.message);
+    }
+
     res.json({ success: true, message: 'Message sent!' });
   } catch (err) {
     res.status(500).json({ error: err.message });

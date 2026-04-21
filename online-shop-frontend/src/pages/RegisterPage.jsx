@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import config from "../config.js";
 import { useNavigate } from "react-router-dom";
+import { useCurrency } from "../components/CurrencyContext.jsx";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -13,26 +14,26 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+  const { t } = useCurrency();
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
     if (password !== confirmPassword) {
-      setError("Password dan konfirmasi password tidak sama");
+      setError(t('register.errorMatch'));
       return;
     }
     setLoading(true);
     try {
       await axios.post(`${config.API_URL}/api/register`, { email, password });
-      // Setelah sukses register, langsung login otomatis
       const res = await axios.post(`${config.API_URL}/api/login`, { email, password });
       localStorage.setItem("token", res.data.token);
-      localStorage.setItem("email", res.data.email); // Simpan email user
-      setSuccess("Registrasi & login berhasil!");
+      localStorage.setItem("email", res.data.email);
+      setSuccess(t('register.success'));
       setTimeout(() => navigate("/"), 1500);
     } catch (err) {
-      setError(err.response?.data?.message || "Registrasi gagal, coba lagi.");
+      setError(err.response?.data?.message || t('register.errorFailed'));
     } finally {
       setLoading(false);
     }
@@ -41,8 +42,8 @@ export default function RegisterPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
       <form onSubmit={handleRegister} className="bg-white dark:bg-gray-800 p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">Daftar Akun</h2>
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Email</label>
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">{t('register.title')}</h2>
+        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('register.email')}</label>
         <input
           type="email"
           value={email}
@@ -51,7 +52,7 @@ export default function RegisterPage() {
           placeholder="you@email.com"
           required
         />
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Password</label>
+        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('register.password')}</label>
         <div className="relative mb-4">
           <input
             type={showPassword ? "text" : "password"}
@@ -64,7 +65,7 @@ export default function RegisterPage() {
           <button type="button" onClick={() => setShowPassword(v => !v)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 focus:outline-none"
             tabIndex={-1}
-            aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+            aria-label={showPassword ? t('register.hidePassword') : t('register.showPassword')}
           >
             {showPassword ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.218 1.125-4.575m1.75-2.425A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.218-1.125 4.575M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -73,7 +74,7 @@ export default function RegisterPage() {
             )}
           </button>
         </div>
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Konfirmasi Password</label>
+        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('register.confirmPassword')}</label>
         <div className="relative mb-4">
           <input
             type={showConfirmPassword ? "text" : "password"}
@@ -86,7 +87,7 @@ export default function RegisterPage() {
           <button type="button" onClick={() => setShowConfirmPassword(v => !v)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 focus:outline-none"
             tabIndex={-1}
-            aria-label={showConfirmPassword ? "Sembunyikan password" : "Tampilkan password"}
+            aria-label={showConfirmPassword ? t('register.hidePassword') : t('register.showPassword')}
           >
             {showConfirmPassword ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.218 1.125-4.575m1.75-2.425A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.218-1.125 4.575M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -102,10 +103,10 @@ export default function RegisterPage() {
           className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition"
           disabled={loading}
         >
-          {loading ? "Memproses..." : "Daftar"}
+          {loading ? t('register.loading') : t('register.submit')}
         </button>
         <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
-          Sudah punya akun? <a href="/login" className="text-blue-600 hover:underline">Login</a>
+          {t('register.hasAccount')} <a href="/login" className="text-blue-600 hover:underline">{t('register.login')}</a>
         </div>
       </form>
     </div>

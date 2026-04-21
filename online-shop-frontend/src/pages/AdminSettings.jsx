@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import config from '../config.js';
+import { useCurrency } from '../components/CurrencyContext.jsx';
 
 const AdminSettings = () => {
     const [settings, setSettings] = useState({
@@ -11,11 +12,16 @@ const AdminSettings = () => {
         social_instagram: '',
         social_facebook: '',
         social_twitter: '',
-        logo_url: ''
+        logo_url: '',
+        biteship_api_key: '',
+        shipping_origin: '',
+        midtrans_server_key: '',
+        midtrans_client_key: ''
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
+    const { t } = useCurrency();
 
     useEffect(() => {
         fetch(`${config.API_URL}/api/settings`)
@@ -53,7 +59,7 @@ const AdminSettings = () => {
             });
 
             if (res.ok) {
-                setMessage('Settings updated successfully!');
+                setMessage(t('admin.settings.saved'));
                 setTimeout(() => setMessage(''), 3000);
             } else {
                 setMessage('Failed to update settings.');
@@ -92,7 +98,7 @@ const AdminSettings = () => {
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 max-w-4xl mx-auto mt-10">
-            <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">Site Settings</h1>
+            <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">{t('admin.settings.title')}</h1>
 
             {message && (
                 <div className={`p-4 mb-6 rounded ${message.includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -211,6 +217,57 @@ const AdminSettings = () => {
                     </div>
                 </div>
 
+                {/* API & Third Party Configuration */}
+                <div>
+                    <h2 className="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200 border-b pb-2">API & Integration Settings</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Biteship API Key</label>
+                            <input
+                                name="biteship_api_key"
+                                type="password"
+                                value={settings.biteship_api_key}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="biteship_..."
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Used to calculate shipping costs via Biteship.</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Shipping Origin (Area ID)</label>
+                            <input
+                                name="shipping_origin"
+                                value={settings.shipping_origin}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="IDNP... (e.g. IDNP6IDNC147IDND829)"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Check Biteship docs for your Area ID.</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Server Key (Production)</label>
+                            <input
+                                name="midtrans_server_key"
+                                type="password"
+                                value={settings.midtrans_server_key}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="SB-Mid-server-..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Client Key (Production)</label>
+                            <input
+                                name="midtrans_client_key"
+                                value={settings.midtrans_client_key}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="SB-Mid-client-..."
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Actions */}
                 <div className="flex justify-end pt-6 border-t dark:border-gray-700">
                     <button
@@ -218,7 +275,7 @@ const AdminSettings = () => {
                         disabled={saving}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform transition active:scale-95 disabled:opacity-50"
                     >
-                        {saving ? 'Saving...' : 'Save Changes'}
+                        {saving ? t('admin.settings.saving') : t('admin.settings.save')}
                     </button>
                 </div>
 

@@ -2,39 +2,69 @@ const express = require('express');
 const router = express.Router();
 const shippingService = require('../services/shippingService');
 
-// Fetch Provinces
+// --- New Manual Hierarchy Routes ---
 router.get('/provinces', async (req, res) => {
   try {
-    const provinces = await shippingService.getProvinces();
-    res.json(provinces);
-  } catch (error) {
-    res.status(500).json({ error: 'Gagal mengambil data provinsi' });
-  }
+    const data = await shippingService.getProvinces();
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Fetch Cities by Province ID
 router.get('/cities/:provinceId', async (req, res) => {
   try {
-    const cities = await shippingService.getCities(req.params.provinceId);
-    res.json(cities);
+    const data = await shippingService.getCities(req.params.provinceId);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/districts/:cityId', async (req, res) => {
+  try {
+    const data = await shippingService.getDistricts(req.params.cityId);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/villages/:districtId', async (req, res) => {
+  try {
+    const data = await shippingService.getVillages(req.params.districtId);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/find-area', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const areaId = await shippingService.findAreaId(q);
+    res.json({ area_id: areaId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Search areas (kept for compatibility)
+router.get('/areas', async (req, res) => {
+  const { input } = req.query;
+  if (!input) return res.json([]);
+  
+  try {
+    const areas = await shippingService.searchAreas(input);
+    res.json(areas);
   } catch (error) {
-    res.status(500).json({ error: 'Gagal mengambil data kota' });
+    res.status(500).json({ error: 'Gagal mencari area', details: error.message });
   }
 });
 
 // Calculate Cost
-router.post('/cost', async (req, res) => {
-  const { origin, destination, weight, courier } = req.body;
+router.post('/cost-by-query', async (req, res) => {
+  const { origin, query, items } = req.body;
   
-  if (!origin || !destination || !weight || !courier) {
-    return res.status(400).json({ error: 'Parameter asal, tujuan, berat, dan kurir wajib diisi' });
+  if (!query || !items || !items.length) {
+    return res.status(400).json({ error: 'Parameter query alamat dan detail produk wajib diisi' });
   }
 
   try {
-    const costs = await shippingService.calculateCost(origin, destination, weight, courier);
-    res.json(costs);
+    const result = await shippingService.getRatesByQuery(origin, query, items);
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: 'Gagal menghitung ongkos kirim' });
+    res.status(500).json({ error: 'Gagal menghitung ongkos kirim', details: error.message });
   }
 });
 

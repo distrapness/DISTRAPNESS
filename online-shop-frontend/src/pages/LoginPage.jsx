@@ -3,6 +3,7 @@ import axios from "axios";
 import config from "../config.js";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useCurrency } from "../components/CurrencyContext.jsx";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useCurrency();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -20,11 +22,11 @@ export default function LoginPage() {
     setError("");
     try {
       const res = await axios.post(`${config.API_URL}/api/login`, { email, password });
-      login(res.data.token, res.data.email, res.data.role); // update context & localStorage
-      setSuccess("Login berhasil!");
-      navigate("/"); // langsung redirect tanpa timeout
+      login(res.data.token, res.data.email, res.data.role);
+      setSuccess(t('login.success'));
+      navigate("/");
     } catch (err) {
-      setError("Email atau password salah");
+      setError(t('login.error'));
     } finally {
       setLoading(false);
     }
@@ -33,8 +35,8 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
       <form onSubmit={handleLogin} className="bg-white dark:bg-gray-800 p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">Login Akun</h2>
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Email</label>
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">{t('login.title')}</h2>
+        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('login.email')}</label>
         <input
           type="email"
           value={email}
@@ -43,7 +45,7 @@ export default function LoginPage() {
           placeholder="you@email.com"
           required
         />
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Password</label>
+        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('login.password')}</label>
         <div className="relative mb-4">
           <input
             type={showPassword ? "text" : "password"}
@@ -56,7 +58,7 @@ export default function LoginPage() {
           <button type="button" onClick={() => setShowPassword(v => !v)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 focus:outline-none"
             tabIndex={-1}
-            aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+            aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
           >
             {showPassword ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.218 1.125-4.575m1.75-2.425A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.218-1.125 4.575M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -72,14 +74,14 @@ export default function LoginPage() {
           className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition"
           disabled={loading}
         >
-          {loading ? "Memproses..." : "Login"}
+          {loading ? t('login.loading') : t('login.submit')}
         </button>
         <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
-          Belum punya akun? <a href="/register" className="text-blue-600 hover:underline">Daftar</a>
+          {t('login.noAccount')} <a href="/register" className="text-blue-600 hover:underline">{t('login.register')}</a>
         </div>
         <div className="mt-2 text-center text-sm">
           <a href="/" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-            &larr; Kembali ke Beranda
+            {t('login.backHome')}
           </a>
         </div>
       </form>

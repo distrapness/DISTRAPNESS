@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import config from "../config.js";
 import { io } from "socket.io-client";
 import { getImageUrl } from "../utils/imageHelper";
+import { useCurrency } from "../components/CurrencyContext.jsx";
 import {
   FaBoxOpen, FaShoppingCart, FaMoneyBillWave, FaArrowRight,
   FaTags, FaCog, FaUserFriends, FaExclamationTriangle, FaChartLine
@@ -17,6 +18,7 @@ const AdminDashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [activeVisitors, setActiveVisitors] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { t } = useCurrency();
 
   useEffect(() => {
     fetchDashboardData();
@@ -27,11 +29,9 @@ const AdminDashboard = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch Advanced Stats
       const statsRes = await axios.get(`${config.API_URL}/api/admin/stats`, { headers });
       setStats(statsRes.data);
 
-      // Fetch Recent Orders
       const ordersRes = await axios.get(`${config.API_URL}/api/orders`, { headers });
       setRecentOrders(ordersRes.data.slice(0, 5));
     } catch (error) {
@@ -56,18 +56,18 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Dashboard Overview</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Here’s what’s happening with your store today.</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{t('admin.dashboard.title')}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('admin.dashboard.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <button className="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 font-medium hover:bg-gray-50 transition">
-            Export Data
+            {t('admin.dashboard.exportData')}
           </button>
           <Link to="/admin/discounts" className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold hover:bg-purple-700 transition flex items-center">
-            🎟️ Coupons
+            🎟️ {t('admin.dashboard.coupons')}
           </Link>
           <Link to="/product-admin" className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold hover:bg-blue-700 transition flex items-center">
-            + Add Product
+            {t('admin.dashboard.addProduct')}
           </Link>
         </div>
       </div>
@@ -80,16 +80,16 @@ const AdminDashboard = () => {
           {/* Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StatCard
-              title="Total Revenue"
+              title={t('admin.dashboard.totalRevenue')}
               value={formatCurrency(stats.totalRevenue)}
               trend="+12% vs last week"
               trendColor="text-green-500"
               icon={<FaMoneyBillWave className="text-green-600 text-xl" />}
-              chartData={stats.chartData} // Pass data for sparkline
+              chartData={stats.chartData}
               color="green"
             />
             <StatCard
-              title="Total Orders"
+              title={t('admin.dashboard.totalOrders')}
               value={stats.totalOrders}
               trend="+5% vs last week"
               trendColor="text-green-500"
@@ -102,19 +102,19 @@ const AdminDashboard = () => {
           {/* Recent Orders Table */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold text-lg text-gray-800 dark:text-white">Recent Orders</h2>
+              <h2 className="font-bold text-lg text-gray-800 dark:text-white">{t('admin.dashboard.recentOrders')}</h2>
               <Link to="/admin/orders" className="text-blue-600 dark:text-blue-400 text-sm hover:underline font-medium">
-                View All Orders
+                {t('admin.dashboard.viewAllOrders')}
               </Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Order ID</th>
-                    <th className="px-4 py-3 font-semibold">Payment / Total</th>
-                    <th className="px-4 py-3 font-semibold">Date</th>
-                    <th className="px-4 py-3 font-semibold text-right">Status</th>
+                    <th className="px-4 py-3 font-semibold">{t('admin.dashboard.orderId')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('admin.dashboard.paymentTotal')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('admin.dashboard.date')}</th>
+                    <th className="px-4 py-3 font-semibold text-right">{t('admin.dashboard.status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -139,7 +139,7 @@ const AdminDashboard = () => {
                   ))}
                   {recentOrders.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="text-center py-8 text-gray-500">No recent orders yet.</td>
+                      <td colSpan="4" className="text-center py-8 text-gray-500">{t('admin.dashboard.noOrders')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -151,13 +151,11 @@ const AdminDashboard = () => {
         {/* RIGHT COLUMN (Sidebar) */}
         <div className="space-y-8">
 
-
-
           {/* Inventory Alert */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                <FaExclamationTriangle className="text-orange-500" /> Inventory Alert
+                <FaExclamationTriangle className="text-orange-500" /> {t('admin.dashboard.inventoryAlert')}
               </h3>
               {stats.lowStock?.length > 0 && (
                 <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">
@@ -176,27 +174,27 @@ const AdminDashboard = () => {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 dark:text-white truncate">{p.name}</p>
-                    <p className="text-xs text-red-500 font-bold">Only {p.stock} left in stock</p>
+                    <p className="text-xs text-red-500 font-bold">{t('admin.dashboard.onlyLeft')}{p.stock}{t('admin.dashboard.inStock')}</p>
                   </div>
                   <Link to={`/product-admin?edit=${p.id}`} className="text-blue-600 text-xs font-bold hover:underline">
-                    Restock
+                    {t('admin.dashboard.restock')}
                   </Link>
                 </div>
               ))}
               {(!stats.lowStock || stats.lowStock.length === 0) && (
-                <p className="text-sm text-gray-500">All stock levels are healthy.</p>
+                <p className="text-sm text-gray-500">{t('admin.dashboard.healthyStock')}</p>
               )}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 text-center">
               <Link to="/product-admin" className="text-gray-500 text-sm hover:text-gray-800 dark:hover:text-white transition">
-                View Full Inventory
+                {t('admin.dashboard.viewInventory')}
               </Link>
             </div>
           </div>
 
           {/* Top Performing */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="font-bold text-gray-800 dark:text-white mb-6">Top Performing</h3>
+            <h3 className="font-bold text-gray-800 dark:text-white mb-6">{t('admin.dashboard.topPerforming')}</h3>
             <div className="space-y-6">
               {stats.bestSellers && stats.bestSellers.map((p, idx) => (
                 <div key={p.id} className="flex items-center justify-between">
@@ -204,7 +202,7 @@ const AdminDashboard = () => {
                     <div className="text-gray-400 font-bold text-lg w-6">0{idx + 1}</div>
                     <div>
                       <p className="font-medium text-gray-800 dark:text-white">{p.name}</p>
-                      <p className="text-xs text-gray-500">{p.sales} sales</p>
+                      <p className="text-xs text-gray-500">{p.sales} {t('admin.dashboard.sales')}</p>
                     </div>
                   </div>
                   <div className="text-green-500 font-bold text-sm">+{p.growth}%</div>
@@ -227,7 +225,6 @@ const Sparkline = ({ data, color = "green" }) => {
   const height = 40;
   const width = 100;
 
-  // Create SVG path
   const points = data.map((val, i) => {
     const x = (i / (data.length - 1)) * width;
     const y = height - ((val - min) / range) * height;

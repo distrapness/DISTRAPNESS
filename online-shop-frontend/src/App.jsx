@@ -41,6 +41,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsPage from './pages/TermsPage.jsx';
 import MarketingPopup from './components/MarketingPopup.jsx';
 import FAQPage from './pages/FAQPage.jsx';
+import AdminReviews from './pages/AdminReviews.jsx';
 
 function App() {
   const [cartOpen, setCartOpen] = useState(false);
@@ -108,6 +109,7 @@ function App() {
             <Route path="/payment" element={<PaymentDashboard />} />
             <Route path="/payment/confirm" element={<PaymentConfirm />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/how-to-order" element={<HowToOrder />} />
             {/* Admin Routes with Layout */}
             <Route path="/admin" element={
               <ProtectedRoute role="admin">
@@ -179,6 +181,13 @@ function App() {
                 </AdminLayout>
               </ProtectedRoute>
             } />
+            <Route path="/admin/reviews" element={
+              <ProtectedRoute role="admin">
+                <AdminLayout>
+                  <AdminReviews />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
 
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
@@ -188,7 +197,7 @@ function App() {
             <Route path="/faq" element={<FAQPage />} />
           </Routes>
         </div>
-        {!isAdminRoute && <MobileBottomNav />}
+        {!isAdminRoute && <MobileBottomNav onWishlistClick={() => setWishlistOpen(true)} />}
         {!isAdminRoute && <MarketingPopup />}
       </div>
     </div>
