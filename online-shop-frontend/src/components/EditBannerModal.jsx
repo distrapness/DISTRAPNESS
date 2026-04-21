@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import Modal from "./Modal.jsx";
 import Cropper from "react-easy-crop";
 import config from "../config";
@@ -47,39 +47,67 @@ async function uploadBannerToBackend(blob) {
 }
 
 const EditBannerModal = ({ open, onClose, banner, onSave }) => {
+  const fileInputRef = useRef();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(null);
 
-  // Path gambar crop/preview cukup /uploads/xxx.jpg (tanpa domain) agar tidak cross-origin jika pakai proxy
-  // Path gambar crop/preview harus full URL jika dari folder uploads
-  const imageSrc = banner.image && banner.image.startsWith('/uploads/')
-    ? `${config.API_URL}${banner.image}`
-    : banner.image;
+  // State for the source image being cropped
+  const [sourceImage, setSourceImage] = useState(null);
 
-  console.log("EDIT BANNER IMAGE PATH:", imageSrc);
+  // Initialize sourceImage when modal opens or banner changes
+  useEffect(() => {
+    if (open && banner) {
+      // Prioritize original_image for editing, fallback to current image
+      let initialImage = banner.original_image || banner.image;
+      if (initialImage && initialImage.startsWith('/uploads/')) {
+        initialImage = `${config.API_URL}${initialImage}`;
+      }
+      
+      setSourceImage(initialImage);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setPreview(null);
+      setCroppedAreaPixels(null);
+    }
+  }, [open, banner]);
+
+  const onFileChange = async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSourceImage(reader.result);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setPreview(null);
+        setCroppedAreaPixels(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const onCropComplete = useCallback((_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
   const handlePreview = useCallback(async () => {
-    if (!imageSrc || !croppedAreaPixels) return;
-    const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+    if (!sourceImage || !croppedAreaPixels) return;
+    const croppedBlob = await getCroppedImg(sourceImage, croppedAreaPixels);
     setPreview(URL.createObjectURL(croppedBlob));
-  }, [imageSrc, croppedAreaPixels]);
+  }, [sourceImage, croppedAreaPixels]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       let imageUrl = banner.image;
-      if (croppedAreaPixels) {
-        const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      if (croppedAreaPixels && sourceImage) {
+        const croppedBlob = await getCroppedImg(sourceImage, croppedAreaPixels);
         imageUrl = await uploadBannerToBackend(croppedBlob);
       }
-      await onSave(imageUrl);
+      await onSave(imageUrl, sourceImage);
       onClose();
     } catch (e) {
       alert("Gagal menyimpan banner: " + e.message);
@@ -93,9 +121,9 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
       <div className="p-6 w-full max-w-lg">
         <h2 className="text-xl font-bold mb-4">Edit Banner</h2>
         <div className="relative w-full h-60 bg-gray-100 rounded overflow-hidden mb-4">
-          {imageSrc ? (
+          {sourceImage ? (
             <Cropper
-              image={imageSrc}
+              image={sourceImage}
               crossOrigin="anonymous"
               crop={crop}
               zoom={zoom}
@@ -110,11 +138,24 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
             </div>
           )}
         </div>
-        <div className="flex gap-4 items-center mb-4">
-          {imageSrc && (
+        <div className="flex flex-wrap gap-4 items-center mb-4">
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={onFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current.click()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 font-bold text-sm"
+          >
+            Ganti Gambar
+          </button>
+          {sourceImage && (
             <button
               onClick={handlePreview}
-              className="px-4 py-2 bg-yellow-500 text-white rounded shadow hover:bg-yellow-600 font-bold"
+              className="px-4 py-2 bg-yellow-500 text-white rounded shadow hover:bg-yellow-600 font-bold text-sm"
             >
               Preview
             </button>
@@ -146,7 +187,7 @@ const EditBannerModal = ({ open, onClose, banner, onSave }) => {
           <button
             className="px-6 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 font-bold"
             onClick={handleSave}
-            disabled={saving || !imageSrc}
+            disabled={saving || !sourceImage}
           >
             Simpan
           </button>

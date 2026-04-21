@@ -35,12 +35,12 @@ router.get('/', async (req, res) => {
 
 // POST new banner
 router.post('/', verifyToken, verifyAdmin, async (req, res) => {
-  const { image } = req.body;
+  const { image, original_image } = req.body;
   if (!image) return res.status(400).json({ error: 'Gambar wajib diisi' });
   
   try {
-    const [result] = await pool.promise().query('INSERT INTO banners (image) VALUES (?)', [image]);
-    res.json({ id: result.insertId.toString(), image });
+    const [result] = await pool.promise().query('INSERT INTO banners (image, original_image) VALUES (?, ?)', [image, original_image || null]);
+    res.json({ id: result.insertId.toString(), image, original_image });
   } catch (err) {
     console.error("POST Banners Error:", err);
     res.status(500).json({ error: 'Failed to add banner' });
@@ -50,14 +50,23 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
 // PUT update banner
 router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
   const { id } = req.params;
-  const { image } = req.body;
+  const { image, original_image } = req.body;
   
   if (!image) return res.status(400).json({ error: 'Gambar wajib diisi' });
 
   try {
-    const [result] = await pool.promise().query('UPDATE banners SET image=? WHERE id=?', [image, id]);
+    let sql = 'UPDATE banners SET image=?';
+    let params = [image];
+    if (original_image !== undefined) {
+      sql += ', original_image=?';
+      params.push(original_image);
+    }
+    sql += ' WHERE id=?';
+    params.push(id);
+
+    const [result] = await pool.promise().query(sql, params);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Banner tidak ditemukan' });
-    res.json({ id, image });
+    res.json({ id, image, original_image });
   } catch (err) {
     console.error("PUT Banners Error:", err);
     res.status(500).json({ error: 'Failed to update banner' });

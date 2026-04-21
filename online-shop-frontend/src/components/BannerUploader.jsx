@@ -91,7 +91,7 @@ const BannerUploader = ({ onConfirm }) => {
         const blob = await fetch(croppedImage).then(r => r.blob());
         // Upload ke backend
         const staticUrl = await uploadBannerToBackend(blob);
-        onConfirm(staticUrl); // Kirim path statis ke admin
+        onConfirm(staticUrl, imageSrc); // Kirim path statis dan gambar asli ke admin
         setImageSrc(null);
         setCroppedImage(null);
         setStep('upload');

@@ -13,9 +13,9 @@ const BannerAdmin = () => {
   const [editingBanner, setEditingBanner] = useState(null);
 
   // Tambah banner baru dari hasil crop/konfirmasi
-  const handleAddBanner = async (imageUrl) => {
+  const handleAddBanner = async (imageUrl, originalImage) => {
     setSaving(true);
-    await addBanner(imageUrl);
+    await addBanner(imageUrl, originalImage);
     setSaving(false);
     setAdding(false);
   };
@@ -29,10 +29,10 @@ const BannerAdmin = () => {
   };
 
   // Callback setelah edit banner berhasil
-  const handleEditSave = async (imageUrl) => {
+  const handleEditSave = async (imageUrl, originalImage) => {
     if (editingBanner) {
       setSaving(true);
-      await editBanner(editingBanner.id, imageUrl);
+      await editBanner(editingBanner.id, imageUrl, originalImage);
       setEditingBanner(null);
       setSaving(false);
     }

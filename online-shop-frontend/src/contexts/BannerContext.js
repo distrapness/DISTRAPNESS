@@ -27,7 +27,7 @@ export const BannerProvider = ({ children }) => {
   };
 
   // Add banner to backend
-  const addBanner = async (imageUrl) => {
+  const addBanner = async (imageUrl, originalImage) => {
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -35,7 +35,7 @@ export const BannerProvider = ({ children }) => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ image: imageUrl }),
+        body: JSON.stringify({ image: imageUrl, original_image: originalImage }),
       });
       if (!res.ok) throw new Error("Gagal menambah banner");
       await fetchBanners();
@@ -59,7 +59,7 @@ export const BannerProvider = ({ children }) => {
   };
 
   // Edit banner (update image)
-  const editBanner = async (id, imageUrl) => {
+  const editBanner = async (id, imageUrl, originalImage) => {
     try {
       const res = await fetch(`${API_URL}/${id}`, {
         method: "PUT",
@@ -67,7 +67,7 @@ export const BannerProvider = ({ children }) => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ image: imageUrl }),
+        body: JSON.stringify({ image: imageUrl, original_image: originalImage }),
       });
       if (!res.ok) throw new Error("Gagal mengedit banner");
       await fetchBanners();
