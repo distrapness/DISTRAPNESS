@@ -143,23 +143,27 @@ const AdminOrderDashboard = () => {
               <table className="min-w-full text-left">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                   <tr>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.orderId')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.userInfo')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.total')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.date')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.orders.status')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">{t('admin.orders.actions')}</th>
+                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.orderId')}</th>
+                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.userInfo')}</th>
+                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.total')}</th>
+                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.date')}</th>
+                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.status')}</th>
+                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400 text-right">{t('admin.orders.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition cursor-pointer" onClick={() => navigate(`/admin/orders/${order.id}`)}>
-                      <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">#{order.id}</td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 dark:text-white">{String(order.userId || "Guest")}</div>
-                        <div className="text-xs text-gray-500">{order.paymentMethod}</div>
+                    <tr key={order.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-all cursor-pointer group" onClick={() => navigate(`/admin/orders/${order.id}`)}>
+                      <td className="px-6 py-5">
+                        <span className="bg-gray-900 dark:bg-white text-white dark:text-black px-2 py-1 rounded text-[10px] font-black">#{order.id}</span>
                       </td>
-                      <td className="px-6 py-4 font-mono text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-5">
+                        <div className="font-bold text-gray-900 dark:text-white leading-none mb-1 text-sm">{String(order.userId || "Guest Checkout")}</div>
+                        <div className="flex items-center gap-1">
+                           <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">{order.paymentMethod || 'manual'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 font-[900] text-gray-900 dark:text-white">
                         Rp {Number(order.total).toLocaleString("id-ID")}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">

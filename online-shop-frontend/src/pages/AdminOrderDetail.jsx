@@ -226,15 +226,23 @@ const AdminOrderDetail = () => {
 
                             {/* Shipping Address */}
                             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-                                <h3 className="font-bold text-gray-400 text-xs uppercase mb-3 text-right">Shipping Address</h3>
-                                <div className="text-sm text-right leading-relaxed">
+                                <h3 className="font-bold text-gray-400 text-xs uppercase mb-4 text-right border-b border-gray-50 pb-2">Destinasi Pengiriman</h3>
+                                <div className="text-sm text-right leading-relaxed flex flex-col items-end">
                                     {shipping.address ? (
-                                        <>
-                                            <p className="font-bold">{shipping.firstName} {shipping.lastName}</p>
-                                            <p>{shipping.address}</p>
-                                            <p>{shipping.city}, {shipping.postalCode}</p>
-                                            <p>{shipping.phone}</p>
-                                        </>
+                                        <div className="space-y-1">
+                                            <p className="font-[900] text-gray-900 dark:text-white text-lg mb-1">{shipping.firstName} {shipping.lastName}</p>
+                                            <p className="text-gray-600 dark:text-gray-300">{shipping.address}</p>
+                                            <p className="font-medium">{shipping.area || ''}, {shipping.district || ''}</p>
+                                            <p className="font-medium">{shipping.city}, {shipping.province}</p>
+                                            <p className="text-gray-500">{shipping.postalCode}</p>
+                                            <p className="text-blue-600 dark:text-blue-400 font-bold mt-2">📞 {shipping.phone}</p>
+                                            {shipping.courierInfo && (
+                                                <div className="mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                                    <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-[10px] font-bold uppercase text-gray-500">Layanan Kurir</span>
+                                                    <p className="font-bold text-red-600 mt-1">{shipping.courierInfo}</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : (
                                         <p className="text-gray-400 italic">No shipping address recorded</p>
                                     )}
