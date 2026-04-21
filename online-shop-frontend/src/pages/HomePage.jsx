@@ -5,6 +5,7 @@ import PhilosophySection from "../components/PhilosophySection.jsx";
 import NewsletterSection from "../components/NewsletterSection.jsx";
 import { Link, useNavigate } from "react-router-dom";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { useCart } from "../components/CartContext";
 import Footer from "../components/Footer.jsx";
 
 import config from "../config.js";
@@ -18,6 +19,7 @@ const HomePage = () => {
   const [error, setError] = useState(null);
   const { currency, t } = useCurrency();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
   useEffect(() => {
     setLoading(true);
@@ -113,7 +115,22 @@ const HomePage = () => {
                   </div>
                   <div className="text-center w-full mt-auto">
                     <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider line-clamp-2">{product.name}</div>
-                    <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
+                    <div className="text-sm md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4">{convertPrice(product.price)}</div>
+                    {/* Beli Langsung / Buy Now Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        let firstSize = 'M';
+                        if (product.sizes) {
+                          firstSize = ['S', 'M', 'L', 'XL'].find(s => product.sizes[s] > 0) || 'M';
+                        }
+                        addToCart({ ...product, selectedSize: firstSize }, 1);
+                        navigate('/cart');
+                      }}
+                      className="w-full bg-black hover:bg-gray-800 text-white dark:bg-white dark:hover:bg-gray-200 dark:text-black font-bold uppercase text-[10px] md:text-xs tracking-widest py-2 md:py-3 transition-colors opacity-90 hover:opacity-100"
+                    >
+                      Beli Langsung
+                    </button>
                   </div>
                 </div>
               ))
