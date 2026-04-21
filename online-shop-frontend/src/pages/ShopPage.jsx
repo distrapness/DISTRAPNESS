@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom"; // Import useSearchParams
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { useCart } from "../components/CartContext";
 import Footer from "../components/Footer.jsx";
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
@@ -23,6 +24,7 @@ const ShopPage = () => {
   const [sortBy, setSortBy] = useState("newest");
   const { currency, t } = useCurrency();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
   useEffect(() => {
     // Update search if URL changes (optional, but good for back button)
@@ -197,9 +199,24 @@ const ShopPage = () => {
                     <div className="text-xs md:text-base text-gray-900 dark:text-gray-100 mb-1 md:mb-2 leading-tight font-medium uppercase tracking-wide line-clamp-2">
                       {product.name}
                     </div>
-                    <div className="text-xs md:text-base text-gray-500 dark:text-gray-400">
+                    <div className="text-xs md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4">
                       {convertPrice(product.price)}
                     </div>
+                    {/* Beli Langsung / Buy Now Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        let firstSize = 'M';
+                        if (product.sizes) {
+                          firstSize = ['S', 'M', 'L', 'XL'].find(s => product.sizes[s] > 0) || 'M';
+                        }
+                        addToCart({ ...product, selectedSize: firstSize }, 1);
+                        navigate('/cart');
+                      }}
+                      className="w-full bg-black hover:bg-gray-800 text-white dark:bg-white dark:hover:bg-gray-200 dark:text-black font-bold uppercase text-[10px] md:text-xs tracking-widest py-2 md:py-3 transition-colors opacity-90 hover:opacity-100"
+                    >
+                      Beli Langsung
+                    </button>
                   </div>
                 </div>
               ))
