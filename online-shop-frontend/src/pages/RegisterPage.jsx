@@ -3,6 +3,8 @@ import axios from "axios";
 import config from "../config.js";
 import { useNavigate } from "react-router-dom";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from "../contexts/AuthContext";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -15,6 +17,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const { t } = useCurrency();
+  const { login } = useAuth();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -34,6 +37,21 @@ export default function RegisterPage() {
       setTimeout(() => navigate("/"), 1500);
     } catch (err) {
       setError(err.response?.data?.message || t('register.errorFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axios.post(`${config.API_URL}/api/google-login`, { token: credentialResponse.credential });
+      login(res.data.token, res.data.email, res.data.role);
+      setSuccess(t('register.success'));
+      navigate("/");
+    } catch (err) {
+      setError("Google Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -107,6 +125,19 @@ export default function RegisterPage() {
         </button>
         <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
           {t('register.hasAccount')} <a href="/login" className="text-blue-600 hover:underline">{t('register.login')}</a>
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex justify-center flex-col items-center gap-4">
+             <span className="text-xs text-gray-400 uppercase tracking-widest bg-white dark:bg-gray-800 px-2 -mt-8 mb-4">or sign up with</span>
+            <GoogleLogin
+               onSuccess={handleGoogleSuccess}
+               onError={() => setError("Google Signup Failed")}
+               theme="filled_blue"
+               shape="pill"
+               width="320"
+            />
+          </div>
         </div>
       </form>
     </div>

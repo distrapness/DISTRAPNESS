@@ -150,24 +150,58 @@ router.get('/:id/reviews', (req, res) => {
   });
 });
 
-// POST /api/products/:id/reviews
-router.post('/:id/reviews', verifyToken, (req, res) => {
+// POST /api/products/:id/reviews (ONLY for verified buyers)
+router.post('/:id/reviews', verifyToken, async (req, res) => {
   const { id } = req.params;
   const { rating, comment } = req.body;
-  const user_email = req.user.email; // From verifyToken
+  const user_email = req.user?.email || req.userEmail;
 
   if (!rating || rating < 1 || rating > 5) {
     return res.status(400).json({ error: 'Rating requires a value between 1 and 5' });
   }
 
-  pool.query(
-    'INSERT INTO reviews (product_id, user_email, rating, comment) VALUES (?, ?, ?, ?)',
-    [id, user_email, rating, comment || null],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: result.insertId, product_id: id, user_email, rating, comment });
+  // Verify that the user has purchased this product
+  try {
+    const [orders] = await pool.promise().query(
+      "SELECT id, items FROM orders WHERE userId = ? AND status IN ('paid', 'shipped', 'completed')",
+      [user_email]
+    );
+
+    let hasPurchased = false;
+    for (const order of orders) {
+      let items = order.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (e) { continue; }
+      }
+      if (Array.isArray(items) && items.some(item => String(item.id) === String(id))) {
+        hasPurchased = true;
+        break;
+      }
     }
-  );
+
+    if (!hasPurchased) {
+      return res.status(403).json({ error: 'Anda harus membeli produk ini terlebih dahulu sebelum memberikan ulasan.' });
+    }
+
+    // Check if user already reviewed this product
+    const [existing] = await pool.promise().query(
+      'SELECT id FROM reviews WHERE product_id = ? AND user_email = ?',
+      [id, user_email]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Anda sudah pernah memberikan ulasan untuk produk ini.' });
+    }
+
+    const [result] = await pool.promise().query(
+      'INSERT INTO reviews (product_id, user_email, rating, comment) VALUES (?, ?, ?, ?)',
+      [id, user_email, rating, comment || null]
+    );
+    res.json({ id: result.insertId, product_id: id, user_email, rating, comment });
+
+  } catch (err) {
+    console.error("Review error:", err);
+    res.status(500).json({ error: 'Gagal menyimpan ulasan' });
+  }
 });
 
 // DELETE REVIEW (Admin only)

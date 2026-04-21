@@ -343,7 +343,10 @@ const ProductDetail = () => {
                               {rev.user_email.charAt(0)}
                             </div>
                             <div>
-                              <div className="text-sm font-bold text-gray-900 dark:text-white">{rev.user_email.split('@')[0]}</div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                {rev.user_email.split('@')[0]}
+                                <span className="text-[8px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-black tracking-tighter">VERIFIED BUYER</span>
+                              </div>
                               <div className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(rev.created_at).toLocaleDateString(currency.locale)}</div>
                             </div>
                           </div>
@@ -368,7 +371,8 @@ const ProductDetail = () => {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 dark:bg-black/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
                   
                   <div className="relative z-10">
-                    <h4 className="font-[900] text-2xl uppercase tracking-tighter mb-8">{t('reviews.leaveReview')}</h4>
+                    <h4 className="font-[900] text-2xl uppercase tracking-tighter mb-2">{t('reviews.leaveReview')}</h4>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8">Ulasan hanya dapat dikirim oleh pembeli terverifikasi</p>
                     {isLoggedIn ? (
                       <form onSubmit={submitReview} className="space-y-6">
                         <div className="flex flex-col gap-2">

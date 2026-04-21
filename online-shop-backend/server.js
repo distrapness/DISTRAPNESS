@@ -10,6 +10,8 @@ const setupSocket = require('./socket');
 const jwt = require('jsonwebtoken'); // Add JWT
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123'; // Fallback secret
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const app = express();
 const server = http.createServer(app);
@@ -288,6 +290,49 @@ app.post('/api/login', (req, res) => {
       role: user.role || 'customer'
     });
   });
+});
+
+// GOOGLE LOGIN ENDPOINT
+app.post('/api/google-login', async (req, res) => {
+  const { token } = req.body;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const { email, name, picture } = ticket.getPayload();
+
+    pool.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+      if (err) return res.status(500).json({ message: 'Database error' });
+
+      let user;
+      if (results.length === 0) {
+        // Create new user if doesn't exist
+        const randomPassword = await bcrypt.hash(Math.random().toString(36), 10);
+        await pool.promise().query('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [email, randomPassword, 'customer']);
+        const [newUsers] = await pool.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+        user = newUsers[0];
+      } else {
+        user = results[0];
+      }
+
+      // Generate JWT
+      const jwtToken = jwt.sign(
+        { id: user.id, email: user.email, role: user.role || 'customer' },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({
+        token: jwtToken,
+        email: user.email,
+        role: user.role || 'customer'
+      });
+    });
+  } catch (error) {
+    console.error("Google Login Error:", error);
+    res.status(401).json({ message: 'Invalid Google Token' });
+  }
 });
 
 // ====== ADMIN ROUTES (PHASE 1 & 2) ======

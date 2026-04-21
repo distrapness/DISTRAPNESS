@@ -4,6 +4,7 @@ import config from "../config.js";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,6 +28,21 @@ export default function LoginPage() {
       navigate("/");
     } catch (err) {
       setError(t('login.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axios.post(`${config.API_URL}/api/google-login`, { token: credentialResponse.credential });
+      login(res.data.token, res.data.email, res.data.role);
+      setSuccess(t('login.success'));
+      navigate("/");
+    } catch (err) {
+      setError("Google Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -78,6 +94,19 @@ export default function LoginPage() {
         </button>
         <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
           {t('login.noAccount')} <a href="/register" className="text-blue-600 hover:underline">{t('login.register')}</a>
+        </div>
+
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex justify-center flex-col items-center gap-4">
+             <span className="text-xs text-gray-400 uppercase tracking-widest bg-white dark:bg-gray-800 px-2 -mt-8 mb-4">or connect with</span>
+            <GoogleLogin
+               onSuccess={handleGoogleSuccess}
+               onError={() => setError("Google Login Failed")}
+               theme="filled_blue"
+               shape="pill"
+               width="320"
+            />
+          </div>
         </div>
         <div className="mt-2 text-center text-sm">
           <a href="/" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
