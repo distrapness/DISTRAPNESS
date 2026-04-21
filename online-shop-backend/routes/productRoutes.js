@@ -127,4 +127,33 @@ router.delete('/:id', verifyToken, verifyAdmin, (req, res) => {
   );
 });
 
+// GET /api/products/:id/reviews
+router.get('/:id/reviews', (req, res) => {
+  const { id } = req.params;
+  pool.query('SELECT * FROM reviews WHERE product_id=? ORDER BY created_at DESC', [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// POST /api/products/:id/reviews
+router.post('/:id/reviews', verifyToken, (req, res) => {
+  const { id } = req.params;
+  const { rating, comment } = req.body;
+  const user_email = req.user.email; // From verifyToken
+
+  if (!rating || rating < 1 || rating > 5) {
+    return res.status(400).json({ error: 'Rating requires a value between 1 and 5' });
+  }
+
+  pool.query(
+    'INSERT INTO reviews (product_id, user_email, rating, comment) VALUES (?, ?, ?, ?)',
+    [id, user_email, rating, comment || null],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: result.insertId, product_id: id, user_email, rating, comment });
+    }
+  );
+});
+
 module.exports = router;

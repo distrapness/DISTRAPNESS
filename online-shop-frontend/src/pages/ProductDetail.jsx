@@ -7,8 +7,10 @@ import config from "../config";
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import { useWishlist } from "../components/WishlistContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const API_URL = `${config.API_URL}/api/products`;
+
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -34,6 +36,13 @@ const ProductDetail = () => {
   const [openShipping, setOpenShipping] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
+  // Reviews state
+  const { isLoggedIn, userEmail } = useAuth();
+  const [reviews, setReviews] = useState([]);
+  const [ratingInput, setRatingInput] = useState(5);
+  const [commentInput, setCommentInput] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     fetch(`${API_URL}/${id}?t=${Date.now()}`)
@@ -48,7 +57,45 @@ const ProductDetail = () => {
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
+
+    fetchReviews();
   }, [id]);
+
+  const fetchReviews = () => {
+    fetch(`${API_URL}/${id}/reviews`)
+      .then(res => res.json())
+      .then(data => setReviews(Array.isArray(data) ? data : []))
+      .catch(console.error);
+  };
+
+  const submitReview = (e) => {
+    e.preventDefault();
+    if (!isLoggedIn) return alert("Anda harus login untuk mengulas.");
+    if (ratingInput < 1 || ratingInput > 5) return alert("Rating harus 1 hingga 5.");
+    
+    setSubmittingReview(true);
+    fetch(`${API_URL}/${id}/reviews`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ rating: ratingInput, comment: commentInput })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) alert(data.error);
+      else {
+        setCommentInput("");
+        setRatingInput(5);
+        fetchReviews();
+        alert("Terima kasih atas ulasannya!");
+      }
+    })
+    .catch(console.error)
+    .finally(() => setSubmittingReview(false));
+  };
+
 
   if (loading || !product) return <div className="min-h-screen bg-white"></div>;
 
@@ -143,6 +190,16 @@ const ProductDetail = () => {
               {/* Header Section (Name & Price) */}
               <div className="mb-6 text-right">
                 <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-wider mb-2 font-sans">{product.name}</h1>
+                <div className="flex justify-end gap-2 items-center mb-2">
+                  {reviews.length > 0 ? (
+                    <>
+                      <span className="text-yellow-400">{'★'.repeat(Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length)) + '☆'.repeat(5 - Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length))}</span>
+                      <span className="text-sm text-gray-500">({reviews.length} ulasan)</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-gray-500 italic">Belum ada ulasan</span>
+                  )}
+                </div>
                 <div className="text-lg md:text-xl font-medium text-gray-900 dark:text-gray-100">
                   {convertPrice(product.price)}
                 </div>
@@ -248,6 +305,68 @@ const ProductDetail = () => {
                 >
                   Share
                 </button>
+              </div>
+
+              {/* Reviews Section */}
+              <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-700 w-full text-right">
+                <h3 className="font-bold text-sm uppercase tracking-wider mb-6">Ulasan & Rating Produk</h3>
+                
+                {reviews.length > 0 ? (
+                  <div className="flex flex-col gap-4 mb-8">
+                    {reviews.map(rev => (
+                      <div key={rev.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded text-right flex flex-col items-end">
+                        <div className="flex gap-1 text-yellow-400 text-sm mb-1">
+                          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
+                        </div>
+                        <p className="text-xs text-gray-500 mb-2">{rev.user_email.split('@')[0]} - {new Date(rev.created_at).toLocaleDateString('id-ID')}</p>
+                        <p className="text-sm font-light text-gray-800 dark:text-gray-200">{rev.comment || "Tidak ada komentar"}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic mb-8">Jadilah yang pertama mengulas produk ini.</p>
+                )}
+
+                {/* Review Form */}
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6 rounded text-right">
+                  <h4 className="font-bold text-xs uppercase mb-4">Tinggalkan Ulasan</h4>
+                  {isLoggedIn ? (
+                    <form onSubmit={submitReview} className="flex flex-col items-end gap-4">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-bold">Rating:</label>
+                        <select 
+                          value={ratingInput} 
+                          onChange={(e) => setRatingInput(Number(e.target.value))}
+                          className="border p-2 text-sm bg-white dark:bg-gray-700 dark:border-gray-600 rounded text-black dark:text-white"
+                        >
+                          <option value="5">5 - Sempurna</option>
+                          <option value="4">4 - Sangat Bagus</option>
+                          <option value="3">3 - Cukup</option>
+                          <option value="2">2 - Kurang</option>
+                          <option value="1">1 - Sangat Kurang</option>
+                        </select>
+                      </div>
+                      <textarea
+                        className="w-full text-right p-3 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 focus:outline-none dark:text-white resize-none"
+                        placeholder="Apa pendapat Anda tentang produk ini?"
+                        rows="3"
+                        value={commentInput}
+                        onChange={(e) => setCommentInput(e.target.value)}
+                      ></textarea>
+                      <button 
+                        type="submit" 
+                        disabled={submittingReview}
+                        className="bg-black text-white dark:bg-white dark:text-black font-bold uppercase text-xs tracking-widest px-6 py-2 transition hover:opacity-80 disabled:opacity-50"
+                      >
+                        {submittingReview ? 'Mengirim...' : 'Kirim Ulasan'}
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      Silakan <Link to="/login" className="text-black dark:text-white underline font-bold">Login</Link> terlebih dahulu untuk memberikan ulasan.
+                    </p>
+                  )}
+                </div>
               </div>
 
             </div>
