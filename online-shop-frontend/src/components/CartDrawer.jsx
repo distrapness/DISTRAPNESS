@@ -83,7 +83,7 @@ const CartDrawer = ({ open, onClose }) => {
                   <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-bold text-sm tracking-wide">{item.name}</h3>
-                      <span className="font-medium text-sm">Rp {item.price.toLocaleString('id-ID')}</span>
+                      <span className="font-medium text-sm">Rp{Number(item.price).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
                     </div>
                     <p className="text-xs text-gray-500 mb-4">Size: {item.selectedSize || 'M'}</p>
 
@@ -124,7 +124,7 @@ const CartDrawer = ({ open, onClose }) => {
             <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Subtotal</span>
-                <span className="text-lg font-bold">Rp {total.toLocaleString('id-ID')}</span>
+                <span className="text-lg font-bold">Rp{Number(total).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
               </div>
               <p className="text-[10px] text-gray-500 text-center mb-6">
                 Shipping & taxes calculated at checkout
@@ -132,9 +132,9 @@ const CartDrawer = ({ open, onClose }) => {
 
               <button
                 onClick={handleCheckout}
-                className="w-full bg-[#1a56db] hover:bg-[#1546b3] text-white font-bold py-4 rounded-sm uppercase tracking-wider text-xs transition-colors shadow-lg active:scale-[0.99] transform"
+                className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-black py-4 rounded-xl uppercase tracking-[0.2em] text-[10px] transition-all shadow-xl active:scale-[0.98] transform"
               >
-                View Cart & Checkout &rarr;
+                Checkout &rarr;
               </button>
 
               <div className="mt-4 text-center">

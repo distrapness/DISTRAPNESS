@@ -24,7 +24,7 @@ router.post('/', verifyToken, verifyAdmin, (req, res) => {
   `;
 
     pool.query(query,
-        [code.toUpperCase(), type || 'percent', value, min_purchase || 0, start_date, expiry_date, usage_limit || 0, is_active ?? true],
+        [code.toUpperCase(), type || 'percent', value, min_purchase || 0, start_date || null, expiry_date || null, usage_limit || 0, is_active ?? true],
         (err, result) => {
             if (err) {
                 if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: "Coupon code already exists" });
@@ -46,7 +46,7 @@ router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
   `;
 
     pool.query(query,
-        [code.toUpperCase(), type, value, min_purchase, start_date, expiry_date, usage_limit, is_active, id],
+        [code.toUpperCase(), type, value, min_purchase, start_date || null, expiry_date || null, usage_limit, is_active, id],
         (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, message: "Coupon updated" });

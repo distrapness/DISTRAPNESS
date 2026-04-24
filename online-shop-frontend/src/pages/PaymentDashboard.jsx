@@ -17,7 +17,7 @@ const PaymentDashboard = () => {
 
   // Form States
   const [address, setAddress] = useState({
-    firstName: "", lastName: "", address: "", city: "", postalCode: "", phone: ""
+    firstName: "", lastName: "", address: "", city: "", postalCode: "", phone: "", note: ""
   });
 
   useEffect(() => {
@@ -33,20 +33,21 @@ const PaymentDashboard = () => {
   const [couponCode, setCouponCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [referralCode, setReferralCode] = useState(localStorage.getItem('referral_code') || "");
+  const [referralDiscount, setReferralDiscount] = useState(0);
 
   // Manual methods (always available)
   const staticMethods = [
-    { label: "Manual Transfer (Bank Mandiri)", value: "mandiri_tf" },
-    { label: "COD (Bayar di Tempat)", value: "cod" },
     { label: "QRIS / E-Wallet (Midtrans)", value: "qris" },
-    { label: "Bank Transfer / VA (Midtrans)", value: "bca_va" }
+    { label: "Bank Transfer / VA (Midtrans)", value: "bca_va" },
+    { label: "COD (Bayar di Tempat)", value: "cod" }
   ];
 
   useEffect(() => {
     // ... existing useEffect ...
     // Merge static methods with API methods if any (or just use static for stability now)
     setMethods(staticMethods);
-    setSelectedPaymentMethod(staticMethods[0].value);
+    setSelectedPaymentMethod("qris");
     setLoading(false);
 
     /* 
@@ -62,7 +63,22 @@ const PaymentDashboard = () => {
     // Load Cart
     const c = JSON.parse(localStorage.getItem("cart") || "[]");
     setCart(c);
-    setSubtotal(c.reduce((sum, item) => sum + item.price * item.qty, 0));
+    const st = c.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
+    setSubtotal(st);
+
+    // Auto-apply referral discount if exists
+    if (referralCode) {
+      fetch(`${config.API_URL}/api/referral/verify/${referralCode}`)
+        .then(res => res.json())
+        .then(data => {
+           if (data.valid) {
+             // 5% Referral Discount for any user who uses a ref link
+             const refDisc = Math.floor(st * 0.05);
+             setReferralDiscount(refDisc);
+           }
+        })
+        .catch(err => console.log("Referral verification failed"));
+    }
   }, []);
 
   const handleApplyCoupon = async () => {
@@ -77,7 +93,7 @@ const PaymentDashboard = () => {
       if (res.ok && data.valid) {
         setDiscountAmount(data.discountAmount);
         setAppliedCoupon(data.couponCode); // Use returned code (formatted)
-        alert(`Kupon ${data.couponCode} berhasil! Hemat Rp ${data.discountAmount.toLocaleString('id-ID')}`);
+        alert(`Kupon ${data.couponCode} berhasil! Hemat Rp${data.discountAmount.toLocaleString('id-ID')}`);
       } else {
         setDiscountAmount(0);
         setAppliedCoupon(null);
@@ -101,10 +117,11 @@ const PaymentDashboard = () => {
 
   const [selectedAreaId, setSelectedAreaId] = useState(null); // The resolved Biteship ID
   
-  const [courier, setCourier] = useState("jne");
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [shippingError, setShippingError] = useState(null);
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
-  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [courier, setCourier] = useState("jne");
 
   // Load Provinces
   useEffect(() => {
@@ -120,8 +137,13 @@ const PaymentDashboard = () => {
       fetch(`${config.API_URL}/api/shipping/cities/${selectedProvince}`)
         .then(res => res.json())
         .then(data => setCities(Array.isArray(data) ? data : []));
-      // Only clear if NOT on initial load (optional, but safer to let user keep progress)
+    } else {
+      setCities([]);
     }
+    // Clear child selections when parent changes
+    setSelectedCity("");
+    setSelectedDistrict("");
+    setSelectedVillage("");
   }, [selectedProvince]);
 
   useEffect(() => {
@@ -130,7 +152,11 @@ const PaymentDashboard = () => {
       fetch(`${config.API_URL}/api/shipping/districts/${selectedCity}`)
         .then(res => res.json())
         .then(data => setDistricts(Array.isArray(data) ? data : []));
+    } else {
+      setDistricts([]);
     }
+    setSelectedDistrict("");
+    setSelectedVillage("");
   }, [selectedCity]);
 
   useEffect(() => {
@@ -139,7 +165,10 @@ const PaymentDashboard = () => {
       fetch(`${config.API_URL}/api/shipping/villages/${selectedDistrict}`)
         .then(res => res.json())
         .then(data => setVillages(Array.isArray(data) ? data : []));
+    } else {
+      setVillages([]);
     }
+    setSelectedVillage("");
   }, [selectedDistrict]);
 
   useEffect(() => {
@@ -174,43 +203,44 @@ const PaymentDashboard = () => {
       .then(res => res.json())
       .then(data => {
         setLoadingShipping(false);
+        if (data.error) {
+           const detailedError = data.details ? `${data.error}: ${data.details}` : data.error;
+           console.error("Shipping API Error:", detailedError);
+           // Don't return if we have manual pricing
+           if (data.pricing && data.pricing.length > 0) {
+             setShippingError(`Note: ${detailedError}`); // Show as warning
+           } else {
+             setShippingOptions([]);
+             setShippingCost(0);
+             setShippingError(detailedError);
+             return;
+           }
+        }
+        
         if (data.pricing && Array.isArray(data.pricing) && data.pricing.length > 0) {
           setShippingOptions(data.pricing);
           setSelectedAreaId(data.area_id);
+          setShippingError(null);
           
           const courierOptions = data.pricing.filter(opt => opt.company === courier);
           if (courierOptions.length > 0) {
             handleServiceChange(courierOptions[0]);
           }
         } else {
-          // FALLBACK: If Biteship fails or has no balance, provide a manual flat rate
-          console.warn("Biteship unavailable, using fallback shipping rate.");
-          const fallbackOption = {
-            company: courier,
-            courier_service_name: "Standard (Fallback)",
-            courier_service_code: "std_fallback",
-            price: 20000,
-            duration: "2-4 Days"
-          };
-          setShippingOptions([fallbackOption]);
-          setSelectedService(fallbackOption);
-          setShippingCost(20000);
+          setShippingOptions([]);
+          setSelectedService(null);
+          setShippingCost(0);
+          setShippingError("Tidak ada layanan kurir yang tersedia untuk rute ini.");
+          console.warn("No shipping options available for this route.");
         }
       })
       .catch(err => {
         setLoadingShipping(false);
+        setShippingOptions([]);
+        setSelectedService(null);
+        setShippingCost(0);
+        setShippingError("Gagal menghubungi server pengiriman.");
         console.error("Error calculating cost:", err);
-        // Fallback on total error too
-        const fallbackOption = {
-          company: "jne",
-          courier_service_name: "Standard (Fallback)",
-          courier_service_code: "std_fallback",
-          price: 15000,
-          duration: "3-5 Days"
-        };
-        setShippingOptions([fallbackOption]);
-        setSelectedService(fallbackOption);
-        setShippingCost(15000);
       });
     }
   }, [selectedVillage, courier, cart]);
@@ -231,9 +261,10 @@ const PaymentDashboard = () => {
       return;
     }
 
-    // Calculate final total
-    const taxes = subtotal * 0.11;
-    const finalTotal = subtotal + shippingCost + taxes - discountAmount;
+    // Calculate final total (Apply discount to subtotal)
+    const discountedAmount = Math.max(0, subtotal - discountAmount - referralDiscount);
+    const taxes = discountedAmount * 0.11;
+    const finalTotal = discountedAmount + shippingCost + taxes;
     const items = cart;
 
     try {
@@ -256,7 +287,8 @@ const PaymentDashboard = () => {
             courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
           },
           couponCode: appliedCoupon,
-          discountAmount: discountAmount
+          discountAmount: discountAmount + referralDiscount,
+          referralCode: referralCode // Send used referral code
         })
       });
 
@@ -267,6 +299,9 @@ const PaymentDashboard = () => {
       localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
       localStorage.setItem('cartTotal', finalTotal);
       localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
+      
+      // Clean up referral after use
+      localStorage.removeItem('referral_code');
 
       window.location.href = '/payment/confirm';
 
@@ -352,6 +387,13 @@ const PaymentDashboard = () => {
                 />
               </div>
 
+              <div className="mb-4">
+                <textarea
+                  placeholder="Catatan untuk Penjual (Opsional)" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black min-h-[80px]"
+                  value={address.note} onChange={e => setAddress({ ...address, note: e.target.value })}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <input
                   type="text" placeholder="Postal Code" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
@@ -373,15 +415,20 @@ const PaymentDashboard = () => {
 
               {/* Kurir Selection */}
               <div className="flex gap-2 mb-6">
-                {['jne', 'pos', 'tiki'].map(c => (
-                  <button
-                    key={c}
-                    onClick={() => { setCourier(c); setSelectedService(null); }}
-                    className={`flex-1 py-3 font-bold rounded border transition-all uppercase ${courier === c ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-50 dark:bg-gray-800 text-gray-500 border-transparent hover:bg-gray-100'}`}
-                  >
-                    {c}
-                  </button>
-                ))}
+                {['jne', 'pos', 'tiki', 'manual'].map(c => {
+                  const hasRates = shippingOptions.some(opt => opt.company === c);
+                  if (c === 'manual' && !hasRates) return null;
+                  
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => { setCourier(c); setSelectedService(null); }}
+                      className={`flex-1 py-3 font-black rounded-xl border-2 transition-all uppercase text-[10px] tracking-widest ${courier === c ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-100 dark:border-gray-700 hover:border-gray-200'}`}
+                    >
+                      {c === 'manual' ? 'Custom' : c}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="space-y-3">
@@ -395,6 +442,22 @@ const PaymentDashboard = () => {
                     <p className="text-sm font-medium animate-pulse">Menghitung ongkos kirim terbaik...</p>
                   </div>
                 )}
+                
+                {selectedProvince && selectedCity && selectedDistrict && selectedVillage && !loadingShipping && shippingError && !shippingError.startsWith('Note:') && shippingOptions.length === 0 && (
+                  <div className="flex flex-col items-center justify-center p-8 space-y-3 bg-red-50 dark:bg-red-900/10 rounded-3xl border border-red-100 dark:border-red-900/30">
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400 uppercase tracking-tighter">⚠️ Biaya pengiriman gagal dihitung</p>
+                    <p className="text-[10px] text-red-500 text-center font-bold">{shippingError}</p>
+                    <div className="mt-2 p-2 bg-white/50 rounded text-[9px] text-gray-500 font-mono">
+                      Query: {`${villages.find(x => x.id === selectedVillage)?.name || ''}, ${districts.find(x => x.id === selectedDistrict)?.name || ''}, ${cities.find(x => x.id === selectedCity)?.name || ''}`}
+                    </div>
+                  </div>
+                )}
+
+                {shippingError && shippingError.startsWith('Note:') && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/20 mb-4">
+                    <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest text-center">💡 {shippingError.replace('Note: ', '')}</p>
+                  </div>
+                )}
 
                 {selectedVillage && !loadingShipping && shippingOptions.length > 0 && shippingOptions.filter(opt => opt.company === courier).map((opt, idx) => (
                   <label key={idx} className={`flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded shadow-sm cursor-pointer border ${selectedService?.courier_service_code === opt.courier_service_code ? 'border-red-500 bg-red-50 dark:bg-gray-700' : 'border-transparent'}`}>
@@ -403,7 +466,7 @@ const PaymentDashboard = () => {
                         type="radio" name="shipping" value={opt.courier_service_code} 
                         checked={selectedService?.courier_service_code === opt.courier_service_code}
                         onChange={() => handleServiceChange(opt)}
-                        className="text-red-600 focus:ring-red-500"
+                        className="text-black dark:text-white focus:ring-black"
                       />
                       <div>
                         <div className="font-bold">{opt.company.toUpperCase()} - {opt.courier_service_name}</div>
@@ -433,19 +496,14 @@ const PaymentDashboard = () => {
                   <button
                     key={m.value}
                     onClick={() => setSelectedPaymentMethod(m.value)}
-                    className={`py-3 text-sm font-bold rounded border transition-all ${selectedPaymentMethod === m.value ? 'bg-white dark:bg-gray-800 border-red-500 text-red-500 shadow-sm' : 'bg-gray-50 dark:bg-gray-800 border-transparent text-gray-500 hover:bg-gray-100'}`}
+                    className={`py-3 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${selectedPaymentMethod === m.value ? 'bg-black dark:bg-white border-black dark:border-white text-white dark:text-black shadow-lg' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400 hover:bg-gray-50'}`}
                   >
                     {m.label}
                   </button>
                 ))}
               </div>
 
-              {/* Visual Card Form (Only decorative if backend uses Snap, but matches the UI request) */}
-              <div className="bg-white dark:bg-gray-800 p-6 rounded shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-500 italic">Complete payment securely via Midtrans.</p>
-                </div>
-              </div>
+
             </section>
 
           </div>
@@ -472,7 +530,7 @@ const PaymentDashboard = () => {
                       <div className="text-xs text-gray-500 mb-1">Size: {item.selectedSize || 'M'}</div>
                     </div>
                     <div className="text-sm font-bold">
-                      Rp {item.price.toLocaleString('id-ID')}
+                      Rp {Number(item.price).toLocaleString('id-ID')}
                     </div>
                   </div>
                 ))}
@@ -513,9 +571,15 @@ const PaymentDashboard = () => {
                     <span className="font-bold">- Rp {discountAmount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
+                {referralDiscount > 0 && (
+                  <div className="flex justify-between text-red-600 dark:text-red-400">
+                    <span className="flex items-center gap-1">Referral Reward (5%) <span className="text-[10px] bg-red-100 dark:bg-red-900/30 px-1 rounded">REF:{referralCode}</span></span>
+                    <span className="font-bold">- Rp {referralDiscount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span>Taxes (11%)</span>
-                  <span className="font-bold text-gray-900 dark:text-white">Rp {(subtotal * 0.11).toLocaleString('id-ID')}</span>
+                  <span>PPN (11%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Rp {((subtotal - discountAmount - referralDiscount) * 0.11).toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
@@ -525,17 +589,22 @@ const PaymentDashboard = () => {
                 <div className="text-right">
                   <span className="text-xs text-gray-400 block mb-1">IDR</span>
                   <span className="text-3xl font-[900] tracking-tight text-red-600 dark:text-red-500">
-                    Rp {Math.max(0, subtotal + shippingCost + (subtotal * 0.11) - discountAmount).toLocaleString('id-ID')}
+                    Rp{Math.max(0, (subtotal - discountAmount - referralDiscount) + shippingCost + ((subtotal - discountAmount - referralDiscount) * 0.11)).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
 
               <button
                 onClick={handleCreateOrder}
-                className="w-full bg-[#FF0000] hover:bg-red-700 text-white font-bold py-4 rounded shadow-lg uppercase tracking-wider text-sm transition-all active:scale-[0.98]"
+                className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-black py-5 rounded-xl shadow-2xl uppercase tracking-[0.2em] text-[10px] transition-all active:scale-[0.97] mb-4"
               >
-                Complete Purchase &rarr;
+                Konfirmasi Pesanan &rarr;
               </button>
+
+              <div className="mt-4 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                Secure 256-bit SSL Encryption
+              </div>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-gray-400">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>

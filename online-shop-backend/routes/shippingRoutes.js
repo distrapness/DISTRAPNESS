@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const shippingService = require('../services/shippingService');
+const pool = require('../db');
 
 // --- New Manual Hierarchy Routes ---
 router.get('/provinces', async (req, res) => {
@@ -61,8 +62,32 @@ router.post('/cost-by-query', async (req, res) => {
   }
 
   try {
-    const result = await shippingService.getRatesByQuery(origin, query, items);
-    res.json(result);
+    const [manualRows] = await pool.promise().query('SELECT * FROM shipping_manual_rates');
+    const manualPricing = manualRows.map(row => ({
+      company: 'manual',
+      courier_name: 'Custom Delivery',
+      courier_service_name: row.destination_name,
+      courier_service_code: 'manual_' + row.id,
+      price: row.price,
+      duration: 'Standard',
+      note: 'Kurir Lokal / Manual'
+    }));
+
+    try {
+      const result = await shippingService.getRatesByQuery(query, items, origin);
+      // Combine Biteship + Manual
+      res.json({
+        ...result,
+        pricing: [...(result.pricing || []), ...manualPricing]
+      });
+    } catch (apiError) {
+      // If API fails, AT LEAST return manual rates
+      res.json({
+        pricing: manualPricing,
+        error: apiError.message,
+        is_manual_only: true
+      });
+    }
   } catch (error) {
     res.status(500).json({ error: 'Gagal menghitung ongkos kirim', details: error.message });
   }

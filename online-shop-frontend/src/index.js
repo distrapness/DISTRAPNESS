@@ -8,25 +8,29 @@ import { BannerProvider } from './contexts/BannerContext.js';
 import { CartProvider } from './components/CartContext.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { WishlistProvider } from './components/WishlistContext.jsx';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import config from './config.js';
 import './index.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <CurrencyProvider>
-          <BannerProvider>
-            <CartProvider>
-              <AuthProvider>
-                <WishlistProvider>
-                  <App />
-                </WishlistProvider>
-              </AuthProvider>
-            </CartProvider>
-          </BannerProvider>
-        </CurrencyProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
+    <GoogleOAuthProvider clientId={config.GOOGLE_CLIENT_ID}>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <CurrencyProvider>
+            <BannerProvider>
+              <CartProvider>
+                <AuthProvider>
+                  <WishlistProvider>
+                    <App />
+                  </WishlistProvider>
+                </AuthProvider>
+              </CartProvider>
+            </BannerProvider>
+          </CurrencyProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </GoogleOAuthProvider>
   </React.StrictMode>
 );

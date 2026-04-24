@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import config from '../config';
 
 const WhatsAppButton = () => {
     const [hover, setHover] = useState(false);
@@ -10,8 +11,16 @@ const WhatsAppButton = () => {
         return null;
     }
 
-    // Replace with your actual WhatsApp number
-    const phoneNumber = "6281234567890"; // Example: 62812...
+    const [phone, setPhone] = React.useState("6285888159265");
+    
+    React.useEffect(() => {
+        fetch(`${config.API_URL}/api/brand`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.phone) setPhone(data.phone.replace(/[^0-9]/g, ''));
+            })
+            .catch(err => console.error("Error fetching whatsapp number:", err));
+    }, []);
 
     // Default message based on page
     let message = "Halo, saya tertarik dengan produk di Distrapness.";
@@ -20,18 +29,18 @@ const WhatsAppButton = () => {
     }
 
     const handleClick = () => {
-        const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
     };
 
     return (
         <div
-            className="fixed bottom-24 right-6 z-50 flex items-center gap-2"
+            className="fixed bottom-24 left-6 z-50 flex flex-row-reverse items-center gap-2"
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
         >
             <div
-                className={`bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-3 py-2 rounded-lg shadow-lg text-xs font-bold transition-all duration-300 transform origin-right ${hover ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}
+                className={`bg-white dark:bg-gray-800 text-gray-800 dark:text-white px-3 py-2 rounded-lg shadow-lg text-[10px] font-bold transition-all duration-300 transform origin-left ${hover ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}
             >
                 Chat with us!
             </div>

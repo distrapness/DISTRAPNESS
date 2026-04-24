@@ -81,7 +81,7 @@ export default function ProductPreviewPanel({ product, images, onRemoveImage }) 
       <div className="mt-4 dark:text-gray-100 transition-colors duration-[900ms] ease-in-out">
         <h4 className="font-bold text-xl mb-1">{product?.name || 'Nama Produk'}</h4>
         <p className="text-lg text-blue-600 dark:text-blue-400 font-semibold mb-2 transition-colors duration-[900ms] ease-in-out">
-          {product?.price ? `Rp ${Number(product.price).toLocaleString('id-ID')}` : 'Rp 0'}
+          {product?.price ? `Rp${Number(product.price).toLocaleString('id-ID', { minimumFractionDigits: 0 })}` : 'Rp0'}
         </p>
         <p className="text-gray-600 dark:text-gray-300 text-sm mb-2 transition-colors duration-[900ms] ease-in-out">
           {product?.description || 'Deskripsi produk akan ditampilkan di sini.'}

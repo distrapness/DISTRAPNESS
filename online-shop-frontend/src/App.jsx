@@ -20,16 +20,18 @@ import CartDrawer from './components/CartDrawer.jsx';
 import WishlistDrawer from './components/WishlistDrawer.jsx';
 import Toast from './components/Toast.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
-import WhatsAppButton from './components/WhatsAppButton';
 import { useCurrency } from './components/CurrencyContext.jsx';
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import Profile from "./pages/Profile.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
 import './App.css';
 import HowToOrder from "./pages/HowToOrder.jsx";
 import AdminOrderDashboard from "./pages/AdminOrderDashboard";
-import AdminOrderDetail from "./pages/AdminOrderDetail";
+import AdminOrderDetail from "./pages/AdminOrderDetail.jsx";
+import AdminWithdrawals from "./pages/AdminWithdrawals.jsx";
+import AdminShipping from "./pages/AdminShipping.jsx";
 import DiscountManager from "./pages/DiscountManager.jsx";
 import CategoryManager from './pages/CategoryManager.jsx';
 import AdminSettings from './pages/AdminSettings.jsx'; // Imported here
@@ -42,6 +44,8 @@ import TermsPage from './pages/TermsPage.jsx';
 import MarketingPopup from './components/MarketingPopup.jsx';
 import FAQPage from './pages/FAQPage.jsx';
 import AdminReviews from './pages/AdminReviews.jsx';
+import SocialProof from './components/SocialProof.jsx';
+
 
 function App() {
   const [cartOpen, setCartOpen] = useState(false);
@@ -57,7 +61,14 @@ function App() {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [dark]);
+
+    // Referral Check
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    if (ref) {
+      localStorage.setItem('referral_code', ref);
+    }
+  }, [dark, location]);
 
   // Check if current page is an Admin page
   const isAdminRoute = [
@@ -78,6 +89,7 @@ function App() {
 
   return (
     <div className="min-h-screen transition-colors duration-700 bg-white dark:bg-gray-900">
+      <ScrollToTop />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-[900ms] ease-in-out">
         {/* Customer UI Components - Only show if NOT admin */}
         {!isAdminRoute && (
@@ -90,7 +102,6 @@ function App() {
             <WishlistDrawer open={wishlistOpen} onClose={() => setWishlistOpen(false)} />
             <Toast show={toast.show} message={toast.message} />
             {!cartOpen && <ChatWidget />}
-            {!cartOpen && <WhatsAppButton />}
           </>
         )}
 
@@ -139,6 +150,20 @@ function App() {
                 </AdminLayout>
               </ProtectedRoute>
             } />
+            <Route path="/admin/shipping" element={
+              <ProtectedRoute role="admin">
+                <AdminLayout>
+                  <AdminShipping />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/withdrawals" element={
+              <ProtectedRoute role="admin">
+                <AdminLayout>
+                  <AdminWithdrawals />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
             <Route path="/product-admin" element={
               <ProtectedRoute role="admin">
                 <AdminLayout>
@@ -150,6 +175,13 @@ function App() {
               <ProtectedRoute role="admin">
                 <AdminLayout>
                   <BrandAdmin />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/reviews" element={
+              <ProtectedRoute role="admin">
+                <AdminLayout>
+                  <AdminReviews />
                 </AdminLayout>
               </ProtectedRoute>
             } />
@@ -181,13 +213,7 @@ function App() {
                 </AdminLayout>
               </ProtectedRoute>
             } />
-            <Route path="/admin/reviews" element={
-              <ProtectedRoute role="admin">
-                <AdminLayout>
-                  <AdminReviews />
-                </AdminLayout>
-              </ProtectedRoute>
-            } />
+
 
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />

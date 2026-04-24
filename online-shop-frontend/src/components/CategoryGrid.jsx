@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrency } from './CurrencyContext.jsx';
 import config from '../config.js';
+import { getImageUrl } from '../utils/imageHelper';
 
 const CategoryGrid = () => {
     const { t } = useCurrency();
@@ -25,11 +26,11 @@ const CategoryGrid = () => {
                     {t('home.shopCategory')}
                 </h3>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
                     {categories.map((cat) => (
                         <div key={cat.id} className="relative group overflow-hidden h-[180px] md:h-[400px] bg-gray-100 dark:bg-gray-800 rounded-sm">
                             <img
-                                src={cat.image || "https://placehold.co/600x800/e2e8f0/1e293b?text=" + cat.name}
+                                src={getImageUrl(cat.image) || "https://placehold.co/600x800/e2e8f0/1e293b?text=" + cat.name}
                                 alt={cat.name}
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100"
                                 onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + cat.name; }}

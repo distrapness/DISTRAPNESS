@@ -16,6 +16,17 @@ const ContactPage = () => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  const [brand, setBrand] = useState({ brandName: "DISTRAPNESS", phone: "6285888159265" });
+  
+  React.useEffect(() => {
+    fetch(`${config.API_URL}/api/brand`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.phone) setBrand(prev => ({ ...prev, ...data }));
+      })
+      .catch(err => console.error("Error fetching contact info:", err));
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nama || !form.email || !form.pesan) {
@@ -54,53 +65,81 @@ const ContactPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col justify-center items-center px-4 py-12 w-full">
-      <div className="w-full max-w-5xl mx-auto">
-        <div className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 flex flex-col gap-4 border-2 border-black dark:border-transparent transition-colors duration-500">
-          <h1 className="text-3xl md:text-4xl font-bold text-black dark:text-gray-100 mb-8 text-center w-full">{t('contact.title')}</h1>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <input
-              className="border border-gray-300 dark:border-gray-700 rounded px-4 py-2 text-black dark:text-white w-full dark:bg-gray-700"
-              type="text"
-              name="nama"
-              placeholder={t('contact.name')}
-              value={form.nama}
-              onChange={handleChange}
-              disabled={loading}
-            />
-            <input
-              className="border border-gray-300 dark:border-gray-700 rounded px-4 py-2 text-black dark:text-white w-full dark:bg-gray-700"
-              type="email"
-              name="email"
-              placeholder={t('contact.email')}
-              value={form.email}
-              onChange={handleChange}
-              disabled={loading}
-            />
-            <textarea
-              className="border border-gray-300 dark:border-gray-700 rounded px-4 py-2 text-black dark:text-white w-full dark:bg-gray-700"
-              name="pesan"
-              placeholder={t('contact.message')}
-              rows={5}
-              value={form.pesan}
-              onChange={handleChange}
-              disabled={loading}
-            />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center items-center px-4 py-20 w-full transition-colors duration-500">
+      <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
+        {/* Left: Info */}
+        <div className="lg:w-1/3 text-center lg:text-left">
+          <h1 className="text-5xl md:text-6xl font-[900] text-black dark:text-white mb-6 tracking-tighter uppercase italic">{t('contact.title')}</h1>
+          <p className="text-gray-500 text-sm uppercase tracking-widest font-black mb-8 opacity-60">Get In Touch With Distrapness</p>
+          <div className="space-y-6 text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">
+            <div className="flex flex-col gap-1">
+              <span className="text-black dark:text-white">Email Support</span>
+              <a href="mailto:distrapness@gmail.com" className="hover:text-black dark:hover:text-white transition-colors">distrapness@gmail.com</a>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-black dark:text-white">Direct Message</span>
+              <a href={`https://wa.me/${brand.phone.replace(/[^0-9]/g, '')}`} className="hover:text-black dark:hover:text-white transition-colors">{brand.phone}</a>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-black dark:text-white">Headquarters</span>
+              <span>Bogor, Indonesia</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Form */}
+        <div className="lg:w-2/3 w-full bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 md:p-12 border border-gray-100 dark:border-gray-700">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Full Name</label>
+                <input
+                  className="w-full bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
+                  type="text"
+                  name="nama"
+                  placeholder="Enter your name"
+                  value={form.nama}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Email Address</label>
+                <input
+                  className="w-full bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
+                  type="email"
+                  name="email"
+                  placeholder="name@company.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Message</label>
+              <textarea
+                className="w-full bg-gray-50 dark:bg-gray-700/50 border-none rounded-2xl px-4 py-4 text-sm focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
+                name="pesan"
+                placeholder="How can we help you?"
+                rows={6}
+                value={form.pesan}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+            
+            {status === 'success' && <div className="text-green-600 dark:text-green-400 text-xs font-bold uppercase tracking-widest animate-bounce">{t('contact.success')}</div>}
+            {status === 'error' && <div className="text-red-500 text-xs font-bold uppercase tracking-widest">{t('contact.error')}</div>}
+
             <button
               type="submit"
               disabled={loading}
-              className="bg-black text-white px-6 py-2 rounded font-bold hover:bg-gray-800 transition disabled:opacity-50"
+              className="w-full bg-black dark:bg-white text-white dark:text-black px-8 py-5 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-50"
             >
-              {loading ? t('contact.sending') : t('contact.send')}
+              {loading ? t('contact.sending') : "Submit Inquiry →"}
             </button>
-            {status === 'success' && <div className="mt-2 text-green-600 dark:text-green-400">{t('contact.success')}</div>}
-            {status === 'error' && <div className="mt-2 text-red-600 dark:text-red-400">{t('contact.error')}</div>}
           </form>
-          <div className="mt-8 text-center w-full">
-            <div>Email: <a href="distrapness@gmail.com" className="text-black hover:underline">distrapness@gmail.com</a></div>
-            <div>WhatsApp: <a href="https://wa.me/6885888159265" className="text-black hover:underline">085888159265</a></div>
-            <div>Alamat: Bogor, Indonesia</div>
-          </div>
         </div>
       </div>
     </div>

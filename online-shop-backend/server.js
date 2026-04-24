@@ -57,43 +57,38 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   res.json({ url });
 });
 
-// Brand API
-const fs = require('fs');
-const BRAND_JSON = path.join(__dirname, 'brand.json');
-
-app.get('/api/brand', (req, res) => {
+// Brand API (Synced with Settings Table)
+app.get('/api/brand', async (req, res) => {
   try {
-    if (fs.existsSync(BRAND_JSON)) {
-      fs.readFile(BRAND_JSON, 'utf8', (err, data) => {
-        if (err) throw err;
-        res.json(JSON.parse(data));
-      });
-    } else {
-      // Default brand if file missing
-      res.json({
-        brandName: "DISTRAPNESS",
-        logo: "/assets/logo-placeholder.png",
-        logoWhite: "/assets/logo-placeholder-white.png"
-      });
-    }
+    const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('site_title', 'logo_url', 'contact_phone')");
+    const settings = rows.reduce((acc, row) => {
+      acc[row.setting_key] = row.setting_value;
+      return acc;
+    }, {});
+    
+    res.json({
+      brandName: settings.site_title || "DISTRAPNESS",
+      logo: settings.logo_url || "/uploads/logo-hitam.png",
+      logoWhite: settings.logo_url || "/uploads/logo-putih.png",
+      phone: settings.contact_phone || "6285888159265"
+    });
   } catch (err) {
-    console.error("Brand read error:", err);
+    console.error("Brand fetch error:", err);
     res.json({ brandName: "DISTRAPNESS" });
   }
 });
 
-app.put('/api/brand', (req, res) => {
+app.put('/api/brand', verifyToken, verifyAdmin, async (req, res) => {
+  const { brandName, logo, phone } = req.body;
   try {
-    fs.writeFile(BRAND_JSON, JSON.stringify(req.body, null, 2), (err) => {
-      if (err) {
-        console.error("Brand write error (Vercel Read-Only):", err);
-        return res.status(500).json({ error: 'Gagal menyimpan brand (Read-Only System)' });
-      }
-      res.json({ success: true });
-    });
+    await pool.promise().query(
+      'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+      ['site_title', brandName, 'logo_url', logo, 'contact_phone', phone]
+    );
+    res.json({ success: true });
   } catch (err) {
-    console.error("Brand write error:", err);
-    res.status(500).json({ error: 'System Error' });
+    console.error("Brand update error:", err);
+    res.status(500).json({ error: 'Failed to update brand' });
   }
 });
 
@@ -219,6 +214,17 @@ app.get('/api/setup-admin', async (req, res) => {
     `;
     await connection.query(createCouponsTable);
 
+    // Create shipping_manual_rates table
+    const createManualShippingTable = `
+      CREATE TABLE IF NOT EXISTS shipping_manual_rates (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        destination_name VARCHAR(100) NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    await connection.query(createManualShippingTable);
+
     // 2. Create Admin
     const email = 'admin@distrapness.com';
     const password = 'admin123';
@@ -290,6 +296,28 @@ app.post('/api/login', (req, res) => {
       role: user.role || 'customer'
     });
   });
+});
+
+// PROFILE ENDPOINT
+app.get('/api/profile', verifyToken, (req, res) => {
+  const userId = req.user.id;
+  pool.query('SELECT email, role, referral_code, referrals_count, points, balance FROM users WHERE id = ?', [userId], (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error' });
+    if (!results.length) return res.status(404).json({ message: 'User tidak ditemukan' });
+    res.json(results[0]);
+  });
+});
+
+// VERIFY REFERRAL
+app.get('/api/referral/verify/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const [results] = await pool.promise().query('SELECT id, email FROM users WHERE referral_code = ?', [code]);
+    if (results.length === 0) return res.status(404).json({ valid: false, message: 'Kode referral tidak ditemukan' });
+    res.json({ valid: true, user: results[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GOOGLE LOGIN ENDPOINT
@@ -454,7 +482,31 @@ app.put('/api/settings', verifyToken, verifyAdmin, async (req, res) => {
 app.get('/api/categories', async (req, res) => {
   try {
     const [rows] = await pool.promise().query('SELECT * FROM categories ORDER BY created_at DESC');
-    res.json(rows);
+    
+    // Fallback images for categories: use first product image found in that category if null or placeholder
+    const categoriesWithImages = await Promise.all(rows.map(async (cat) => {
+      const needsFallback = !cat.image || cat.image.trim() === "" || cat.image === "null" || cat.image.includes("placehold.co");
+      
+      if (needsFallback) {
+        const [products] = await pool.promise().query(
+          "SELECT images FROM products WHERE LOWER(category) = LOWER(?) AND images IS NOT NULL AND images != '[]' LIMIT 1",
+          [cat.name]
+        );
+        if (products.length > 0) {
+          try {
+            const images = JSON.parse(products[0].images);
+            if (Array.isArray(images) && images.length > 0) {
+              return { ...cat, image: images[0] };
+            }
+          } catch(e) {}
+        }
+        // Final fallback: professional placeholder
+        return { ...cat, image: `https://placehold.co/600x800/222222/ffffff?text=${encodeURIComponent(cat.name)}` };
+      }
+      return cat;
+    }));
+
+    res.json(categoriesWithImages);
   } catch (err) {
     res.status(500).json({ error: 'Categories fetch error' });
   }
@@ -551,8 +603,14 @@ app.post('/api/contact', async (req, res) => {
 const shippingRoutes = require('./routes/shippingRoutes');
 app.use('/api/shipping', shippingRoutes);
 
+const shippingManualRoutes = require('./routes/shippingManualRoutes');
+app.use('/api/shipping-manual', shippingManualRoutes);
+
 const couponRoutes = require('./routes/couponRoutes');
 app.use('/api/coupons', couponRoutes);
+
+const affiliateRoutes = require('./routes/affiliateRoutes');
+app.use('/api/affiliate', affiliateRoutes);
 
 const PORT = process.env.PORT || 5000;
 if (require.main === module) {

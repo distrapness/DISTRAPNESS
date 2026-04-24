@@ -47,7 +47,7 @@ const BannerAdmin = () => {
       {!adding && (
         <div className="mb-10 text-center">
           <button
-            className="px-8 py-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 font-black uppercase tracking-widest transition-all transform hover:scale-105"
+            className="px-8 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl shadow-xl hover:scale-105 font-black uppercase tracking-[0.2em] text-[10px] transition-all"
             onClick={() => setAdding(true)}
           >
             {t('admin.banner.addBanner')}

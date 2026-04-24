@@ -30,7 +30,12 @@ const AdminDashboard = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const statsRes = await axios.get(`${config.API_URL}/api/admin/stats`, { headers });
-      setStats(statsRes.data);
+      const chartRes = await axios.get(`${config.API_URL}/api/orders/stats/chart`, { headers });
+      
+      setStats({
+        ...statsRes.data,
+        chartData: chartRes.data.map(d => d.revenue) // Use real revenue data for charts
+      });
 
       const ordersRes = await axios.get(`${config.API_URL}/api/orders`, { headers });
       setRecentOrders(ordersRes.data.slice(0, 5));
@@ -47,7 +52,29 @@ const AdminDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(amount);
+    return 'Rp' + new Intl.NumberFormat("id-ID", { 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${config.API_URL}/api/orders/export/csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `orders-${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      alert("Gagal mengekspor data");
+    }
   };
 
   return (
@@ -60,14 +87,17 @@ const AdminDashboard = () => {
           <p className="text-gray-500 dark:text-gray-400 mt-1">{t('admin.dashboard.subtitle')}</p>
         </div>
         <div className="flex gap-3">
-          <button className="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 font-medium hover:bg-gray-50 transition">
-            {t('admin.dashboard.exportData')}
+          <button 
+            onClick={handleExportCSV}
+            className="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition"
+          >
+            📊 Export Data
           </button>
-          <Link to="/admin/discounts" className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold hover:bg-purple-700 transition flex items-center">
-            🎟️ {t('admin.dashboard.coupons')}
+          <Link to="/admin/discounts" className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl shadow-xl text-xs font-black uppercase tracking-widest hover:scale-95 transition flex items-center">
+            🎟️ Kupon
           </Link>
-          <Link to="/product-admin" className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg font-bold hover:bg-blue-700 transition flex items-center">
-            {t('admin.dashboard.addProduct')}
+          <Link to="/product-admin" className="bg-blue-600 text-white px-4 py-2 rounded-xl shadow-lg text-xs font-black uppercase tracking-widest hover:scale-95 transition flex items-center">
+            + Produk
           </Link>
         </div>
       </div>
@@ -76,6 +106,17 @@ const AdminDashboard = () => {
 
         {/* LEFT COLUMN (Main Content) */}
         <div className="lg:col-span-2 space-y-8">
+
+          {/* Revenue Chart Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-bold text-lg text-gray-800 dark:text-white">Revenue Analysis (Last 30 Days)</h2>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Daily Sales Growth</span>
+            </div>
+            <div className="h-48 w-full">
+              {stats.chartData && <Sparkline data={stats.chartData} color="green" height={180} />}
+            </div>
+          </div>
 
           {/* Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -218,11 +259,10 @@ const AdminDashboard = () => {
 };
 
 // CSS Sparkline Chart Component
-const Sparkline = ({ data, color = "green" }) => {
+const Sparkline = ({ data, color = "green", height = 40 }) => {
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;
-  const height = 40;
   const width = 100;
 
   const points = data.map((val, i) => {
@@ -249,26 +289,25 @@ const Sparkline = ({ data, color = "green" }) => {
 };
 
 const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-    <div className="flex justify-between items-start mb-2 relative z-10">
+  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-shadow">
+    <div className="flex justify-between items-start mb-4 relative z-10">
       <div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-gray-800 dark:text-white mt-1">{value}</h3>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{title}</p>
+        <h3 className="text-3xl font-black text-gray-900 dark:text-white mt-1">{value}</h3>
       </div>
-      <div className={`p-3 rounded-lg ${color === 'green' ? 'bg-green-50' : 'bg-blue-50'} dark:bg-opacity-10`}>
+      <div className={`p-4 rounded-2xl ${color === 'green' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'} dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
         {icon}
       </div>
     </div>
 
-    <div className="flex items-center gap-2 mb-4 relative z-10">
-      <span className={`text-xs font-bold ${trendColor} bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded`}>
+    <div className="flex items-center gap-2 mb-6 relative z-10">
+      <span className={`text-[10px] font-black uppercase ${trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'} dark:bg-opacity-10 px-2 py-1 rounded-lg`}>
         {trend}
       </span>
     </div>
 
-    {/* Sparkline at bottom */}
-    <div className="absolute bottom-0 left-0 right-0 h-16">
-      {chartData && <Sparkline data={chartData} color={color} />}
+    <div className="absolute bottom-0 left-0 right-0 h-12 opacity-30 grayscale group-hover:grayscale-0 transition-all duration-700">
+      {chartData && <Sparkline data={chartData} color={color} height={48} />}
     </div>
   </div>
 );

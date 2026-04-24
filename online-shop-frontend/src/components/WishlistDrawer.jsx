@@ -71,7 +71,7 @@ const WishlistDrawer = ({ open, onClose }) => {
                                             </button>
                                         </div>
                                         <div className="text-sm font-medium text-gray-500 mt-1">
-                                            Rp {item.price.toLocaleString('id-ID')}
+                                            Rp{Number(item.price).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
                                         </div>
                                         <button
                                             onClick={() => {

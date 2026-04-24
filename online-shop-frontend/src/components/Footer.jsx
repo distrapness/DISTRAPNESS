@@ -15,7 +15,7 @@ const Footer = () => {
   const { t } = useCurrency();
   return (
     <footer className="bg-white dark:bg-gray-950 text-black dark:text-white pt-16 pb-12 border-t border-gray-100 dark:border-gray-900">
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 md:gap-8">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-10 md:gap-8">
 
         {/* Column 1: About */}
         <div className="flex flex-col gap-4">

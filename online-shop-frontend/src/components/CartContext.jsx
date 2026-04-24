@@ -22,8 +22,16 @@ export function CartProvider({ children }) {
   }, [cart]);
 
   const addToCart = (product, qty = 1) => {
+    // Determine active price: Use flash sale price if active and not expired
+    let activePrice = Number(product.price);
+    const now = new Date();
+    const isFlashActive = product.is_flash_sale && product.flash_sale_end && new Date(product.flash_sale_end) > now;
+    
+    if (isFlashActive && product.flash_sale_price) {
+      activePrice = Number(product.flash_sale_price);
+    }
+
     setCart((prev) => {
-      // Create a unique key based on ID and Size (default to 'M' if undefined for backward compat, or allow null)
       const targetSize = product.selectedSize || 'M';
 
       const foundIndex = prev.findIndex((item) =>
@@ -31,17 +39,17 @@ export function CartProvider({ children }) {
       );
 
       if (foundIndex !== -1) {
-        // Clone array
         const newCart = [...prev];
+        // Potentially update price in cart if it changed (e.g. flash sale started/ended)
         newCart[foundIndex] = {
           ...newCart[foundIndex],
+          price: activePrice, 
           qty: newCart[foundIndex].qty + qty
         };
         return newCart;
       } else {
-        // Enforce valid image
         const validImage = product.image || (product.images && product.images[0]);
-        return [...prev, { ...product, image: validImage, selectedSize: targetSize, qty }];
+        return [...prev, { ...product, price: activePrice, image: validImage, selectedSize: targetSize, qty }];
       }
     });
   };

@@ -2,8 +2,8 @@ const isLocal = window.location.hostname === 'localhost' || window.location.host
 const envUrl = process.env.REACT_APP_API_URL;
 
 const config = {
-  API_URL: (isLocal && envUrl) ? envUrl : (isLocal ? "http://localhost:5001" : "https://online-shop-beige-one.vercel.app"),
-  GOOGLE_CLIENT_ID: process.env.REACT_APP_GOOGLE_CLIENT_ID || "736173493721-ps67l5ps99sqb347f872r5m929s39pks.apps.googleusercontent.com" // Placeholder for demonstration
+  API_URL: process.env.REACT_APP_API_URL || (isLocal ? "http://localhost:5001" : "https://online-shop-beige-one.vercel.app"),
+  GOOGLE_CLIENT_ID: process.env.REACT_APP_GOOGLE_CLIENT_ID || "67311538354-3kkrjm976iaptm7k40qgr5rrgefgu2i7.apps.googleusercontent.com"
 };
 
 export default config;

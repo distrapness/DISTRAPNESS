@@ -1,46 +1,70 @@
 import React from "react";
 import { useCurrency } from "../components/CurrencyContext.jsx";
-import Footer from "../components/Footer";
+import Footer from "../components/Footer.jsx";
 
 const HowToOrder = () => {
-  const { t } = useCurrency();
+    const { t } = useCurrency();
 
-  const steps = [
-    { key: 'step1' }, { key: 'step2' }, { key: 'step3' },
-    { key: 'step4' }, { key: 'step5' }, { key: 'step6' },
-    { key: 'step7' }, { key: 'step8' }, { key: 'step9' }
-  ];
+    const steps = [
+        {
+            num: "01",
+            title: "Select Products",
+            desc: "Browse our premium collection and choose the items that match your style. Select size and quantity."
+        },
+        {
+            num: "02",
+            title: "Add to Cart",
+            desc: "Add your selection to the cart. You can review and adjust your choices in the Cart Drawer."
+        },
+        {
+            num: "03",
+            title: "Secure Checkout",
+            desc: "Fill in your shipping details and choose from our preferred payment methods (Bank Transfer, QRIS, or COD)."
+        },
+        {
+            num: "04",
+            title: "Premium Delivery",
+            desc: "Once payment is verified, we process your order with care. Track your shipment directly from your profile account."
+        }
+    ];
 
-  return (
-    <div className="bg-white dark:bg-gray-900 min-h-screen">
-      <div className="max-w-3xl mx-auto py-16 px-6 bg-white dark:bg-gray-800/50 rounded-2xl shadow-sm md:shadow-xl mt-10 mb-20 border border-gray-100 dark:border-gray-700">
-        <h1 className="text-3xl font-[900] uppercase tracking-tighter mb-10 text-center text-black dark:text-white">
-          {t('howToOrder.title')}
-        </h1>
-        <div className="space-y-8">
-          {steps.map((step, idx) => (
-            <div key={step.key} className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-black">
-                {idx + 1}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold uppercase tracking-tight mb-1 dark:text-white">
-                  {t(`howToOrder.${step.key}.title`)}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                  {t(`howToOrder.${step.key}.desc`)}
-                </p>
-              </div>
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-[100px] transition-colors duration-500">
+            <div className="max-w-5xl mx-auto px-6 pb-24">
+                <header className="text-center mb-20">
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Guide</span>
+                    <h1 className="text-4xl md:text-6xl font-[900] text-black dark:text-white uppercase tracking-tighter italic mb-6">How to Order</h1>
+                    <div className="w-20 h-1 bg-black dark:bg-white mx-auto"></div>
+                </header>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {steps.map((step, i) => (
+                        <div key={i} className="bg-white dark:bg-gray-900 p-10 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl hover:scale-[1.02] transition-all group">
+                            <div className="text-5xl font-black text-gray-100 dark:text-gray-800 mb-6 group-hover:text-black dark:group-hover:text-white transition-colors duration-500 font-mono italic">
+                                {step.num}
+                            </div>
+                            <h3 className="text-sm font-black uppercase tracking-[0.2em] mb-4 text-black dark:text-white">
+                                {step.title}
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-loose tracking-wide">
+                                {step.desc}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-20 text-center bg-black dark:bg-white text-white dark:text-black p-16 rounded-[40px] shadow-2xl relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 dark:bg-black/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                   <h2 className="text-3xl font-black uppercase tracking-tighter italic mb-4 relative z-10">Ready to start shopping?</h2>
+                   <p className="text-sm opacity-60 mb-10 max-w-sm mx-auto relative z-10">Discover our latest collection and elevate your daily lifestyle with Distrapness.</p>
+                   <a href="/shop" className="inline-block bg-white dark:bg-black text-black dark:text-white px-12 py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl hover:scale-110 active:scale-95 transition-all relative z-10">
+                       Browse Collection →
+                   </a>
+                </div>
             </div>
-          ))}
+            <Footer />
         </div>
-        <div className="mt-12 pt-8 border-t border-gray-50 dark:border-gray-700 text-center text-xs text-gray-400 uppercase tracking-widest leading-loose italic px-4">
-          {t('howToOrder.footer')}
-        </div>
-      </div>
-      <Footer />
-    </div>
-  );
+    );
 };
 
 export default HowToOrder;

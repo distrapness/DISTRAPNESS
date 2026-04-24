@@ -22,6 +22,8 @@ const ShopPage = () => {
   const [search, setSearch] = useState(searchParams.get("search") || ""); // Init from param
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "Semua");
   const [sortBy, setSortBy] = useState("newest");
+  const [priceRange, setPriceRange] = useState([0, 5000000]);
+  const [stockFilter, setStockFilter] = useState("all"); // all | in_stock | out_of_stock
   const { currency, t } = useCurrency();
   const navigate = useNavigate();
   const { addToCart } = useCart();
@@ -37,7 +39,7 @@ const ShopPage = () => {
 
   useEffect(() => {
     setLoading(true);
-    fetch(API_URL)
+    fetch(`${API_URL}?t=${Date.now()}`)
       .then((res) => {
         // ...
         if (!res.ok) throw new Error("Gagal mengambil produk");
@@ -57,7 +59,9 @@ const ShopPage = () => {
     (p) =>
       (selectedCategory === "Semua" || p.category === selectedCategory) &&
       (p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description?.toLowerCase().includes(search.toLowerCase()))
+        p.description?.toLowerCase().includes(search.toLowerCase())) &&
+      (p.price >= priceRange[0] && p.price <= priceRange[1]) &&
+      (stockFilter === "all" || (stockFilter === "in_stock" ? p.stock > 0 : p.stock <= 0))
   );
 
   // Sorting Logic
@@ -70,10 +74,14 @@ const ShopPage = () => {
     }
   });
 
+  const maxProductPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 5000000;
+  const activeFiltersCount = (priceRange[0] > 0 || priceRange[1] < maxProductPrice ? 1 : 0) + (stockFilter !== 'all' ? 1 : 0) + (selectedCategory !== 'Semua' ? 1 : 0);
+
+
   const convertPrice = (price) => {
-    if (currency.code === "IDR") return currency.symbol + " " + price.toLocaleString(currency.locale);
+    if (currency.code === "IDR") return currency.symbol + " " + Number(price).toLocaleString(currency.locale, { minimumFractionDigits: 0 });
     return (
-      currency.symbol + " " + (price * currency.rate).toLocaleString(currency.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      currency.symbol + " " + (Number(price) * currency.rate).toLocaleString(currency.locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
     );
   };
 
@@ -103,60 +111,94 @@ const ShopPage = () => {
     <>
       <div className="w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-700 pt-4 pb-16">
         <div className="max-w-7xl mx-auto px-4 mt-2 md:mt-4">
-          <div className="grid grid-cols-2 md:flex md:flex-row gap-3 md:gap-4 mb-8 md:mb-10 items-center justify-between">
-            {/* Category Pills (Horizontal Scroll) */}
-            <div className="col-span-2 md:flex-1 overflow-x-auto scrollbar-hide py-2 flex items-center gap-2 md:gap-3">
-              {categories.map((cat) => {
-                const isActive = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                        setSelectedCategory(cat);
-                        setPage(1); // Reset page on category change
-                    }}
-                    className={`whitespace-nowrap px-5 md:px-7 py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] transition-all duration-300 border ${
-                      isActive 
-                        ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-lg' 
-                        : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500 dark:hover:border-gray-400'
-                    }`}
-                  >
-                    {cat === "Semua" ? t('nav.all') : cat}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Sort Filter */}
-            <div className="w-full md:w-auto">
-              <select
-                className="w-full px-4 py-3 md:py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-black text-xs md:text-sm font-bold uppercase tracking-wider appearance-none"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="newest">Newest</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="name_asc">Name: A-Z</option>
-              </select>
-            </div>
-
-            {/* Search Bar */}
-            <div className="col-span-2 md:col-span-1 w-full md:w-80">
-              <div className="relative">
+          {/* Filter Bar */}
+          <div className="mb-8 space-y-3">
+            {/* Row 1: Search + Sort */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Search */}
+              <div className="relative group">
                 <input
-                  className="w-full pl-10 pr-4 py-3 md:py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:border-black text-xs md:text-sm"
-                  placeholder={t('shop.search').toUpperCase()}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 text-sm transition-all shadow-sm"
+                  placeholder="Cari produk..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </div>
+              {/* Sort */}
+              <select
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black/10 shadow-sm appearance-none cursor-pointer"
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+              >
+                <option value="newest">🕐 Terbaru</option>
+                <option value="price_asc">💰 Harga: Rendah → Tinggi</option>
+                <option value="price_desc">💎 Harga: Tinggi → Rendah</option>
+                <option value="name_asc">🔤 Nama A-Z</option>
+              </select>
+            </div>
+
+            {/* Row 2: Category + Stock + Price */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-center">
+              {/* Category */}
+              <select
+                className="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100 focus:outline-none shadow-sm appearance-none cursor-pointer"
+                value={selectedCategory}
+                onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat === "Semua" ? "Semua Kategori" : cat}</option>
+                ))}
+              </select>
+
+              {/* Stock Filter */}
+              <select
+                className="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100 focus:outline-none shadow-sm appearance-none cursor-pointer"
+                value={stockFilter}
+                onChange={(e) => { setStockFilter(e.target.value); setPage(1); }}
+              >
+                <option value="all">Semua Stok</option>
+                <option value="in_stock">✅ Ada Stok</option>
+                <option value="out_of_stock">❌ Habis</option>
+              </select>
+
+              {/* Price Range */}
+              <div className="col-span-2 flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Harga:</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={maxProductPrice || 5000000}
+                  step={50000}
+                  value={priceRange[1]}
+                  onChange={(e) => { setPriceRange([priceRange[0], Number(e.target.value)]); setPage(1); }}
+                  className="flex-1 accent-black dark:accent-white"
+                />
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap min-w-[80px] text-right">
+                  s/d Rp{Number(priceRange[1]).toLocaleString('id-ID')}
+                </span>
+              </div>
+            </div>
+
+            {/* Active Filter Summary */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">
+                Menampilkan <span className="font-bold text-black dark:text-white">{filtered.length}</span> produk
+                {activeFiltersCount > 0 && <span className="ml-2 bg-black dark:bg-white text-white dark:text-black px-2 py-0.5 rounded-full text-[10px] font-bold">{activeFiltersCount} filter aktif</span>}
+              </p>
+              {activeFiltersCount > 0 && (
+                <button
+                  onClick={() => { setSelectedCategory('Semua'); setStockFilter('all'); setPriceRange([0, maxProductPrice]); setSearch(''); setPage(1); }}
+                  className="text-xs text-red-500 hover:text-red-700 font-bold underline"
+                >
+                  Reset Filter
+                </button>
+              )}
             </div>
           </div>
-          {/* Gallery grid ala jamesboogie.com: 4 kolom, jarak rapat, gambar besar, info di bawah */}
-          {/* Gallery grid ala jamesboogie.com: 4 kolom, jarak rapat, gambar besar, info di bawah */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 gap-y-8 md:gap-6">
+
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-8 md:gap-6">
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
@@ -164,7 +206,19 @@ const ShopPage = () => {
             ) : error ? (
               <div className="col-span-full text-red-500">{error}</div>
             ) : !paginatedProducts || paginatedProducts.length === 0 ? (
-              <div className="col-span-full text-gray-500">No products found.</div>
+              <div className="col-span-full py-32 flex flex-col items-center justify-center text-center">
+                <div className="w-24 h-24 mb-6 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+                <h3 className="text-xl font-black uppercase tracking-tighter text-black dark:text-white mb-2 italic">Product Not Found</h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest max-w-[200px]">Coba ubah filter atau kata kunci pencarian Anda.</p>
+                <button 
+                  onClick={() => { setSelectedCategory('Semua'); setStockFilter('all'); setPriceRange([0, maxProductPrice]); setSearch(''); setPage(1); }}
+                  className="mt-8 px-8 py-3 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl hover:scale-105 active:scale-95 transition-all"
+                >
+                  RESET FILTERS
+                </button>
+              </div>
             ) : (
               paginatedProducts.map((product) => (
                 <div
@@ -176,6 +230,13 @@ const ShopPage = () => {
                   {product.stock > 0 && product.stock < 5 && (
                     <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
                       {t('shop.lowStock')}
+                    </div>
+                  )}
+
+                  {/* Badge: Out of Stock */}
+                  {product.stock <= 0 && (
+                    <div className="absolute top-4 left-4 z-10 bg-red-600 text-white text-[10px] font-[900] px-2 py-1 uppercase tracking-wider rounded-sm shadow-md ring-1 ring-white/20">
+                      HABIS
                     </div>
                   )}
 
@@ -197,7 +258,7 @@ const ShopPage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
-                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out p-2 ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'}`}
+                      className={`object-contain w-full h-full transition-transform duration-500 ease-in-out p-4 ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'} ${product.stock <= 0 ? 'grayscale opacity-50' : ''}`}
                       onError={handleImageError}
                     />
                   </div>
@@ -216,30 +277,31 @@ const ShopPage = () => {
               )}
             </div>
           {/* Pagination controls */}
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-10 gap-2">
+            <div className="flex justify-center mt-12 gap-3 items-center">
               <button
-                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-black dark:text-white font-bold disabled:opacity-50"
+                className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white transition-all disabled:opacity-30"
                 disabled={page === 1}
-                onClick={() => setPage(page - 1)}
+                onClick={() => { setPage(page - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
-                Previous
+                &larr; Prev
               </button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  className={`px-3 py-1 rounded ${page === i + 1 ? 'bg-black text-white' : 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white'} font-bold`}
-                  onClick={() => setPage(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              <div className="flex gap-2">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${page === i + 1 ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg scale-110' : 'bg-gray-50 dark:bg-gray-800/50 text-gray-400 hover:bg-gray-100'}`}
+                    onClick={() => { setPage(i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
               <button
-                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-black dark:text-white font-bold disabled:opacity-50"
+                className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white transition-all disabled:opacity-30"
                 disabled={page === totalPages}
-                onClick={() => setPage(page + 1)}
+                onClick={() => { setPage(page + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
-                Next
+                Next &rarr;
               </button>
               <select
                 className="ml-6 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"

@@ -16,7 +16,8 @@ const AdminSettings = () => {
         biteship_api_key: '',
         shipping_origin: '',
         midtrans_server_key: '',
-        midtrans_client_key: ''
+        midtrans_client_key: '',
+        midtrans_production: 'false'
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -245,25 +246,47 @@ const AdminSettings = () => {
                             <p className="text-xs text-gray-400 mt-1">Check Biteship docs for your Area ID.</p>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Server Key (Production)</label>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Server Key</label>
                             <input
                                 name="midtrans_server_key"
                                 type="password"
                                 value={settings.midtrans_server_key}
                                 onChange={handleChange}
                                 className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="SB-Mid-server-..."
+                                placeholder="Mid-server-..."
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Client Key (Production)</label>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Client Key</label>
                             <input
                                 name="midtrans_client_key"
                                 value={settings.midtrans_client_key}
                                 onChange={handleChange}
                                 className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="SB-Mid-client-..."
+                                placeholder="Mid-client-..."
                             />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={settings.midtrans_production === 'true'}
+                                        onChange={(e) => setSettings({ ...settings, midtrans_production: e.target.checked ? 'true' : 'false' })}
+                                    />
+                                    <div className={`block w-14 h-8 rounded-full transition-colors ${settings.midtrans_production === 'true' ? 'bg-red-600' : 'bg-gray-400'}`}></div>
+                                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.midtrans_production === 'true' ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                                <div className="text-sm font-bold dark:text-white">
+                                    {settings.midtrans_production === 'true' ? 'PRODUCTION MODE (LIVE)' : 'SANDBOX MODE (TESTING)'}
+                                </div>
+                            </label>
+                            <p className="text-xs text-gray-400 mt-1">
+                                {settings.midtrans_production === 'true' 
+                                  ? 'Careful! Payments will use real money.' 
+                                  : 'Transactions are for testing purposes only.'}
+                            </p>
                         </div>
                     </div>
                 </div>

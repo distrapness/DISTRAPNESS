@@ -20,19 +20,19 @@ const FAQPage = () => {
                 <div className="space-y-4">
                     {faqs.map((f, i) => (
                         <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 hover:shadow-sm transition-shadow">
-                            <h3 className="text-base font-bold uppercase tracking-wide mb-2 text-black dark:text-white flex items-center gap-2">
-                                <span className="text-red-500">Q.</span> {f.q}
+                            <h3 className="text-sm font-black uppercase tracking-widest mb-3 text-black dark:text-white flex items-center gap-3">
+                                <span className="w-6 h-6 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center text-[10px]">Q</span> {f.q}
                             </h3>
                             <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm md:text-base ml-6">{f.a}</p>
                         </div>
                     ))}
                 </div>
 
-                <div className="mt-16 text-center bg-black dark:bg-white text-white dark:text-black py-10 px-4 rounded-xl mx-4 md:mx-0">
-                    <h3 className="text-xl font-bold uppercase tracking-wide mb-2">Still have questions?</h3>
-                    <p className="text-sm opacity-80 mb-6">Can't find the answer you're looking for? Please chat to our friendly team.</p>
-                    <a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer" className="inline-block bg-[#25D366] text-white px-8 py-3 rounded-full font-bold uppercase text-xs tracking-widest hover:opacity-90 transition-opacity">
-                        Chat on WhatsApp
+                <div className="mt-20 text-center bg-gray-50 dark:bg-gray-800 p-12 rounded-3xl border border-gray-100 dark:border-gray-700">
+                    <h3 className="text-2xl font-black uppercase tracking-tighter italic mb-4 text-black dark:text-white">Still have questions?</h3>
+                    <p className="text-sm text-gray-500 mb-10 max-w-sm mx-auto">Can't find the answer you're looking for? Reach out to our dedicated support team.</p>
+                    <a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer" className="inline-block bg-black dark:bg-white text-white dark:text-black px-10 py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:scale-105 transition-all">
+                        Chat on WhatsApp →
                     </a>
                 </div>
             </div>

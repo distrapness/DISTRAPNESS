@@ -73,7 +73,7 @@ const AdminChat = () => {
                 {!isAdmin && <FaUserCircle size={28} className="text-gray-300 mb-1" />}
                 <div className={`p-4 rounded-2xl max-w-[70%] shadow-sm ${
                   isAdmin 
-                    ? 'bg-blue-600 text-white rounded-br-none shadow-blue-200 dark:shadow-none' 
+                    ? 'bg-black dark:bg-white text-white dark:text-black rounded-br-none shadow-black/10' 
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-none'
                 }`}>
                   <span className={`block text-[8px] font-black uppercase tracking-[0.15em] mb-1 opacity-50 ${isAdmin ? 'text-right' : ''}`}>
@@ -101,7 +101,7 @@ const AdminChat = () => {
             />
             <button 
               type="submit" 
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-blue-600 hover:bg-black text-white rounded-xl shadow-lg transition-all hover:scale-110 active:scale-95"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-black dark:bg-white text-white dark:text-black rounded-xl shadow-lg transition-all hover:scale-110 active:scale-95"
             >
               <FaPaperPlane size={16} />
             </button>

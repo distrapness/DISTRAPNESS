@@ -51,7 +51,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
     fetch(BRAND_API_URL)
       .then((res) => res.json())
       .then(setBrand)
-      .catch(() => setBrand({ brandName: "Online Shop", logo: "", logoWhite: "" }));
+      .catch(() => setBrand({ brandName: "DISTRAPNESS", logo: "/uploads/logo-hitam.png", logoWhite: "/uploads/logo-putih.png" }));
   }, []);
 
   useEffect(() => {
@@ -79,12 +79,12 @@ const Header = ({ onCartClick, onWishlistClick }) => {
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
-    <header className={`fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300 h-[60px] md:h-[88px]`}>
-      <div className="max-w-[1600px] mx-auto flex items-center h-full px-6 md:px-12">
+    <header className={`fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300 h-[60px] lg:h-[88px]`}>
+      <div className="max-w-[1600px] mx-auto flex items-center h-full px-4 md:px-6 lg:px-12">
 
         {/* Mobile Left: Hamburger */}
         <button
-          className="md:hidden p-2 -ml-2 text-gray-800 dark:text-white focus:outline-none"
+          className="lg:hidden p-2 -ml-2 text-gray-800 dark:text-white focus:outline-none"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle Menu"
         >
@@ -94,26 +94,26 @@ const Header = ({ onCartClick, onWishlistClick }) => {
         </button>
 
         {/* LOGO (Always Left and Visible) */}
-        <div className="flex-1 md:flex-none flex justify-center md:justify-start">
+        <div className="flex-1 lg:flex-none flex justify-center lg:justify-start">
           <Link to="/" className="flex items-center gap-1 md:gap-2">
             <img
               src={logoUrl}
               alt="Logo"
-              className="h-10 md:h-14 w-auto object-contain"
+              className="h-8 md:h-10 lg:h-14 w-auto object-contain"
             />
-            <span className="text-black dark:text-white font-[900] text-xl md:text-2xl tracking-tighter uppercase font-sans">
-              DISTRAPNESS
+            <span className="text-black dark:text-white font-[900] text-lg md:text-xl lg:text-2xl tracking-tighter uppercase font-sans">
+              {brand.brandName}
             </span>
           </Link>
         </div>
 
         {/* NAVIGATION (Left Aligned next to Logo) */}
-        <div className="hidden md:flex ml-12 gap-8 items-center">
-          <Link to="/" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.home')}</Link>
-          <Link to="/shop" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname.startsWith("/shop") ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.shop')}</Link>
-          <Link to="/contact" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/contact" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.contact')}</Link>
-          <Link to="/store" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/store" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.store')}</Link>
-          <Link to="/about" className={`text-sm font-bold uppercase tracking-wide hover:text-[#FF0000] transition-colors ${location.pathname === "/about" ? "text-[#FF0000]" : "text-gray-900 dark:text-gray-100"}`}>{t('nav.about')}</Link>
+        <div className="hidden lg:flex ml-12 gap-8 items-center">
+          <Link to="/" className={`text-sm font-black uppercase tracking-[0.2em] hover:opacity-100 transition-all ${location.pathname === "/" ? "text-black dark:text-white opacity-100" : "text-gray-400 opacity-60"}`}>{t('nav.home')}</Link>
+          <Link to="/shop" className={`text-sm font-black uppercase tracking-[0.2em] hover:opacity-100 transition-all ${location.pathname.startsWith("/shop") ? "text-black dark:text-white opacity-100" : "text-gray-400 opacity-60"}`}>{t('nav.shop')}</Link>
+          <Link to="/contact" className={`text-sm font-black uppercase tracking-[0.2em] hover:opacity-100 transition-all ${location.pathname === "/contact" ? "text-black dark:text-white opacity-100" : "text-gray-400 opacity-60"}`}>{t('nav.contact')}</Link>
+          <Link to="/store" className={`text-sm font-black uppercase tracking-[0.2em] hover:opacity-100 transition-all ${location.pathname === "/store" ? "text-black dark:text-white opacity-100" : "text-gray-400 opacity-60"}`}>{t('nav.store')}</Link>
+          <Link to="/about" className={`text-sm font-black uppercase tracking-[0.2em] hover:opacity-100 transition-all ${location.pathname === "/about" ? "text-black dark:text-white opacity-100" : "text-gray-400 opacity-60"}`}>{t('nav.about')}</Link>
 
           {userRole === 'admin' && (
             <Link to="/admin" className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 hover:text-[#FF0000] transition-colors border border-blue-600 dark:border-blue-400 px-3 py-1 rounded">
@@ -126,11 +126,10 @@ const Header = ({ onCartClick, onWishlistClick }) => {
         <div className="flex-1"></div>
 
         {/* RIGHT ICONS */}
-        {/* RIGHT ICONS */}
-        <div className="flex items-center gap-3 md:gap-5 justify-end flex-initial">
+        <div className="flex items-center gap-2 md:gap-4 lg:gap-5 justify-end flex-initial">
 
           {/* Desktop Controls: Language | Currency | Theme */}
-          <div className="hidden md:flex items-center gap-4 mr-2 border-r border-gray-200 dark:border-gray-700 pr-6 h-6">
+          <div className="hidden lg:flex items-center gap-4 mr-2 border-r border-gray-200 dark:border-gray-700 pr-6 h-6">
             {/* ... (Language, Currency, Theme code remains) ... */}
             {/* Language Selector */}
             <div className="relative dropdown-container h-full flex items-center">
@@ -201,7 +200,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
           </div>
 
           {/* Search (Desktop) */}
-          <div className="hidden md:flex items-center">
+          <div className="hidden lg:flex items-center">
             <div className={`overflow-hidden transition-all duration-300 ${searchOpen ? 'w-48 opacity-100 mr-2' : 'w-0 opacity-0'}`}>
               <form onSubmit={handleSearch}>
                 <input
@@ -222,9 +221,9 @@ const Header = ({ onCartClick, onWishlistClick }) => {
             </button>
           </div>
 
-          {/* Search (Mobile) */}
+          {/* Search (Mobile/Tablet) */}
           <button
-            className="md:hidden hover:text-[#FF0000] transition-colors"
+            className="lg:hidden hover:text-[#FF0000] transition-colors"
             onClick={() => {
               setMobileMenuOpen(true);
               // Ideally focus the input, but opening menu is enough for "Search" visibility
@@ -236,31 +235,31 @@ const Header = ({ onCartClick, onWishlistClick }) => {
           </button>
 
           {/* Wishlist (Desktop) */}
-          <button onClick={onWishlistClick} className="hidden md:block hover:text-[#FF0000] relative transition-colors group">
+          <button onClick={onWishlistClick} className="hidden lg:block hover:scale-110 active:scale-95 relative transition-all group">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
             {wishlist.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#FF0000] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
+              <span className="absolute -top-1.5 -right-1.5 bg-black dark:bg-white text-white dark:text-black text-[8px] font-black h-4 w-4 flex items-center justify-center rounded-full shadow-lg">
                 {wishlist.length}
               </span>
             )}
           </button>
 
           {/* Cart Icon */}
-          <button onClick={onCartClick} className="relative group hover:text-[#FF0000] transition-colors">
+          <button onClick={onCartClick} className="relative group hover:scale-110 active:scale-95 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             {totalQty > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#FF0000] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
+              <span className="absolute -top-1.5 -right-1.5 bg-black dark:bg-white text-white dark:text-black text-[8px] font-black h-4 w-4 flex items-center justify-center rounded-full shadow-lg border border-white/20 dark:border-black/20">
                 {totalQty}
               </span>
             )}
           </button>
 
           {/* User Profile */}
-          <div className="hidden md:block relative account-menu-parent">
+          <div className="hidden lg:block relative account-menu-parent">
             <button onClick={() => setShowAccountMenu(!showAccountMenu)} className="flex items-center hover:text-[#FF0000] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -287,7 +286,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
       </div>
 
       {/* Mobile Menu Dropdown */}
-      <div className={`md:hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out border-t border-gray-200 dark:border-gray-700 ${mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+      <div className={`lg:hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out border-t border-gray-200 dark:border-gray-700 ${mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <nav className="flex flex-col p-6 space-y-6">
           {/* Mobile Search */}
           <form onSubmit={(e) => {

@@ -90,7 +90,7 @@ const BannerCarousel = () => {
 
   return (
     <div
-      className="relative w-full aspect-[16/5] max-w-[1400px] mx-auto overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing rounded-none md:rounded-2xl md:mt-4 md:shadow-xl"
+      className="relative w-full aspect-[16/8] md:aspect-[21/7] max-h-[600px] max-w-[1400px] mx-auto overflow-hidden flex items-center justify-center bg-gray-900 group cursor-grab active:cursor-grabbing rounded-none md:rounded-3xl mt-0 md:mt-8 md:shadow-2xl border-0 md:border-4 border-white dark:border-gray-800 transform transition-all hover:scale-[1.01]"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => { setHover(false); onMouseLeave(); }}
 
@@ -107,21 +107,21 @@ const BannerCarousel = () => {
       <img
         src={banner.image}
         alt={banner.title || `Banner ${current + 1}`}
-        className="w-full h-full absolute inset-0 object-cover object-center pointer-events-none select-none"
+        className="w-full h-full absolute inset-0 object-contain object-center pointer-events-none select-none bg-black"
       />
 
       {/* Overlay Gradient for better text readability */}
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
-      <div className="absolute inset-0 z-10 flex flex-col items-start justify-end text-left px-4 md:px-12 pb-8 md:pb-16 max-w-[1400px] mx-auto pointer-events-none">
+      <div className="absolute inset-0 z-10 flex flex-col items-start justify-end text-left px-6 md:px-12 pb-6 md:pb-16 max-w-[1400px] mx-auto pointer-events-none">
         {banner.title && (
-          <h2 className="text-4xl md:text-6xl font-[900] text-white uppercase tracking-tighter leading-none mb-2 font-sans drop-shadow-md">
+          <h2 className="text-lg sm:text-3xl md:text-5xl font-[900] text-white uppercase tracking-tighter leading-none mb-2 md:mb-4 font-sans drop-shadow-md max-w-full">
             {banner.title}
           </h2>
         )}
         {banner.subtitle && (
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 pointer-events-auto">
-            <p className="text-lg md:text-xl text-gray-200 tracking-widest font-light uppercase">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 md:gap-8 pointer-events-auto">
+            <p className="text-[10px] sm:text-lg lg:text-xl text-gray-200 tracking-widest font-light uppercase">
               {banner.subtitle}
             </p>
             {banner.link && (
@@ -141,7 +141,7 @@ const BannerCarousel = () => {
         <>
           <button
             onClick={prev}
-            className={`absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full w-12 h-12 flex items-center justify-center transition-all ${hover ? 'opacity-100' : 'opacity-0 md:opacity-100'}`}
+            className={`absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center transition-all ${hover ? 'opacity-100' : 'opacity-0 md:opacity-100'}`}
             aria-label="Sebelumnya"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -150,7 +150,7 @@ const BannerCarousel = () => {
           </button>
           <button
             onClick={next}
-            className={`absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full w-12 h-12 flex items-center justify-center transition-all ${hover ? 'opacity-100' : 'opacity-0 md:opacity-100'}`}
+            className={`absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full w-10 h-10 md:w-12 md:h-12 flex items-center justify-center transition-all ${hover ? 'opacity-100' : 'opacity-0 md:opacity-100'}`}
             aria-label="Selanjutnya"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -162,7 +162,7 @@ const BannerCarousel = () => {
 
       {/* Dots Indicator */}
       {banners.length > 1 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
+        <div className="absolute bottom-2 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
           {banners.map((_, idx) => (
             <button
               key={idx}

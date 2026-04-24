@@ -26,8 +26,16 @@ const ProductAdmin = () => {
     weight: 1000,
     hasSizes: true,
     sizes: { S: 0, M: 0, L: 0, XL: 0 },
-    category: ""
+    category: "",
+    is_flash_sale: false,
+    flash_sale_price: "",
+    flash_sale_end: ""
   });
+
+  // Bulk Mode
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [bulkStockForm, setBulkStockForm] = useState({ stock: 0 });
 
   // Categories
   const [categories, setCategories] = useState([]);
@@ -65,8 +73,8 @@ const ProductAdmin = () => {
     setLoading(true);
     try {
       const [prodRes, catRes] = await Promise.all([
-        fetch(API_URL),
-        fetch(CATEGORIES_URL)
+        fetch(`${API_URL}?t=${Date.now()}`),
+        fetch(`${CATEGORIES_URL}?t=${Date.now()}`)
       ]);
       const prodData = await prodRes.json();
       const catData = await catRes.json();
@@ -83,6 +91,51 @@ const ProductAdmin = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleBulkUpdate = async () => {
+    if (selectedProductIds.length === 0) return;
+    const stockStr = prompt("Masukkan jumlah stok baru untuk semua produk terpilih:");
+    if (stockStr === null) return;
+    const newStock = parseInt(stockStr);
+    if (isNaN(newStock)) return alert("Stok harus angka!");
+
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const updates = selectedProductIds.map(id => {
+          const p = products.find(prod => prod.id === id);
+          // If product has sizes, we distribute evenly or just set global
+          const sizes = p.sizes ? Object.keys(p.sizes).reduce((acc, sz) => {
+              acc[sz] = Math.ceil(newStock / Object.keys(p.sizes).length);
+              return acc;
+          }, {}) : null;
+          return { id, stock: newStock, sizes };
+      });
+
+      const res = await fetch(`${API_URL}/bulk-stock`, {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ updates })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        setIsBulkMode(false);
+        setSelectedProductIds([]);
+        fetchData();
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      alert("Gagal update massal");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Filter Logic
   const filteredProducts = products.filter(product => {
@@ -193,54 +246,31 @@ const ProductAdmin = () => {
     setError('');
 
     try {
-      // Upload semua gambar baru (jika ada)
+      // 1. Upload new images
       const imageUrls = [];
       for (let i = 0; i < images.length; i++) {
-        const img = images[i];
-        const formData = new FormData();
-        const fileToUpload = editedImages[i] || img;
-        formData.append("image", fileToUpload);
-
+        const fileToUpload = editedImages[i] || images[i];
+        if (!fileToUpload) continue;
+        
+        const fd = new FormData();
+        fd.append("image", fileToUpload);
         try {
-          const uploadRes = await fetch(UPLOAD_URL, {
-            method: "POST",
-            body: formData,
-          });
-          if (!uploadRes.ok) continue;
-          const data = await uploadRes.json();
-          imageUrls.push(data.url);
-        } catch (err) {
-          console.error("Upload error", err);
-        }
+          const upRes = await fetch(UPLOAD_URL, { method: "POST", body: fd });
+          if (upRes.ok) {
+            const upData = await upRes.json();
+            imageUrls.push(upData.url);
+          }
+        } catch (e) { console.error("Upload error", e); }
       }
 
-      // Gabungkan gambar lama dan baru saat edit
-      let finalImages = imageUrls;
-      if (editId) {
-        const oldImages = Array.isArray(form.images) ? form.images : [];
-        finalImages = Array.from(new Set([...oldImages, ...imageUrls]));
-      }
+      // 2. Merge existing images with new ones
+      const finalImages = [...(form.images || []), ...imageUrls];
 
-      // Calculate total stock based on whether sizes are used
-      const sizes = form.hasSizes ? (form.sizes || { S: 0, M: 0, L: 0, XL: 0 }) : { S: 0, M: 0, L: 0, XL: 0 };
-      const totalStock = form.hasSizes 
-        ? Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0)
-        : Number(form.stock) || 0;
-
-      const productData = {
-        ...form,
-        sizes,
-        stock: totalStock,
-        price: Number(form.price) || 0,
-        weight: Number(form.weight) || 1000,
-        images: finalImages.length > 0 ? finalImages : (form.images || []),
-        category: isNewCategory ? newCategoryName : form.category // Include Category properly
-      };
-
-      // If new category, create it first
+      // 3. New Category handling
+      let activeCategory = form.category;
       if (isNewCategory && newCategoryName) {
         try {
-          await fetch(CATEGORIES_URL, {
+          const cRes = await fetch(CATEGORIES_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -248,9 +278,30 @@ const ProductAdmin = () => {
             },
             body: JSON.stringify({ name: newCategoryName })
           });
-        } catch (e) { console.error("Failed to save new category", e); }
+          if (cRes.ok) activeCategory = newCategoryName;
+        } catch (e) { console.error("Category save error", e); }
       }
 
+      // 4. Stock & Payload
+      const sizes = form.hasSizes ? (form.sizes || { S: 0, M: 0, L: 0, XL: 0 }) : { S: 0, M: 0, L: 0, XL: 0 };
+      const totalStock = form.hasSizes 
+        ? Object.values(sizes).reduce((a, b) => Number(a) + Number(b), 0)
+        : Number(form.stock) || 0;
+
+      const productData = {
+        ...form,
+        sizes: form.hasSizes ? sizes : null,
+        stock: totalStock,
+        price: Number(form.price) || 0,
+        weight: Number(form.weight) || 1000,
+        images: finalImages,
+        category: isNewCategory ? newCategoryName : form.category
+      };
+
+      if (!productData.name) throw new Error("Nama wajib diisi.");
+      if (productData.price <= 0) throw new Error("Harga harus lebih dari 0.");
+
+      // 5. Submit
       const method = editId ? "PUT" : "POST";
       const url = editId ? `${API_URL}/${editId}` : API_URL;
 
@@ -264,26 +315,30 @@ const ProductAdmin = () => {
       });
 
       if (!res.ok) {
-        const errText = await res.text();
-        setError(errText);
-        setSubmitting(false);
-        return;
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Gagal menyimpan.");
       }
 
-      // Reset Form
-      setForm({ name: "", price: "", images: [], description: "", stock: "", weight: 1000, hasSizes: true, sizes: { S: 0, M: 0, L: 0, XL: 0 }, category: "" });
-      setImages([]);
-      setEditedImages([]);
-      setEditId(null);
-      setIsFormOpen(false);
-      setIsNewCategory(false);
-      setNewCategoryName("");
-      fetchData(); // Refresh Data
+      // 6. Finalize
+      alert(editId ? "Produk diperbarui!" : "Produk ditambahkan!");
+      resetForm(); // Assuming resetForm exists or defining it inline
+      fetchData(); // As seen in view_file
     } catch (err) {
-      setError("Error submit produk: " + err.message);
+      setError(err.message);
+      alert("Error: " + err.message);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const resetForm = () => {
+    setForm({ name: "", price: "", images: [], description: "", stock: "", weight: 1000, hasSizes: true, sizes: { S: 0, M: 0, L: 0, XL: 0 }, category: "" });
+    setImages([]);
+    setEditedImages([]);
+    setEditId(null);
+    setIsFormOpen(false);
+    setIsNewCategory(false);
+    setNewCategoryName("");
   };
 
   const handleEdit = (product) => {
@@ -359,44 +414,65 @@ const ProductAdmin = () => {
             <p className="text-gray-500 dark:text-gray-400">Inventory & Catalog + Category</p>
           </div>
 
-          <div className="flex gap-4 w-full md:w-auto">
+          <div className="flex flex-wrap gap-3 items-center w-full md:w-auto bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
             {/* Search */}
-            <input
-              type="text"
-              placeholder={t('admin.products.searchPlaceholder')}
-              value={filterSearch}
-              onChange={(e) => setFilterSearch(e.target.value)}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            />
+            <div className="relative flex-1 min-w-[200px]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</span>
+              <input
+                type="text"
+                placeholder={t('admin.products.searchPlaceholder')}
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-xs font-medium border-none bg-gray-50 dark:bg-gray-700/50 rounded-xl dark:text-white focus:ring-2 focus:ring-black outline-none transition-all"
+              />
+            </div>
+            
             {/* Category Filter */}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              className="px-3 py-2 text-xs font-bold uppercase tracking-wider border-none bg-gray-50 dark:bg-gray-700/50 rounded-xl dark:text-white cursor-pointer outline-none"
             >
-              <option value="All">All Categories</option>
+              <option value="All">Semua Kategori</option>
               {categories.map(c => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
-              <option value="Uncategorized">Uncategorized</option>
             </select>
 
             <select
               value={filterStock}
               onChange={(e) => setFilterStock(e.target.value)}
-              className="px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+              className="px-3 py-2 text-xs font-bold uppercase tracking-wider border-none bg-gray-50 dark:bg-gray-700/50 rounded-xl dark:text-white cursor-pointer outline-none"
             >
-              <option value="All">All Status</option>
-              <option value="In Stock">In Stock</option>
-              <option value="Low Stock">Low Stock</option>
-              <option value="Out of Stock">Out of Stock</option>
+              <option value="All">Status Stok</option>
+              <option value="In Stock">✅ Tersedia</option>
+              <option value="Low Stock">⚠️ Menipis</option>
+              <option value="Out of Stock">❌ Habis</option>
             </select>
+          </div>
+
+          <div className="flex gap-2 w-full md:w-auto">
+            <button
+              onClick={() => { setIsBulkMode(!isBulkMode); setSelectedProductIds([]); }}
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isBulkMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
+            >
+              {isBulkMode ? 'Batal Bulk' : 'Mass Edit'}
+            </button>
+
+            {isBulkMode && selectedProductIds.length > 0 && (
+              <button
+                onClick={handleBulkUpdate}
+                className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-200 animate-pulse"
+              >
+                Simpan {selectedProductIds.length} Produk
+              </button>
+            )}
 
             <button
               onClick={() => { handleCancelEdit(); setIsFormOpen(true); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition whitespace-nowrap"
+              className="bg-black dark:bg-white text-white dark:text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-black/10 hover:scale-95 active:scale-90 transition-all flex items-center gap-2"
             >
-              {t('admin.products.addProduct')}
+              <span>+</span> Tambah Produk
             </button>
           </div>
         </div>
@@ -411,6 +487,21 @@ const ProductAdmin = () => {
               <table className="min-w-full text-left">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                   <tr>
+                    {isBulkMode && (
+                      <th className="px-6 py-4 w-10">
+                        <input
+                          type="checkbox"
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProductIds(filteredProducts.map(p => p.id));
+                            } else {
+                              setSelectedProductIds([]);
+                            }
+                          }}
+                          checked={selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0}
+                        />
+                      </th>
+                    )}
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.name')}</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.category')}</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.price')}</th>
@@ -421,21 +512,59 @@ const ProductAdmin = () => {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {filteredProducts.map((product) => {
                     const stock = product.stock || 0;
-                    let stockBadge = stock > 10
-                      ? <span className="text-green-600 bg-green-100 px-2 py-1 rounded text-xs font-bold">{stock} in stock</span>
-                      : stock > 0
-                        ? <span className="text-orange-600 bg-orange-100 px-2 py-1 rounded text-xs font-bold">{stock} low stock</span>
-                        : <span className="text-red-600 bg-red-100 px-2 py-1 rounded text-xs font-bold">Out of stock</span>;
+                    const hasSizes = product.sizes && Object.values(product.sizes).some(v => v > 0);
+                    let stockBadge;
+
+                    if (hasSizes) {
+                      stockBadge = (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(product.sizes).map(([sz, qty]) => (
+                              <span key={sz} className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${qty > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-100 text-gray-400 opacity-50'}`}>
+                                {sz}:{qty}
+                              </span>
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Total: {stock}</span>
+                        </div>
+                      );
+                    } else {
+                      stockBadge = stock > 10
+                        ? <span className="text-green-600 bg-green-100 px-2 py-1 rounded text-xs font-bold">{stock} in stock</span>
+                        : stock > 0
+                          ? <span className="text-orange-600 bg-orange-100 px-2 py-1 rounded text-xs font-bold">{stock} low stock</span>
+                          : <span className="text-red-600 bg-red-100 px-2 py-1 rounded text-xs font-bold uppercase">Stok Habis</span>;
+                    }
 
                     return (
-                      <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                      <tr key={product.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition ${selectedProductIds.includes(product.id) ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}>
+                        {isBulkMode && (
+                          <td className="px-6 py-4">
+                            <input
+                              type="checkbox"
+                              checked={selectedProductIds.includes(product.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedProductIds([...selectedProductIds, product.id]);
+                                } else {
+                                  setSelectedProductIds(selectedProductIds.filter(id => id !== product.id));
+                                }
+                              }}
+                            />
+                          </td>
+                        )}
                         <td className="px-6 py-4 flex items-center gap-4">
-                          <img
-                            src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[0]) : "https://via.placeholder.com/150"}
-                            alt={product.name}
-                            className="h-12 w-12 object-cover rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer"
-                            onClick={() => handleImageClick(Array.isArray(product.images) ? product.images : [], 0)}
-                          />
+                          <div className="relative">
+                            <img
+                              src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[0]) : "https://via.placeholder.com/150"}
+                              alt={product.name}
+                              className="h-12 w-12 object-cover rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer"
+                              onClick={() => handleImageClick(Array.isArray(product.images) ? product.images : [], 0)}
+                            />
+                            {product.is_flash_sale && (
+                              <div className="absolute -top-2 -left-2 bg-red-600 text-white text-[8px] font-bold px-1 rounded shadow-sm animate-pulse">FLASH</div>
+                            )}
+                          </div>
                           <div>
                             <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
                             <div className="text-xs text-gray-500">SKU: {product.id}</div>
@@ -448,8 +577,9 @@ const ProductAdmin = () => {
                         <td className="px-6 py-4">
                           {stockBadge}
                         </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:underline text-sm font-bold">{t('admin.products.edit')}</button>
+                        <td className="px-6 py-4 text-right space-x-4">
+                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-800 text-sm font-bold transition-colors">{t('admin.products.edit')}</button>
+                          <button onClick={() => handleDelete(product.id)} className="text-red-500 hover:text-red-700 text-sm font-bold transition-colors">{t('admin.products.delete')}</button>
                         </td>
                       </tr>
                     );
@@ -616,6 +746,50 @@ const ProductAdmin = () => {
                     </div>
                   </div>
 
+                  {/* Flash Sale Settings */}
+                  <div className="bg-red-50 dark:bg-red-900/10 p-6 rounded-xl border border-red-100 dark:border-red-800">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xl">⚡</span>
+                      <h3 className="text-lg font-bold text-red-700 dark:text-red-400">Flash Sale Settings</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="flex items-center gap-2 mt-8">
+                        <input
+                          type="checkbox"
+                          checked={form.is_flash_sale}
+                          onChange={(e) => setForm({ ...form, is_flash_sale: e.target.checked })}
+                          id="is_flash_sale"
+                          className="w-5 h-5 accent-red-600"
+                        />
+                        <label htmlFor="is_flash_sale" className="font-bold text-sm dark:text-white cursor-pointer">Enable Flash Sale</label>
+                      </div>
+                      
+                      {form.is_flash_sale && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white text-red-600">Flash Sale Price (Rp)</label>
+                            <input
+                              type="number"
+                              value={form.flash_sale_price}
+                              onChange={(e) => setForm({ ...form, flash_sale_price: e.target.value })}
+                              className="w-full px-5 py-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:border-red-900 dark:text-white font-mono"
+                              placeholder="Special Price"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white text-red-600">Sale Ends At</label>
+                            <input
+                              type="datetime-local"
+                              value={form.flash_sale_end ? new Date(form.flash_sale_end).toISOString().slice(0, 16) : ""}
+                              onChange={(e) => setForm({ ...form, flash_sale_end: e.target.value })}
+                              className="w-full px-5 py-3 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:border-red-900 dark:text-white"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Variants */}
                   <div>
                     <div className="flex items-center gap-3 mb-3">
@@ -727,7 +901,7 @@ const ProductAdmin = () => {
                       <div>
                         <div className="flex items-start justify-between gap-2">
                           <div className="text-[18px] font-bold text-[#FF0000]">
-                            Rp {(Number(form.price) || 0).toLocaleString('id-ID')}
+                            Rp {(Number(form.price) || 0).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
                           </div>
                           <div className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded">-50%</div>
                         </div>

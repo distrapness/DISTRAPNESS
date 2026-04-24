@@ -103,36 +103,106 @@ const shippingService = {
   },
 
   // Optimized: Resolve Area + Get Rates in one call
-  getRatesByQuery: async (originInput, query, items) => {
+  getRatesByQuery: async (query, items, originInput) => {
       try {
         const config = await getShippingConfig();
         const origin = originInput || config.origin;
 
         // 1. Resolve Area
+        console.log(`Resolving area for query: ${query}`);
         const areaRes = await axios.get(`${BITESHIP_BASE_URL}/maps/areas`, {
             params: { countries: 'ID', input: query, type: 'single' },
             headers: { authorization: config.apiKey }
         });
-        const areaId = areaRes.data.areas?.[0]?.id;
-        if (!areaId) throw new Error("Area tidak ditemukan untuk query: " + query);
+        
+        let area = areaRes.data.areas?.[0];
+        
+        // If not found with full query, try District + City
+        if (!area) {
+            const parts = query.split(',');
+            if (parts.length >= 3) {
+                const retryQuery = parts.slice(1, 4).join(',').trim();
+                console.log(`Retrying area resolution with: ${retryQuery}`);
+                const retryRes = await axios.get(`${BITESHIP_BASE_URL}/maps/areas`, {
+                    params: { countries: 'ID', input: retryQuery, type: 'single' },
+                    headers: { authorization: config.apiKey }
+                });
+                area = retryRes.data.areas?.[0];
+            }
+        }
+        
+        // One last try with just City
+        if (!area) {
+            const parts = query.split(',');
+            const cityQuery = parts[parts.length - 2]?.trim();
+            if (cityQuery) {
+                console.log(`Final attempt with city: ${cityQuery}`);
+                const finalRes = await axios.get(`${BITESHIP_BASE_URL}/maps/areas`, {
+                    params: { countries: 'ID', input: cityQuery, type: 'single' },
+                    headers: { authorization: config.apiKey }
+                });
+                area = finalRes.data.areas?.[0];
+            }
+        }
+
+        if (!area) throw new Error("Area tidak ditemukan di Biteship untuk wilayah ini.");
+
+        const areaId = area.id;
+        console.log(`Resolved Area ID: ${areaId} (${area.name})`);
 
         // 2. Get Rates
         const payload = {
             origin_area_id: origin,
             destination_area_id: areaId,
-            couriers: "jne,tiki,sicepat,jnt,pos,anteraja,ninja,grab,gojek",
-            items: items
+            couriers: "jne,sicepat,jnt,pos,anteraja,tiki,lion,ninja",
+            items: items.map(i => ({
+                name: String(i.name || "Product"),
+                value: Number(i.value || 10000),
+                weight: Number(i.weight || 1000),
+                quantity: Number(i.quantity || 1)
+            }))
         };
 
+        console.log("Biteship Request Payload:", JSON.stringify(payload));
+
         const response = await axios.post(`${BITESHIP_BASE_URL}/rates/couriers`, payload, {
-            headers: { authorization: config.apiKey, 'Content-Type': 'application/json' }
+            headers: { 
+                'Authorization': config.apiKey, 
+                'Content-Type': 'application/json' 
+            }
         });
 
-        return { pricing: response.data.pricing, area_id: areaId };
+        return { pricing: response.data.pricing, area_id: areaId, resolved_area_name: area.name };
       } catch (error) {
-        const errorDetail = error.response?.data || error.message;
-        console.error('Error getting rates by query:', errorDetail);
-        throw new Error(JSON.stringify(errorDetail));
+        const errorDetail = error.response ? error.response.data : error.message;
+        const finalMessage = error.response?.data?.description || 
+                           error.response?.data?.error || 
+                           error.message || 
+                           "Gagal mendapatkan biaya pengiriman";
+
+        // EMERGENCY FALLBACK: If balance is empty, provide a mock price so testing can continue
+        if (finalMessage.toLowerCase().includes("balance") || finalMessage.toLowerCase().includes("credit")) {
+            console.warn("BITESHIP BALANCE EMPTY: Using Emergency Fallback Price (20k)");
+            return {
+                is_fallback: true,
+                area_id: "FALLBACK_ID",
+                resolved_area_name: "Fallback Area",
+                pricing: [
+                    {
+                        company: 'jne',
+                        courier_name: 'JNE',
+                        courier_service_name: 'REG (Emergency Fallback)',
+                        courier_service_code: 'reg',
+                        price: 20000,
+                        duration: '2 - 4 Days',
+                        note: 'Biteship balance empty, using static rate for testing.'
+                    }
+                ]
+            };
+        }
+
+        console.error('Shipping Service Error Details:', JSON.stringify(errorDetail, null, 2));
+        throw new Error(finalMessage);
       }
   }
 };

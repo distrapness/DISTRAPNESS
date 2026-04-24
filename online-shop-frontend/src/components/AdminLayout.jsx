@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCurrency } from '../components/CurrencyContext.jsx';
 import {
     FaHome, FaBoxOpen, FaShoppingCart, FaTags,
-    FaCog, FaSignOutAlt, FaBars, FaTimes, FaArrowLeft, FaImage, FaStar
+    FaCog, FaSignOutAlt, FaBars, FaTimes, FaArrowLeft, FaImage, FaStar, FaWallet
 } from 'react-icons/fa';
 
 const AdminLayout = ({ children }) => {
@@ -14,17 +14,44 @@ const AdminLayout = ({ children }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const menuItems = [
-        { path: '/admin', label: t('admin.dashboard') || 'Dashboard', icon: <FaHome /> },
-        { path: '/admin/orders', label: t('admin.orders') || 'Orders', icon: <FaShoppingCart /> },
-        { path: '/product-admin', label: t('admin.manageProducts') || 'Products', icon: <FaBoxOpen /> },
-        { path: '/admin/categories', label: t('admin.categories') || 'Categories', icon: <FaTags /> },
-        { path: '/admin/discounts', label: t('admin.discounts') || 'Discounts', icon: <FaTags /> },
-        { path: '/banner-admin', label: t('admin.banners') || 'Banners', icon: <FaImage /> },
-        { path: '/brand-admin', label: t('admin.brands') || 'Brand', icon: <FaImage /> },
-        { path: '/admin-chat', label: t('admin.chat') || 'Chat', icon: <FaBars /> },
-        { path: '/admin/reviews', label: t('admin.reviews') || 'Reviews', icon: <FaStar /> },
-        { path: '/admin/settings', label: t('admin.settings') || 'Settings', icon: <FaCog /> },
+    const menuGroups = [
+        {
+            title: 'Storefront',
+            items: [
+                { path: '/admin', label: 'Dashboard', icon: <FaHome /> },
+                { path: '/admin/orders', label: 'Pesanan', icon: <FaShoppingCart /> },
+            ]
+        },
+        {
+            title: 'Katalog',
+            items: [
+                { path: '/product-admin', label: 'Semua Produk', icon: <FaBoxOpen /> },
+                { path: '/admin/categories', label: 'Kategori', icon: <FaTags /> },
+            ]
+        },
+        {
+            title: 'Pemasaran',
+            items: [
+                { path: '/admin/discounts', label: 'Kupon Diskon', icon: <FaTags /> },
+                { path: '/admin/shipping', label: 'Pengiriman Manual', icon: <FaBoxOpen /> },
+                { path: '/admin/withdrawals', label: 'Tarik Komisi', icon: <FaWallet /> },
+                { path: '/banner-admin', label: 'Banner Promosi', icon: <FaImage /> },
+                { path: '/brand-admin', label: 'Identitas Brand', icon: <FaStar /> },
+            ]
+        },
+        {
+            title: 'Komunikasi',
+            items: [
+                { path: '/admin-chat', label: 'Live Chat', icon: <FaBars /> },
+                { path: '/admin/reviews', label: 'Ulasan Produk', icon: <FaStar /> },
+            ]
+        },
+        {
+            title: 'Sistem',
+            items: [
+                { path: '/admin/settings', label: 'Pengaturan', icon: <FaCog /> },
+            ]
+        }
     ];
 
     const handleLogout = () => {
@@ -45,24 +72,35 @@ const AdminLayout = ({ children }) => {
                     </button>
                 </div>
 
-                <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
-                    {menuItems.map((item) => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                onClick={() => setSidebarOpen(false)}
-                                className={`flex items-center px-4 py-3 rounded-lg transition-colors ${isActive
-                                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium'
-                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                    }`}
-                            >
-                                <span className="mr-3 text-lg">{item.icon}</span>
-                                {item.label}
-                            </Link>
-                        );
-                    })}
+                <nav className="p-4 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+                    {menuGroups.map((group, gIdx) => (
+                        <div key={gIdx}>
+                            <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-3">
+                                {group.title}
+                            </h3>
+                            <div className="space-y-1">
+                                {group.items.map((item) => {
+                                    const isActive = location.pathname === item.path;
+                                    return (
+                                        <Link
+                                            key={item.path}
+                                            to={item.path}
+                                            onClick={() => setSidebarOpen(false)}
+                                            className={`flex items-center px-4 py-2.5 rounded-xl transition-all duration-300 group ${isActive
+                                                ? 'bg-black dark:bg-white text-white dark:text-black font-bold shadow-lg shadow-black/10'
+                                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-black dark:hover:text-white'
+                                                }`}
+                                        >
+                                            <span className={`mr-3 text-sm transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                                                {item.icon}
+                                            </span>
+                                            <span className="text-xs uppercase tracking-wider">{item.label}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
                 </nav>
 
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">

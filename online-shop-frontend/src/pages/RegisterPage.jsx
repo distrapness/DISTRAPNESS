@@ -58,84 +58,89 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-      <form onSubmit={handleRegister} className="bg-white dark:bg-gray-800 p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">{t('register.title')}</h2>
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('register.email')}</label>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
+      <form onSubmit={handleRegister} className="bg-white dark:bg-gray-800 p-10 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-100 dark:border-gray-700">
+        <h2 className="text-3xl font-[900] uppercase tracking-tighter mb-8 text-center text-gray-900 dark:text-white italic">Create Account</h2>
+        
+        <label className="block mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">{t('register.email')}</label>
         <input
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className="w-full mb-4 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:text-white"
-          placeholder="you@email.com"
+          className="w-full mb-6 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
+          placeholder="your@email.com"
           required
         />
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('register.password')}</label>
-        <div className="relative mb-4">
+
+        <label className="block mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">{t('register.password')}</label>
+        <div className="relative mb-6">
           <input
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:text-white pr-10"
+            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none dark:text-white pr-12 transition-all font-bold"
             placeholder="••••••••"
             required
           />
           <button type="button" onClick={() => setShowPassword(v => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 focus:outline-none"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white focus:outline-none"
             tabIndex={-1}
-            aria-label={showPassword ? t('register.hidePassword') : t('register.showPassword')}
           >
             {showPassword ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.218 1.125-4.575m1.75-2.425A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.218-1.125 4.575M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18M4.22 4.22A9.956 9.956 0 002 12c0 5.523 4.477 10 10 10 1.657 0 3.218-.403 4.575-1.125m2.425-1.75A9.956 9.956 0 0022 12c0-5.523-4.477-10-10-10-1.657 0-3.218.403-4.575 1.125M9.88 9.88A3 3 0 0115 12c0 1.657-1.343 3-3 3a3 3 0 01-3-3c0-1.657 1.343-3 3-3z" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
             )}
           </button>
         </div>
-        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('register.confirmPassword')}</label>
-        <div className="relative mb-4">
+
+        <label className="block mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">{t('register.confirmPassword')}</label>
+        <div className="relative mb-8">
           <input
             type={showConfirmPassword ? "text" : "password"}
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-700 dark:text-white pr-10"
+            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none dark:text-white pr-12 transition-all font-bold"
             placeholder="••••••••"
             required
           />
           <button type="button" onClick={() => setShowConfirmPassword(v => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-600 focus:outline-none"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white focus:outline-none"
             tabIndex={-1}
-            aria-label={showConfirmPassword ? t('register.hidePassword') : t('register.showPassword')}
           >
             {showConfirmPassword ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.403-3.218 1.125-4.575m1.75-2.425A9.956 9.956 0 0112 3c5.523 0 10 4.477 10 10 0 1.657-.403 3.218-1.125 4.575M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18M4.22 4.22A9.956 9.956 0 002 12c0 5.523 4.477 10 10 10 1.657 0 3.218-.403 4.575-1.125m2.425-1.75A9.956 9.956 0 0022 12c0-5.523-4.477-10-10-10-1.657 0-3.218.403-4.575 1.125M9.88 9.88A3 3 0 0115 12c0 1.657-1.343 3-3 3a3 3 0 01-3-3c0-1.657 1.343-3 3-3z" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
             )}
           </button>
         </div>
-        {error && <div className="mb-4 text-red-600 text-sm">{error}</div>}
-        {success && <div className="mb-4 text-green-600 text-sm">{success}</div>}
+
+        {error && <div className="mb-4 text-red-500 text-center font-bold text-xs">{error}</div>}
+        {success && <div className="mb-4 text-green-500 text-center font-bold text-xs">{success}</div>}
+
         <button
           type="submit"
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition"
+          className="w-full py-4 px-6 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl uppercase tracking-[0.2em] text-[10px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
           disabled={loading}
         >
           {loading ? t('register.loading') : t('register.submit')}
         </button>
-        <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
-          {t('register.hasAccount')} <a href="/login" className="text-blue-600 hover:underline">{t('register.login')}</a>
+
+        <div className="mt-8 text-center text-xs font-bold uppercase tracking-widest text-gray-500">
+          {t('register.hasAccount')} <a href="/login" className="text-black dark:text-white underline">{t('register.login')}</a>
         </div>
 
-        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-          <div className="flex justify-center flex-col items-center gap-4">
-             <span className="text-xs text-gray-400 uppercase tracking-widest bg-white dark:bg-gray-800 px-2 -mt-8 mb-4">or sign up with</span>
+        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex justify-center flex-col items-center gap-6">
+             <span className="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-black">Or Sign Up with</span>
             <GoogleLogin
                onSuccess={handleGoogleSuccess}
                onError={() => setError("Google Signup Failed")}
-               theme="filled_blue"
+               theme="outline"
                shape="pill"
                width="320"
+               logo_alignment="left"
             />
           </div>
         </div>

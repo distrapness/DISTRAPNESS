@@ -8,7 +8,9 @@ const parseImages = (str) => {
   try { return str ? JSON.parse(str) : []; } catch (e) { return str ? [str] : []; }
 };
 const parseSizes = (str) => {
-  try { return str ? JSON.parse(str) : { S: 0, M: 0, L: 0, XL: 0 }; } catch (e) { return { S: 0, M: 0, L: 0, XL: 0 }; }
+  try { 
+    return str ? JSON.parse(str) : null;
+  } catch (e) { return null; }
 };
 
 // GET /api/products
@@ -17,12 +19,23 @@ router.get('/', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const products = results.map(product => {
-      // Weight is now included
       const { sku, dimensions, ...rest } = product;
+      const parsedSizes = parseSizes(product.sizes);
+      
+      // Recalculate stock from sizes if sizes exist
+      // This ensures shop always shows correct stock matching admin panel
+      let recalculatedStock = rest.stock;
+      if (parsedSizes && typeof parsedSizes === 'object' && Object.keys(parsedSizes).length > 0) {
+        const sizeTotal = Object.values(parsedSizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        // Only override if sizes have actual data to avoid resetting manually-set stock
+        recalculatedStock = sizeTotal;
+      }
+      
       return {
         ...rest,
+        stock: recalculatedStock,
         images: parseImages(product.images) || (product.image ? [product.image] : []),
-        sizes: parseSizes(product.sizes)
+        sizes: parsedSizes
       };
     });
     res.json(products);
@@ -39,6 +52,12 @@ router.get('/:id', (req, res) => {
     const { sku, dimensions, ...rest } = product;
     rest.images = parseImages(product.images) || (product.image ? [product.image] : []);
     rest.sizes = parseSizes(product.sizes);
+    
+    // Recalculate stock from sizes if sizes exist
+    if (rest.sizes && typeof rest.sizes === 'object' && Object.keys(rest.sizes).length > 0) {
+      rest.stock = Object.values(rest.sizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    }
+    
     res.json(rest);
   });
 });
@@ -58,12 +77,12 @@ router.post('/', verifyToken, verifyAdmin, (req, res) => {
 
   // Use stock field from payload
   let totalStock = Number(stock) || 0;
-  let sizesToSave = sizes || { S: 0, M: 0, L: 0, XL: 0 };
+  let sizesToSave = (sizes !== undefined && sizes !== null) ? sizes : null;
 
   try {
     pool.query(
       'INSERT INTO products (name, price, images, description, stock, sizes, category, weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, price, JSON.stringify(imagesToSave), description, totalStock, JSON.stringify(sizesToSave), category || 'Uncategorized', weight || 1000],
+      [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category || 'Uncategorized', weight || 1000],
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });
@@ -79,52 +98,49 @@ router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
   const { id } = req.params;
   const { name, price, images, description, stock, sizes, category, weight } = req.body;
 
-  // Ambil data lama dulu untuk gambar
-  pool.query('SELECT images FROM products WHERE id=?', [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-
-    let oldImages = [];
-    if (results && results.length > 0 && results[0].images) {
-      try { oldImages = JSON.parse(results[0].images); } catch (e) { oldImages = []; }
-    }
-
+    // Stop merging old images. Just use what was sent in the request.
     let imagesToSave = images;
     if (!Array.isArray(imagesToSave)) {
       try { imagesToSave = images ? JSON.parse(images) : []; } catch (e) { imagesToSave = []; }
     }
-    const mergedImages = Array.from(new Set([...(oldImages || []), ...(imagesToSave || [])]));
 
     // Use stock field from payload
     let totalStock = Number(stock) || 0;
-    let sizesToSave = sizes || { S: 0, M: 0, L: 0, XL: 0 };
+    let sizesToSave = (sizes !== undefined && sizes !== null) ? sizes : null;
 
     try {
       pool.query(
         'UPDATE products SET name=?, price=?, images=?, description=?, stock=?, sizes=?, category=?, weight=? WHERE id=?',
-        [name, price, JSON.stringify(mergedImages), description, totalStock, JSON.stringify(sizesToSave), category, weight, id],
+        [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category, weight, id],
         (err, result) => {
           if (err) return res.status(500).json({ error: err.message });
-          res.json({ id, name, price, images: mergedImages, description, stock: totalStock, sizes: sizesToSave, category, weight });
+          res.json({ id, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });
         }
       );
     } catch (err) {
       res.status(500).json({ error: 'Unexpected error saat update produk.' });
     }
-  });
 });
 
 // DELETE /api/products/:id
 router.delete('/:id', verifyToken, verifyAdmin, (req, res) => {
   const { id } = req.params;
-  pool.query(
-    'DELETE FROM products WHERE id=?',
-    [id],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (result.affectedRows === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
-      res.json({ success: true });
-    }
-  );
+  
+  // First, delete associated reviews to avoid foreign key issues
+  pool.query('DELETE FROM reviews WHERE product_id=?', [id], (err1) => {
+    if (err1) console.warn("Could not delete reviews for product:", id, err1.message);
+    
+    // Then delete the product
+    pool.query(
+      'DELETE FROM products WHERE id=?',
+      [id],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
+        res.json({ success: true });
+      }
+    );
+  });
 });
 
 // GET ALL REVIEWS (Admin only)
@@ -211,6 +227,36 @@ router.delete('/reviews/:reviewId', verifyToken, verifyAdmin, (req, res) => {
     if (err) return res.status(500).json({ error: 'Database error' });
     res.json({ success: true, message: 'Review deleted' });
   });
+});
+
+// BULK UPDATE STOCK (Admin only)
+router.post('/bulk-stock', verifyToken, verifyAdmin, async (req, res) => {
+  const { updates } = req.body; // Array of { id, stock, sizes }
+  
+  if (!updates || !Array.isArray(updates)) {
+    return res.status(400).json({ error: 'Data update tidak valid' });
+  }
+
+  const connection = await pool.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    for (const item of updates) {
+      const { id, stock, sizes } = item;
+      await connection.query(
+        'UPDATE products SET stock = ?, sizes = ? WHERE id = ?',
+        [stock, JSON.stringify(sizes), id]
+      );
+    }
+    
+    await connection.commit();
+    res.json({ success: true, message: `${updates.length} produk berhasil diperbarui` });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
 });
 
 module.exports = router;

@@ -1,33 +1,33 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
 };
 
 const sendOrderConfirmation = async (orderData) => {
-    const { email, orderId, cart, total } = orderData;
+  const { email, orderId, cart, total } = orderData;
 
-    // Buat list item HTML
-    const itemsHtml = cart.map(item => `
+  // Buat list item HTML
+  const itemsHtml = cart.map(item => `
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.name} (x${item.qty})</td>
       <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${formatCurrency(item.price * item.qty)}</td>
     </tr>
   `).join('');
 
-    const mailOptions = {
-        from: `"Online Shop" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: `Konfirmasi Pesanan #${orderId}`,
-        html: `
+  const mailOptions = {
+    from: `"Online Shop" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Konfirmasi Pesanan #${orderId}`,
+    html: `
       <div style="font-family: Arial, sans-serif; max-w-600px; margin: 0 auto; color: #333;">
         <h2 style="color: #000;">Terima Kasih atas Pesanan Anda!</h2>
         <p>Halo,</p>
@@ -57,40 +57,40 @@ const sendOrderConfirmation = async (orderData) => {
         <p>Salam hangat,<br/>Tim Online Shop</p>
       </div>
     `,
-    };
+  };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent: ' + info.response);
-        return true;
-    } catch (error) {
-        console.error('Error sending email:', error);
-        return false;
-    }
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent: ' + info.response);
+    return true;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return false;
+  }
 };
 
 const sendStatusUpdateEmail = async (orderData) => {
-    const { email, orderId, status, trackingNumber } = orderData;
+  const { email, orderId, status, trackingNumber } = orderData;
 
-    let statusText = status;
-    let messageBody = `Status pesanan Anda telah diperbarui menjadi <strong>${status}</strong>.`;
+  let statusText = status;
+  let messageBody = `Status pesanan Anda telah diperbarui menjadi <strong>${status}</strong>.`;
 
-    if (status === 'shipped') {
-        statusText = 'Dikirim';
-        messageBody = `Pesanan Anda telah dikirim! <br/> Nomor Resi: <strong>${trackingNumber || '-'}</strong>`;
-    } else if (status === 'paid') {
-        statusText = 'Lunas';
-        messageBody = `Pembayaran Anda telah kami terima. Pesanan sedang disiapkan untuk dikirim.`;
-    } else if (status === 'cancelled') {
-        statusText = 'Dibatalkan';
-        messageBody = `Pesanan Anda telah dibatalkan. Jika ini kesalahan, silakan hubungi kami.`;
-    }
+  if (status === 'shipped') {
+    statusText = 'Dikirim';
+    messageBody = `Pesanan Anda telah dikirim! <br/> Nomor Resi: <strong>${trackingNumber || '-'}</strong>`;
+  } else if (status === 'paid') {
+    statusText = 'Lunas';
+    messageBody = `Pembayaran Anda telah kami terima. Pesanan sedang disiapkan untuk dikirim.`;
+  } else if (status === 'cancelled') {
+    statusText = 'Dibatalkan';
+    messageBody = `Pesanan Anda telah dibatalkan. Jika ini kesalahan, silakan hubungi kami.`;
+  }
 
-    const mailOptions = {
-        from: `"Distrapness Support" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: `Update Pesanan #${orderId} - ${statusText}`,
-        html: `
+  const mailOptions = {
+    from: `"Distrapness Support" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Update Pesanan #${orderId} - ${statusText}`,
+    html: `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #efefef; border-radius: 10px; overflow: hidden;">
         <div style="background-color: #000; color: #fff; padding: 20px; text-align: center;">
           <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">DISTRAPNESS</h1>
@@ -113,24 +113,24 @@ const sendStatusUpdateEmail = async (orderData) => {
         </div>
       </div>
     `,
-    };
+  };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log(`Status update email sent to ${email} for order #${orderId}`);
-        return true;
-    } catch (error) {
-        console.error('Error sending status update email:', error);
-        return false;
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Status update email sent to ${email} for order #${orderId}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending status update email:', error);
+    return false;
+  }
 };
 
 const sendRegistrationWelcome = async (userEmail) => {
-    const mailOptions = {
-        from: `"Distrapness" <${process.env.EMAIL_USER}>`,
-        to: userEmail,
-        subject: `Selamat Datang di Distrapness!`,
-        html: `
+  const mailOptions = {
+    from: `"Distrapness" <${process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: `Selamat Datang di Distrapness!`,
+    html: `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #efefef; border-radius: 10px; overflow: hidden;">
         <div style="background-color: #000; color: #fff; padding: 40px 20px; text-align: center;">
           <h1 style="margin: 0; font-size: 28px; letter-spacing: 4px;">WELCOME</h1>
@@ -151,26 +151,26 @@ const sendRegistrationWelcome = async (userEmail) => {
         </div>
       </div>
     `,
-    };
+  };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log('Welcome email sent to: ' + userEmail);
-    } catch (error) {
-        console.error('Error sending welcome email:', error);
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Welcome email sent to: ' + userEmail);
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+  }
 };
 
 const sendContactNotification = async (contactData) => {
-    const { name, email, message } = contactData;
-    const adminEmail = process.env.EMAIL_USER;
+  const { name, email, message } = contactData;
+  const adminEmail = process.env.EMAIL_USER;
 
-    const mailOptions = {
-        from: `"Distrapness Contact" <${process.env.EMAIL_USER}>`,
-        to: adminEmail,
-        replyTo: email,
-        subject: `📩 Pesan Baru dari ${name}`,
-        html: `
+  const mailOptions = {
+    from: `"Distrapness Contact" <${process.env.EMAIL_USER}>`,
+    to: adminEmail,
+    replyTo: email,
+    subject: `📩 Pesan Baru dari ${name}`,
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
         <h2 style="color: #000; border-bottom: 2px solid #333; padding-bottom: 10px;">Pesan Kontak Baru</h2>
         <p><strong>Nama:</strong> ${name}</p>
@@ -181,33 +181,33 @@ const sendContactNotification = async (contactData) => {
         </div>
       </div>
     `,
-    };
+  };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        return true;
-    } catch (error) {
-        console.error('Error sending contact email:', error);
-        return false;
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending contact email:', error);
+    return false;
+  }
 };
 
 const sendAdminNotification = async (orderData) => {
-    const { orderId, cart, total, email, shippingAddress } = orderData;
-    const adminEmail = process.env.EMAIL_USER || 'distrapness@gmail.com';
+  const { orderId, cart, total, email, shippingAddress } = orderData;
+  const adminEmail = process.env.EMAIL_USER || 'distrapness@gmail.com';
 
-    const itemsHtml = cart.map(item => `
+  const itemsHtml = cart.map(item => `
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #ddd;">${item.name} (x${item.qty})</td>
       <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${formatCurrency(item.price * item.qty)}</td>
     </tr>
   `).join('');
 
-    const mailOptions = {
-        from: `"Online Shop Admin" <${process.env.EMAIL_USER}>`,
-        to: adminEmail,
-        subject: `🚨 PESANAN BARU MASUK! - #${orderId}`,
-        html: `
+  const mailOptions = {
+    from: `"Online Shop Admin" <${process.env.EMAIL_USER}>`,
+    to: adminEmail,
+    subject: `🚨 PESANAN BARU MASUK! - #${orderId}`,
+    html: `
       <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; color: #333;">
         <h2 style="color: #d9534f;">PESANAN BARU! (ID: #${orderId})</h2>
         <p>Halo Admin,</p>
@@ -243,22 +243,22 @@ const sendAdminNotification = async (orderData) => {
         <p><a href="https://online-shop-beige-one.vercel.app/admin/orders" style="display: inline-block; padding: 10px 20px; background-color: #0275d8; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Buka Dashboard Admin</a></p>
       </div>
     `,
-    };
+  };
 
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log('Admin notification sent for order #' + orderId);
-        return true;
-    } catch (error) {
-        console.error('Error sending admin notification:', error);
-        return false;
-    }
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Admin notification sent for order #' + orderId);
+    return true;
+  } catch (error) {
+    console.error('Error sending admin notification:', error);
+    return false;
+  }
 };
 
-module.exports = { 
-    sendOrderConfirmation, 
-    sendAdminNotification, 
-    sendStatusUpdateEmail, 
-    sendRegistrationWelcome, 
-    sendContactNotification 
+module.exports = {
+  sendOrderConfirmation,
+  sendAdminNotification,
+  sendStatusUpdateEmail,
+  sendRegistrationWelcome,
+  sendContactNotification
 };

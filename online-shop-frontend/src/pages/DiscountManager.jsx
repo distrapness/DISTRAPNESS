@@ -29,7 +29,9 @@ const DiscountManager = () => {
     const fetchCoupons = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${config.API_URL}/api/coupons`);
+            const res = await fetch(`${config.API_URL}/api/coupons`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
             if (res.ok) {
                 const data = await res.json();
                 setCoupons(data);
@@ -140,9 +142,9 @@ const DiscountManager = () => {
                                 <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td className="p-4 font-bold">{c.code}</td>
                                     <td className="p-4">
-                                        {c.type === 'percent' ? `${c.value}%` : `Rp ${Number(c.value).toLocaleString('id-ID')}`}
+                                        {c.type === 'percent' ? `${c.value}%` : `Rp${Number(c.value).toLocaleString('id-ID')}`}
                                     </td>
-                                    <td className="p-4">Rp {Number(c.min_purchase).toLocaleString('id-ID')}</td>
+                                    <td className="p-4">Rp${Number(c.min_purchase).toLocaleString('id-ID')}</td>
                                     <td className="p-4">
                                         {c.usage_limit > 0 ? `${c.usage_count} / ${c.usage_limit}` : `${c.usage_count} (Unlimited)`}
                                     </td>

@@ -5,14 +5,14 @@ import config from '../config.js';
 import { useCurrency } from '../components/CurrencyContext.jsx';
 
 const statusColors = {
-  pending: "bg-yellow-100 text-yellow-700",
-  waiting_payment: "bg-orange-100 text-orange-700",
-  waiting_verification: "bg-blue-100 text-blue-700",
-  paid: "bg-green-100 text-green-700",
-  shipped: "bg-purple-100 text-purple-700",
-  completed: "bg-gray-100 text-gray-700",
-  failed: "bg-red-100 text-red-700",
-  cancelled: "bg-red-50 text-red-500"
+  pending: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400",
+  waiting_payment: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400",
+  waiting_verification: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
+  paid: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
+  shipped: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400",
+  completed: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  failed: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400",
+  cancelled: "bg-red-50 text-red-500 dark:bg-red-900/10 dark:text-red-400"
 };
 
 const AdminOrderDashboard = () => {
@@ -25,7 +25,6 @@ const AdminOrderDashboard = () => {
   const navigate = useNavigate();
   const { t } = useCurrency();
 
-  // Status labels use translations
   const getStatusLabel = (status) => {
     const map = {
       pending: t('admin.orders.unpaid'),
@@ -99,108 +98,111 @@ const AdminOrderDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 pt-24 transition-colors duration-500">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-6 pt-24 transition-colors duration-500">
       <div className="max-w-7xl mx-auto">
 
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{t('admin.orders.title')}</h1>
-            <p className="text-gray-500 dark:text-gray-400">{t('admin.orders.subtitle')}</p>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-2 block italic">Management</span>
+            <h1 className="text-4xl font-[900] text-black dark:text-white uppercase tracking-tighter italic">{t('admin.orders.title')}</h1>
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto bg-white dark:bg-gray-900 p-3 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800">
+            <div className="relative flex-1 min-w-[200px]">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</span>
               <input
                 type="text"
                 placeholder={t('admin.orders.searchPlaceholder')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                className="w-full pl-10 pr-4 py-3 text-[10px] font-black uppercase tracking-widest border-none bg-gray-50 dark:bg-gray-800/50 rounded-xl dark:text-white focus:ring-2 focus:ring-black outline-none transition-all"
               />
             </div>
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="border rounded-lg px-4 py-2 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              className="px-4 py-3 text-[10px] font-black uppercase tracking-widest border-none bg-gray-50 dark:bg-gray-800/50 rounded-xl dark:text-white cursor-pointer outline-none"
             >
-              <option value="all">{t('admin.orders.allStatus')}</option>
-              <option value="waiting_verification">{t('admin.orders.needVerification')}</option>
-              <option value="pending">{t('admin.orders.unpaid')}</option>
-              <option value="paid">{t('admin.orders.readyToShip')}</option>
-              <option value="shipped">{t('admin.orders.shipped')}</option>
-              <option value="completed">{t('admin.orders.completed')}</option>
-              <option value="failed">{t('admin.orders.failed')}</option>
+              <option value="all">ALL STATUS</option>
+              <option value="waiting_verification">NEED VERIFY</option>
+              <option value="pending">UNPAID</option>
+              <option value="paid">READY TO SHIP</option>
+              <option value="shipped">SHIPPED</option>
+              <option value="completed">COMPLETED</option>
+              <option value="failed">FAILED</option>
             </select>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center">{t('admin.orders.loading')}</div>
+          <div className="p-20 text-center flex flex-col items-center gap-4">
+             <div className="w-10 h-10 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin"></div>
+             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">{t('admin.orders.loading')}</p>
+          </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
-                <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                  <tr>
-                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.orderId')}</th>
-                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.userInfo')}</th>
-                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.total')}</th>
-                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.date')}</th>
-                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400">{t('admin.orders.status')}</th>
-                    <th className="px-6 py-4 font-bold text-[10px] uppercase tracking-widest text-gray-400 text-right">{t('admin.orders.actions')}</th>
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.orderId')}</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.userInfo')}</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.total')}</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.date')}</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.status')}</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400 text-right">{t('admin.orders.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                   {filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-all cursor-pointer group" onClick={() => navigate(`/admin/orders/${order.id}`)}>
-                      <td className="px-6 py-5">
-                        <span className="bg-gray-900 dark:bg-white text-white dark:text-black px-2 py-1 rounded text-[10px] font-black">#{order.id}</span>
+                    <tr key={order.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-all cursor-pointer group" onClick={() => navigate(`/admin/orders/${order.id}`)}>
+                      <td className="px-8 py-6">
+                        <span className="bg-black dark:bg-white text-white dark:text-black px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest">#{order.id}</span>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="font-bold text-gray-900 dark:text-white leading-none mb-1 text-sm">{String(order.userId || "Guest Checkout")}</div>
+                      <td className="px-8 py-6">
+                        <div className="font-black text-black dark:text-white uppercase tracking-tight mb-1 text-xs">{String(order.userId || "Guest Customer")}</div>
                         <div className="flex items-center gap-1">
-                           <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">{order.paymentMethod || 'manual'}</span>
+                           <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">{order.paymentMethod || 'manual'}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 font-[900] text-gray-900 dark:text-white">
+                      <td className="px-8 py-6 font-[900] text-black dark:text-white text-sm">
                         Rp {Number(order.total).toLocaleString("id-ID")}
                       </td>
-                      <td className="px-6 py-4 text-xs text-gray-500">
+                      <td className="px-8 py-6 text-[10px] font-bold text-gray-400 uppercase">
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold inline-block ${statusColors[order.status] || 'bg-gray-100'}`}>
+                      <td className="px-8 py-6">
+                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest inline-block ${statusColors[order.status] || 'bg-gray-100'}`}>
                           {getStatusLabel(order.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => navigate(`/admin/orders/${order.id}`)}
-                            className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded text-gray-600 dark:text-white"
+                            className="p-3 bg-gray-50 dark:bg-gray-800 hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black rounded-xl text-gray-400 transition-all"
                             title={t('admin.orders.viewDetail')}
                           >
-                            <FaEye />
+                            <FaEye size={12} />
                           </button>
 
                           {order.status === "waiting_verification" && (
                             <>
                               <button
-                                className="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded font-bold"
+                                className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-600 hover:text-white rounded-xl transition-all"
                                 onClick={() => handleVerify(order.id, "paid")}
                                 disabled={verifying}
                                 title={t('admin.orders.accept')}
                               >
-                                <FaCheck />
+                                <FaCheck size={12} />
                               </button>
                               <button
-                                className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded font-bold"
+                                className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all"
                                 onClick={() => handleVerify(order.id, "failed")}
                                 disabled={verifying}
                                 title={t('admin.orders.reject')}
                               >
-                                <FaTimes />
+                                <FaTimes size={12} />
                               </button>
                             </>
                           )}
@@ -210,8 +212,14 @@ const AdminOrderDashboard = () => {
                   ))}
                   {filteredOrders.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                        {t('admin.orders.noOrders')}
+                      <td colSpan="6" className="py-32">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
+                            <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                          </div>
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Order List is Empty</h4>
+                          <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase mt-2 italic tracking-widest">Awaiting first customer transaction...</p>
+                        </div>
                       </td>
                     </tr>
                   )}
