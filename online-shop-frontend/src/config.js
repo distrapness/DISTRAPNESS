@@ -1,6 +1,7 @@
-const isLocal = true; // FORCED LOCAL FOR DEBUGGING
 const config = {
-  API_URL: "http://localhost:5001"
+  API_URL: window.location.hostname === "localhost" 
+    ? "http://localhost:5001" 
+    : "https://online-shop-beige-one.vercel.app"
 };
 
 export default config;

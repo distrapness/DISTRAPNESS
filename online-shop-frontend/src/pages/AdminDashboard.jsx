@@ -29,17 +29,16 @@ const AdminDashboard = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      // FORCE LOCAL BACKEND - BYPASS PROXY/CONFIG
-      const LOCAL_API = "http://localhost:5001";
-      const statsRes = await axios.get(`${LOCAL_API}/api/admin/stats`, { headers });
-      const chartRes = await axios.get(`${LOCAL_API}/api/orders/stats/chart`, { headers });
+      // Use dynamic API_URL from config
+      const statsRes = await axios.get(`${config.API_URL}/api/admin/stats`, { headers });
+      const chartRes = await axios.get(`${config.API_URL}/api/orders/stats/chart`, { headers });
       
       setStats({
         ...statsRes.data,
         chartData: chartRes.data.map(d => d.revenue) // Use real revenue data for charts
       });
 
-      const ordersRes = await axios.get(`${LOCAL_API}/api/orders`, { headers });
+      const ordersRes = await axios.get(`${config.API_URL}/api/orders`, { headers });
       setRecentOrders(ordersRes.data.slice(0, 5));
     } catch (error) {
       console.error("Dashboard fetch error:", error);
