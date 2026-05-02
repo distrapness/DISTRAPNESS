@@ -911,10 +911,15 @@ export const translations = {
 };
 
 export const getTranslation = (lang, path) => {
+    if (!path) return "";
     const keys = path.split('.');
-    let current = translations[lang] || translations['EN'];
+    let current = translations[lang] || translations['ID'] || translations['EN'];
+    
     for (const key of keys) {
-        if (current[key] === undefined) return path;
+        if (!current || current[key] === undefined) {
+            // Jika tidak ditemukan, ambil bagian terakhir dari path (misal 'home' dari 'nav.home')
+            return keys[keys.length - 1];
+        }
         current = current[key];
     }
     return current;

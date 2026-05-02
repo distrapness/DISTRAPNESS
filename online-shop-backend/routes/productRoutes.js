@@ -84,8 +84,8 @@ router.post('/', verifyToken, verifyAdmin, (req, res) => {
 
   try {
     pool.query(
-      'INSERT INTO products (name, price, images, description, stock, sizes, category, weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category || 'Uncategorized', weight || 1000],
+      'INSERT INTO products (name, price, images, description, stock, sizes, category, weight, is_flash_sale, flash_sale_price, flash_sale_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category || 'Uncategorized', weight || 1000, req.body.is_flash_sale || false, req.body.flash_sale_price || null, req.body.flash_sale_end || null],
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });
@@ -113,8 +113,8 @@ router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
 
     try {
       pool.query(
-        'UPDATE products SET name=?, price=?, images=?, description=?, stock=?, sizes=?, category=?, weight=? WHERE id=?',
-        [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category, weight, id],
+        'UPDATE products SET name=?, price=?, images=?, description=?, stock=?, sizes=?, category=?, weight=?, is_flash_sale=?, flash_sale_price=?, flash_sale_end=? WHERE id=?',
+        [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category, weight, req.body.is_flash_sale || false, req.body.flash_sale_price || null, req.body.flash_sale_end || null, id],
         (err, result) => {
           if (err) return res.status(500).json({ error: err.message });
           res.json({ id, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });

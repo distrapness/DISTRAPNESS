@@ -16,7 +16,7 @@ const AdminLayout = ({ children }) => {
 
     const menuGroups = [
         {
-            title: 'Overview',
+            title: 'Ringkasan',
             items: [
                 { path: '/admin', label: 'Dashboard', icon: <FaHome /> },
                 { path: '/admin/orders', label: 'Daftar Pesanan', icon: <FaShoppingCart /> },

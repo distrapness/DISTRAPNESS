@@ -11,7 +11,7 @@ export const CURRENCY_OPTIONS = [
 export const CurrencyProvider = ({ children }) => {
   const [currency, setCurrency] = useState(CURRENCY_OPTIONS[0]);
   const [dark, setDark] = useState(false);
-  const [language, setLanguage] = useState("EN"); // EN or ID
+  const [language, setLanguage] = useState("ID"); // EN or ID
 
   // Helper translation function
   const t = (path) => getTranslation(language, path);

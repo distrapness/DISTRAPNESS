@@ -351,7 +351,10 @@ const ProductAdmin = () => {
       weight: product.weight || 1000,
       hasSizes: product.sizes && Object.values(product.sizes).some(v => v > 0),
       sizes: product.sizes || { S: 0, M: 0, L: 0, XL: 0 },
-      category: product.category || ""
+      category: product.category || "",
+      is_flash_sale: product.is_flash_sale || false,
+      flash_sale_price: product.flash_sale_price || "",
+      flash_sale_end: product.flash_sale_end || ""
     });
     setImages([]);
     setEditedImages([]);
