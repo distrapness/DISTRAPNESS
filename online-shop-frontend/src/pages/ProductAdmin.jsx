@@ -410,7 +410,7 @@ const ProductAdmin = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{t('admin.products.title')}</h1>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Manajemen Produk</h1>
             <p className="text-gray-500 dark:text-gray-400">Inventory & Catalog + Category</p>
           </div>
 
@@ -420,7 +420,7 @@ const ProductAdmin = () => {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</span>
               <input
                 type="text"
-                placeholder={t('admin.products.searchPlaceholder')}
+                placeholder="Cari produk..."
                 value={filterSearch}
                 onChange={(e) => setFilterSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-xs font-medium border-none bg-gray-50 dark:bg-gray-700/50 rounded-xl dark:text-white focus:ring-2 focus:ring-black outline-none transition-all"
@@ -433,7 +433,7 @@ const ProductAdmin = () => {
               onChange={(e) => setFilterCategory(e.target.value)}
               className="px-3 py-2 text-xs font-bold uppercase tracking-wider border-none bg-gray-50 dark:bg-gray-700/50 rounded-xl dark:text-white cursor-pointer outline-none"
             >
-              <option value="All">Semua Kategori</option>
+              <option value="All">SEMUA KATEGORI</option>
               {categories.map(c => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
@@ -444,10 +444,10 @@ const ProductAdmin = () => {
               onChange={(e) => setFilterStock(e.target.value)}
               className="px-3 py-2 text-xs font-bold uppercase tracking-wider border-none bg-gray-50 dark:bg-gray-700/50 rounded-xl dark:text-white cursor-pointer outline-none"
             >
-              <option value="All">Status Stok</option>
-              <option value="In Stock">✅ Tersedia</option>
-              <option value="Low Stock">⚠️ Menipis</option>
-              <option value="Out of Stock">❌ Habis</option>
+              <option value="All">STATUS STOK</option>
+              <option value="In Stock">✅ TERSEDIA</option>
+              <option value="Low Stock">⚠️ MENIPIS</option>
+              <option value="Out of Stock">❌ HABIS</option>
             </select>
           </div>
 
@@ -456,7 +456,7 @@ const ProductAdmin = () => {
               onClick={() => { setIsBulkMode(!isBulkMode); setSelectedProductIds([]); }}
               className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isBulkMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
             >
-              {isBulkMode ? 'Batal Bulk' : 'Mass Edit'}
+              {isBulkMode ? 'BATAL MASSAL' : 'EDIT MASSAL'}
             </button>
 
             {isBulkMode && selectedProductIds.length > 0 && (
@@ -480,7 +480,7 @@ const ProductAdmin = () => {
         {/* Product List */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-gray-500">{t('admin.products.loading')}</div>
+            <div className="p-8 text-center text-gray-500">Memuat produk...</div>
           ) : (
             <div className="overflow-x-auto">
               {error && <div className="p-4 bg-red-100 text-red-600">{error}</div>}
@@ -502,11 +502,11 @@ const ProductAdmin = () => {
                         />
                       </th>
                     )}
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.name')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.category')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.price')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">{t('admin.products.stock')}</th>
-                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">{t('admin.products.actions')}</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Nama</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Kategori</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Harga</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Stok</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -578,15 +578,15 @@ const ProductAdmin = () => {
                           {stockBadge}
                         </td>
                         <td className="px-6 py-4 text-right space-x-4">
-                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-800 text-sm font-bold transition-colors">{t('admin.products.edit')}</button>
-                          <button onClick={() => handleDelete(product.id)} className="text-red-500 hover:text-red-700 text-sm font-bold transition-colors">{t('admin.products.delete')}</button>
+                          <button onClick={() => handleEdit(product)} className="text-blue-600 hover:text-blue-800 text-sm font-bold transition-colors">Edit</button>
+                          <button onClick={() => handleDelete(product.id)} className="text-red-500 hover:text-red-700 text-sm font-bold transition-colors">Hapus</button>
                         </td>
                       </tr>
                     );
                   })}
                   {filteredProducts.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">{t('admin.products.noProducts')}</td>
+                      <td colSpan="5" className="px-6 py-12 text-center text-gray-500">Produk tidak ditemukan.</td>
                     </tr>
                   )}
                 </tbody>
@@ -601,7 +601,7 @@ const ProductAdmin = () => {
             {/* Drawer Header */}
             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                {editId ? t('admin.products.edit') + " Product" : t('admin.products.addProduct')}
+                {editId ? "Edit Produk" : "Tambah Produk"}
               </h2>
               <button onClick={handleCancelEdit} className="text-gray-400 hover:text-gray-600 transition">
                 <span className="text-2xl">&times;</span>
@@ -618,8 +618,8 @@ const ProductAdmin = () => {
                   {/* Image Upload Area */}
                   <div className="bg-gray-50 dark:bg-gray-700/20 p-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
                     <label className="block text-sm font-bold mb-4 dark:text-white flex justify-between">
-                      <span>Product Images</span>
-                      <span className="text-xs font-normal text-gray-500">Min. 1 image required</span>
+                      <span>Foto Produk</span>
+                      <span className="text-xs font-normal text-gray-500 italic">Minimal 1 foto wajib diunggah</span>
                     </label>
                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
                       {Array.isArray(form.images) && form.images.map((imgUrl, idx) => (
@@ -668,7 +668,7 @@ const ProductAdmin = () => {
                           setEditedImages([...editedImages, ...processed]);
                         }} className="hidden" />
                         <span className="text-3xl text-gray-400 group-hover:text-blue-500 mb-1">+</span>
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-blue-500">Add Photo</span>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-blue-500 text-center">Tambah Foto</span>
                       </label>
                     </div>
                   </div>
@@ -676,7 +676,7 @@ const ProductAdmin = () => {
                   {/* Basic Info */}
                   <div className="grid grid-cols-1 gap-6">
                     <div>
-                      <label className="block text-sm font-bold mb-2 dark:text-white">Product Name</label>
+                      <label className="block text-sm font-bold mb-2 dark:text-white">Nama Produk</label>
                       <input
                         name="name"
                         value={form.name}
@@ -689,7 +689,7 @@ const ProductAdmin = () => {
 
                     <div className="grid grid-cols-3 gap-6">
                       <div>
-                        <label className="block text-sm font-bold mb-2 dark:text-white">Price (Rp)</label>
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Harga (Rp)</label>
                         <input
                           name="price"
                           type="number"
@@ -701,7 +701,7 @@ const ProductAdmin = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold mb-2 dark:text-white">Weight (grams)</label>
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Berat (Gram)</label>
                         <input
                           name="weight"
                           type="number"
@@ -713,7 +713,7 @@ const ProductAdmin = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold mb-2 dark:text-white">Category</label>
+                        <label className="block text-sm font-bold mb-2 dark:text-white">Kategori</label>
                         <select
                           name="category"
                           value={isNewCategory ? "New" : form.category}
@@ -737,7 +737,7 @@ const ProductAdmin = () => {
                           <input
                             type="text"
                             value={newCategoryName}
-                            placeholder="Enter new category name"
+                            placeholder="Masukkan nama kategori baru"
                             className="mt-2 w-full px-5 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
                             onChange={(e) => setNewCategoryName(e.target.value)}
                           />
@@ -750,7 +750,7 @@ const ProductAdmin = () => {
                   <div className="bg-red-50 dark:bg-red-900/10 p-6 rounded-xl border border-red-100 dark:border-red-800">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-xl">⚡</span>
-                      <h3 className="text-lg font-bold text-red-700 dark:text-red-400">Flash Sale Settings</h3>
+                      <h3 className="text-lg font-bold text-red-700 dark:text-red-400">Pengaturan Flash Sale</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="flex items-center gap-2 mt-8">
@@ -767,7 +767,7 @@ const ProductAdmin = () => {
                       {form.is_flash_sale && (
                         <>
                           <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-white text-red-600">Flash Sale Price (Rp)</label>
+                            <label className="block text-sm font-bold mb-2 dark:text-white text-red-600">Harga Flash Sale (Rp)</label>
                             <input
                               type="number"
                               value={form.flash_sale_price}
@@ -777,7 +777,7 @@ const ProductAdmin = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-white text-red-600">Sale Ends At</label>
+                            <label className="block text-sm font-bold mb-2 dark:text-white text-red-600">Waktu Berakhir</label>
                             <input
                               type="datetime-local"
                               value={form.flash_sale_end ? new Date(form.flash_sale_end).toISOString().slice(0, 16) : ""}
@@ -793,7 +793,7 @@ const ProductAdmin = () => {
                   {/* Variants */}
                   <div>
                     <div className="flex items-center gap-3 mb-3">
-                      <label className="text-sm font-bold dark:text-white">Product Options</label>
+                      <label className="text-sm font-bold dark:text-white">Opsi Produk (Ukuran/Warna)</label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input 
                           type="checkbox" 

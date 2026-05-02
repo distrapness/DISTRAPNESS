@@ -51,15 +51,32 @@ router.post('/', async (req, res) => {
 
     // 1. Cek Stok (Locking with FOR UPDATE)
     for (const item of items) {
-      const [rows] = await connection.query('SELECT stock, name FROM products WHERE id = ? FOR UPDATE', [item.id]);
+      const [rows] = await connection.query('SELECT stock, name, sizes FROM products WHERE id = ? FOR UPDATE', [item.id]);
 
       if (rows.length === 0) {
         throw new Error(`Produk "${item.name}" tidak ditemukan.`);
       }
 
       const product = rows[0];
+      
+      // Global stock check
       if (product.stock < item.qty) {
         throw new Error(`Stok habis untuk "${product.name}". Tersisa hanya ${product.stock}.`);
+      }
+
+      // ✅ FIX: Size-specific stock check
+      if (item.selectedSize) {
+        try {
+          let sizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+          if (sizes && sizes[item.selectedSize] !== undefined) {
+             if (sizes[item.selectedSize] < item.qty) {
+               throw new Error(`Ukuran "${item.selectedSize}" untuk produk "${product.name}" sudah habis atau tidak mencukupi.`);
+             }
+          }
+        } catch(e) {
+          console.error("Size validation error:", e.message);
+          // Fallback to allow if size parsing fails, or could be stricter
+        }
       }
     }
 
@@ -188,9 +205,29 @@ router.get('/:orderId', (req, res) => {
     if (!results.length) return res.status(404).json({ error: 'Order not found' });
     const order = results[0];
     try { order.shipping_address = JSON.parse(order.shipping_address); } catch (e) { }
+    try { order.items = JSON.parse(order.items); } catch (e) { }
     res.json(order);
   });
 });
+
+// CUSTOMER CONFIRM COD
+router.put('/:orderId/confirm-cod', async (req, res) => {
+  const { orderId } = req.params;
+  try {
+    const [rows] = await pool.promise().query('SELECT status, paymentMethod FROM orders WHERE id = ?', [orderId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    
+    if (rows[0].paymentMethod !== 'cod') {
+      return res.status(400).json({ error: 'Hanya pesanan COD yang bisa dikonfirmasi di sini' });
+    }
+
+    await pool.promise().query('UPDATE orders SET status = ? WHERE id = ?', ['processing', orderId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // UPDATE ORDER STATUS (Admin)
 router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {

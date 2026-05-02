@@ -10,16 +10,25 @@ const verifyToken = (req, res, next) => {
 
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) return res.status(401).json({ message: 'Unauthorized / Invalid Token' });
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
-    req.userEmail = decoded.email;
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      email: decoded.email
+    };
     next();
   });
 };
 
 const verifyAdmin = (req, res, next) => {
-  if (req.userRole !== 'admin') {
-    return res.status(403).json({ message: 'Require Admin Role!' });
+  const role = req.user && req.user.role ? String(req.user.role).toLowerCase() : "null";
+  if (role !== 'admin') {
+    return res.status(403).json({ 
+      message: 'Require Admin Role!', 
+      debug: { 
+        receivedRole: role,
+        email: req.user ? req.user.email : 'unknown'
+      } 
+    });
   }
   next();
 };

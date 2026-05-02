@@ -123,9 +123,9 @@ router.post('/webhook', express.json(), async (req, res) => {
   try {
     const orderId = notif.order_id.split('-')[1]; // Format: ORDER-<orderId>-timestamp
     let status = 'pending';
-    if (notif.transaction_status === 'settlement') status = 'paid';
-    if (notif.transaction_status === 'pending') status = 'waiting_payment';
-    if (notif.transaction_status === 'expire' || notif.transaction_status === 'cancel') status = 'failed';
+    if (notif.transaction_status === 'settlement' || notif.transaction_status === 'capture') status = 'paid';
+    if (notif.transaction_status === 'pending') status = 'pending';
+    if (notif.transaction_status === 'expire' || notif.transaction_status === 'cancel' || notif.transaction_status === 'deny') status = 'cancelled';
     
     pool.query('SELECT status, items FROM orders WHERE id=?', [orderId], async (err, orderResults) => {
       if (err || !orderResults.length) return res.status(500).json({ error: 'DB error' });
@@ -133,8 +133,8 @@ router.post('/webhook', express.json(), async (req, res) => {
       const oldStatus = orderResults[0].status;
       const items = JSON.parse(orderResults[0].items || '[]');
 
-      // If status changes to failed/cancel/expire FROM something else
-      if ((status === 'failed' || status === 'cancel' || status === 'expire') && oldStatus !== 'failed' && oldStatus !== 'cancel' && oldStatus !== 'expire') {
+      // If status changes to cancelled FROM something else
+      if (status === 'cancelled' && oldStatus !== 'cancelled') {
           try {
               for (const item of items) {
                   await pool.promise().query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);

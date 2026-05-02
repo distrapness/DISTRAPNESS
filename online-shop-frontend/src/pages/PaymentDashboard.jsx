@@ -12,6 +12,7 @@ const PaymentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [cart, setCart] = useState([]);
+  const [creating, setCreating] = useState(false);
   const [subtotal, setSubtotal] = useState(0);
   const [shippingCost, setShippingCost] = useState(0);
 
@@ -252,18 +253,30 @@ const PaymentDashboard = () => {
   };
 
   const handleCreateOrder = async () => {
+    if (creating) return;
+
     if (!selectedPaymentMethod) {
-      alert("Please select a payment method.");
+      alert("Pilih metode pembayaran terlebih dahulu.");
       return;
     }
-    if (!selectedCity || !selectedService) {
-      alert("Pilih alamat pengiriman dan layanan kurir.");
+    if (!selectedVillage || !selectedService) {
+      alert("Pilih alamat pengiriman lengkap (sampai kelurahan) dan layanan kurir.");
+      return;
+    }
+    if (!address.firstName || !address.phone) {
+      alert("Nama depan dan nomor telepon wajib diisi.");
+      return;
+    }
+    if (!address.address) {
+      alert("Detail alamat (nama jalan/nomor rumah) wajib diisi.");
       return;
     }
 
-    // Calculate final total (Apply discount to subtotal)
+    setCreating(true);
+
+    // Consistent total calculation (same formula used in display)
     const discountedAmount = Math.max(0, subtotal - discountAmount - referralDiscount);
-    const taxes = discountedAmount * 0.11;
+    const taxes = Math.round(discountedAmount * 0.11);
     const finalTotal = discountedAmount + shippingCost + taxes;
     const items = cart;
 
@@ -288,7 +301,8 @@ const PaymentDashboard = () => {
           },
           couponCode: appliedCoupon,
           discountAmount: discountAmount + referralDiscount,
-          referralCode: referralCode // Send used referral code
+          referralCode: referralCode,
+          email: userEmail || "" // Always send email
         })
       });
 
@@ -300,6 +314,9 @@ const PaymentDashboard = () => {
       localStorage.setItem('cartTotal', finalTotal);
       localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
       
+      // ✅ FIX: Clear cart after successful order creation
+      localStorage.removeItem('cart');
+      
       // Clean up referral after use
       localStorage.removeItem('referral_code');
 
@@ -307,6 +324,8 @@ const PaymentDashboard = () => {
 
     } catch (e) {
       alert(e.message || "Gagal memproses pesanan");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -579,7 +598,7 @@ const PaymentDashboard = () => {
                 )}
                 <div className="flex justify-between">
                   <span>PPN (11%)</span>
-                  <span className="font-bold text-gray-900 dark:text-white">Rp {((subtotal - discountAmount - referralDiscount) * 0.11).toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Rp {Math.round((subtotal - discountAmount - referralDiscount) * 0.11).toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
@@ -589,26 +608,22 @@ const PaymentDashboard = () => {
                 <div className="text-right">
                   <span className="text-xs text-gray-400 block mb-1">IDR</span>
                   <span className="text-3xl font-[900] tracking-tight text-red-600 dark:text-red-500">
-                    Rp{Math.max(0, (subtotal - discountAmount - referralDiscount) + shippingCost + ((subtotal - discountAmount - referralDiscount) * 0.11)).toLocaleString('id-ID')}
+                    Rp{Math.max(0, Math.round((subtotal - discountAmount - referralDiscount) * 1.11) + shippingCost).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
 
               <button
                 onClick={handleCreateOrder}
-                className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-black py-5 rounded-xl shadow-2xl uppercase tracking-[0.2em] text-[10px] transition-all active:scale-[0.97] mb-4"
+                disabled={creating}
+                className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-black py-5 rounded-xl shadow-2xl uppercase tracking-[0.2em] text-[10px] transition-all active:scale-[0.97] mb-4 disabled:opacity-50"
               >
-                Konfirmasi Pesanan &rarr;
+                {creating ? "Processing..." : "Konfirmasi Pesanan →"}
               </button>
 
-              <div className="mt-4 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+              <div className="mt-8 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-gray-300">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                Secure 256-bit SSL Encryption
-              </div>
-
-              <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-gray-400">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                All transactions are secure and encrypted.
+                Secure 256-bit SSL Metadata Encryption
               </div>
 
             </div>

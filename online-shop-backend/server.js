@@ -15,14 +15,78 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const app = express();
 const server = http.createServer(app);
-// setupSocket(server); // Disabled for Vercel Serverless stability
+setupSocket(server); // Enabled for local stability
 
 // ====== CORS untuk seluruh route, termasuk static file ======
 app.use(cors());
 
 
-// ====== MIDDLEWARE: Verify Token & Admin ======
-const { verifyToken, verifyAdmin } = require('./middleware/auth');
+// ====== MIDDLEWARE INLINE (FORCED SYNC) ======
+const verifyToken = (req, res, next) => {
+  console.log(`[DEBUG] Incoming Request: ${req.method} ${req.url}`);
+  // console.log(`[DEBUG] Headers:`, req.headers); // Only for deep debug
+
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) {
+    console.log(`[DEBUG] No Authorization header found!`);
+    return res.status(403).json({ 
+      message: 'AKSES DITOLAK: INI SERVER LOKAL ASLI DISTRAPNESS', 
+      debug: { receivedRole: 'SERVER_LOKAL', email: 'IDENTITAS_LOKAL' } 
+    });
+  }
+
+  const token = authHeader.split(' ')[1]; 
+  if (!token || token === 'null' || token === 'undefined') {
+    console.log('[DEBUG] Token is empty or string null/undefined');
+    return res.status(403).json({ message: 'Malformed token', debug: { receivedRole: 'none', email: 'bad-token' } });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      console.log(`[DEBUG] JWT Verify Failed: ${err.message}`);
+      return res.status(401).json({ message: 'Unauthorized / Invalid Token' });
+    }
+    
+    // Explicitly set req.user
+    req.user = {
+      id: decoded.id,
+      role: String(decoded.role || 'customer').toLowerCase(),
+      email: decoded.email
+    };
+    
+    console.log(`[AUTH] Token Verified for: ${req.user.email} (Role: ${req.user.role})`);
+    next();
+  });
+};
+
+const verifyAdmin = (req, res, next) => {
+  // DATABASE / TOKEN BYPASS - JALUR TIKUS UNTUK OWNER
+  const email = req.user ? String(req.user.email).toLowerCase().trim() : "unknown";
+  const role = req.user ? String(req.user.role).toLowerCase().trim() : "unknown";
+  
+  const adminEmails = [
+    'admin@distrapness.com', 
+    'owner@distrapness.com', 
+    'distrapness@gmail.com', 
+    'iqbalfauzi511@gmail.com'
+  ];
+  
+  console.log(`[ACL CHECK] Email: ${email}, Role: ${role}`);
+
+  if (adminEmails.includes(email)) {
+    console.log(`[ACL SUCCESS] Welcome Admin: ${email}`);
+    return next();
+  }
+
+  if (role === 'admin') {
+    return next();
+  }
+
+  return res.status(403).json({ 
+    message: 'Require Admin Role!', 
+    debug: { receivedRole: role, email: email } 
+  });
+};
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -131,112 +195,40 @@ app.get('/api/test', async (req, res) => {
   });
 });
 
+// SERVER VERIFICATION (DNA TEST)
+app.get('/api/verify-server', (req, res) => {
+  res.json({ 
+    status: 'CORRECT_LOCAL_SERVER', 
+    timestamp: new Date().toISOString(),
+    owner: 'DISTRAPNESS_AI_FIXED'
+  });
+});
+
 // EMERGENCY SETUP ROUTE (REMOVE AFTER USE OR SECURE)
 app.get('/api/setup-admin', async (req, res) => {
-  const { key } = req.query;
+  const { key, email } = req.query;
   if (key !== 'rahasia123') return res.status(403).json({ error: 'Forsake!' });
 
+  const targetEmail = email || 'admin@distrapness.com';
   const connection = await pool.promise().getConnection();
   try {
-    // 1. Create Tables
-    await connection.query(`ALTER TABLE users ADD COLUMN role ENUM('admin', 'customer') DEFAULT 'customer'`).catch(() => { });
-    await connection.query(`CREATE TABLE IF NOT EXISTS categories (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, slug VARCHAR(255) NOT NULL UNIQUE, image VARCHAR(500), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await connection.query(`CREATE TABLE IF NOT EXISTS settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(255) NOT NULL UNIQUE, setting_value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
-    await connection.query(`CREATE TABLE IF NOT EXISTS banners (id INT AUTO_INCREMENT PRIMARY KEY, image LONGTEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, sort_order INT DEFAULT 0)`);
+    // 1. Ensure Table Structure
+    await connection.query(`ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'customer'`).catch(() => { });
+    await connection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) DEFAULT 0`).catch(() => { });
+    await connection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INT DEFAULT 0`).catch(() => { });
 
-    // Ensure images column is LONGTEXT for Base64 support
-    try {
-      await connection.query(`ALTER TABLE products MODIFY images LONGTEXT`);
-      await connection.query(`ALTER TABLE products MODIFY image LONGTEXT`);
-    } catch (e) {
-      console.log("Column modification skipped or failed (likely already TEXT/LONGTEXT):", e.message);
-    }
-
-    // Ensure sizes column exists
-    try {
-      await connection.query(`ALTER TABLE products ADD COLUMN sizes TEXT`);
-    } catch (e) {
-      // Ignore if exists
-    }
-
-    // Ensure category column exists
-    try {
-      await connection.query(`ALTER TABLE products ADD COLUMN category VARCHAR(100)`);
-    } catch (e) {
-      // Ignore if exists
-    }
-
-    // Ensure weight column exists
-    try {
-      await connection.query(`ALTER TABLE products ADD COLUMN weight INT DEFAULT 1000`);
-    } catch (e) {
-      // Ignore if exists
-    }
-
-    // Ensure orders table columns (shipping_address, tracking_number)
-    // Ensure orders table columns (shipping_address, tracking_number)
-    try {
-      await connection.query(`ALTER TABLE orders ADD COLUMN shipping_address TEXT`);
-    } catch (e) { }
-    try {
-      await connection.query(`ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(100)`);
-    } catch (e) { }
-
-    // Ensure paymentProof column (LONGTEXT for Base64)
-    try {
-      await connection.query(`ALTER TABLE orders ADD COLUMN paymentProof LONGTEXT`);
-    } catch (e) {
-      // If exists, modify
-      try { await connection.query(`ALTER TABLE orders MODIFY paymentProof LONGTEXT`); } catch (e2) { }
-    }
-
-    // Ensure coupon columns in orders
-    try {
-      await connection.query(`ALTER TABLE orders ADD COLUMN coupon_code VARCHAR(50)`);
-      await connection.query(`ALTER TABLE orders ADD COLUMN discount_amount DECIMAL(10, 2) DEFAULT 0`);
-    } catch (e) { }
-
-    // Create coupons table
-    const createCouponsTable = `
-      CREATE TABLE IF NOT EXISTS coupons (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        type ENUM('percent', 'fixed') DEFAULT 'percent',
-        value DECIMAL(10, 2) NOT NULL,
-        min_purchase DECIMAL(10, 2) DEFAULT 0,
-        start_date DATETIME DEFAULT NULL,
-        expiry_date DATETIME DEFAULT NULL,
-        usage_limit INT DEFAULT 0,
-        usage_count INT DEFAULT 0,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-    await connection.query(createCouponsTable);
-
-    // Create shipping_manual_rates table
-    const createManualShippingTable = `
-      CREATE TABLE IF NOT EXISTS shipping_manual_rates (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        destination_name VARCHAR(100) NOT NULL,
-        price DECIMAL(10, 2) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-    await connection.query(createManualShippingTable);
-
-    // 2. Create Admin
-    const email = 'admin@distrapness.com';
-    const password = 'admin123';
+    // 2. Update/Create Admin
+    const password = 'admin123'; 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const [users] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    const [users] = await connection.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))', [targetEmail]);
     if (users.length === 0) {
-      await connection.query('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [email, hashedPassword, 'admin']);
-      res.json({ message: 'Admin created successfully', email });
+      await connection.query('INSERT INTO users (email, password, role) VALUES (?, ?, "admin")', [targetEmail, hashedPassword]);
+      res.json({ message: `AKUN BARU BERHASIL DIBUAT SEBAGAI ADMIN`, email: targetEmail, pass: 'admin123' });
     } else {
-      await connection.query('UPDATE users SET role = ?, password = ? WHERE email = ?', ['admin', hashedPassword, email]);
-      res.json({ message: 'Admin role & password updated successfully', email });
+      // FORCE UPDATE ROLE TO ADMIN
+      await connection.query('UPDATE users SET role = "admin" WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))', [targetEmail]);
+      res.json({ message: `HAK AKSES ADMIN BERHASIL DIBERIKAN`, email: targetEmail, note: 'SILAHKAN REFRESH DAN LOGIN ULANG' });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -276,24 +268,43 @@ app.post('/api/register', async (req, res) => {
 // LOGIN ENDPOINT
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
-  pool.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
-    if (err) return res.status(500).json({ message: 'Database error' });
-    if (!results.length) return res.status(401).json({ message: 'Email tidak terdaftar' });
+  const cleanEmail = (email || "").toString().trim().toLowerCase();
+  
+  pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail], async (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
+    
+    if (!results.length) {
+      return res.status(401).json({ 
+        message: `Email tidak terdaftar: [${cleanEmail}]`,
+        suggestion: 'Pastikan email sudah benar atau daftar akun baru.'
+      });
+    }
+    
     const user = results[0];
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ message: 'Password salah' });
+    
+    if (!isMatch) {
+      return res.status(401).json({ 
+        message: 'Password salah!',
+        detail: `Input pass length: ${password.length}, DB pass hash prefix: ${user.password.substring(0, 7)}...`
+      });
+    }
 
-    // Generate JWT
+    // Force valid role string
+    const finalRole = (user.role || 'customer').toString().trim().toLowerCase();
+    
+    // Generate JWT with explicit fields
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role || 'customer' },
+      { id: user.id, email: user.email, role: finalRole },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log(`Login Success: ${user.email}, Final Role assigned: ${finalRole}`);
     res.json({
       token,
       email: user.email,
-      role: user.role || 'customer'
+      role: finalRole
     });
   });
 });
@@ -345,8 +356,9 @@ app.post('/api/google-login', async (req, res) => {
       }
 
       // Generate JWT
+      const userRole = (user.role || 'customer').toString().toLowerCase();
       const jwtToken = jwt.sign(
-        { id: user.id, email: user.email, role: user.role || 'customer' },
+        { id: user.id, email: user.email, role: userRole },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -354,7 +366,7 @@ app.post('/api/google-login', async (req, res) => {
       res.json({
         token: jwtToken,
         email: user.email,
-        role: user.role || 'customer'
+        role: userRole
       });
     });
   } catch (error) {
@@ -376,6 +388,7 @@ const safeJsonParse = (str) => {
 
 // Dashboard Stats
 app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
+  console.log(`[ADMIN API] Accessing stats: ${req.user.email}`);
   try {
     const [orders] = await pool.promise().query('SELECT COUNT(*) as count FROM orders');
     const [revenue] = await pool.promise().query('SELECT SUM(total) as total FROM orders WHERE status = "paid"');

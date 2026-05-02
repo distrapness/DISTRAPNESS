@@ -21,6 +21,8 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    const emailToRevoke = localStorage.getItem("email");
+
     localStorage.removeItem("token");
     localStorage.removeItem("email");
     localStorage.removeItem("role");
@@ -28,7 +30,21 @@ export function AuthProvider({ children }) {
     setIsLoggedIn(false);
     setUserEmail("");
     setUserRole(null);
+
+    // Tell Google to forget the last signed-in account
+    // so the next user sees a clean login form
+    try {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        window.google.accounts.id.disableAutoSelect();
+        if (emailToRevoke) {
+          window.google.accounts.id.revoke(emailToRevoke, () => {});
+        }
+      }
+    } catch (e) {
+      // Google SDK not loaded, ignore
+    }
   };
+
 
   return (
     <AuthContext.Provider value={{ isLoggedIn, userEmail, userRole, login, logout, loading }}>

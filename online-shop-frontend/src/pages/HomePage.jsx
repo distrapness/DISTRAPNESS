@@ -56,7 +56,7 @@ const ProductFlashTimer = ({ endDate }) => {
       const diff = end - now;
 
       if (diff <= 0) {
-        setTimeLeft("EXPIRED");
+        setTimeLeft("BERAKHIR");
         clearInterval(timer);
         return;
       }
@@ -180,7 +180,7 @@ const HomePage = () => {
             ) : error ? (
               <div className="col-span-full text-center text-red-500">{error}</div>
             ) : !products || products.length === 0 ? (
-              <div className="col-span-full text-center text-gray-500">No products found.</div>
+              <div className="col-span-full text-center text-gray-500">Produk tidak ditemukan.</div>
             ) : (
               // Show all products
               products.map((product) => (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import config from "../config.js";
 import { useNavigate } from "react-router-dom";
@@ -14,20 +14,30 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const { t } = useCurrency();
+
+  // Force clear any stale session when opening login page
+  useEffect(() => {
+    logout();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    const cleanEmail = email.trim().toLowerCase();
     try {
-      const res = await axios.post(`${config.API_URL}/api/login`, { email, password });
+      const res = await axios.post(`${config.API_URL}/api/login`, { email: cleanEmail, password });
       login(res.data.token, res.data.email, res.data.role);
       setSuccess(t('login.success'));
-      navigate("/");
+      const roleStr = res.data.role ? res.data.role.toString().toLowerCase() : "";
+      if (roleStr === 'admin') navigate("/admin");
+      else navigate("/");
     } catch (err) {
-      setError(t('login.error'));
+      const backendMsg = err.response && err.response.data && err.response.data.message;
+      const backendDetail = err.response && err.response.data && err.response.data.detail;
+      setError(backendMsg ? `${backendMsg} ${backendDetail || ''}` : t('login.error'));
     } finally {
       setLoading(false);
     }
@@ -40,7 +50,9 @@ export default function LoginPage() {
       const res = await axios.post(`${config.API_URL}/api/google-login`, { token: credentialResponse.credential });
       login(res.data.token, res.data.email, res.data.role);
       setSuccess(t('login.success'));
-      navigate("/");
+      const roleStr = res.data.role ? res.data.role.toString().toLowerCase() : "";
+      if (roleStr === 'admin') navigate("/admin");
+      else navigate("/");
     } catch (err) {
       setError("Google Login failed. Please try again.");
     } finally {
@@ -50,8 +62,13 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
-      <form onSubmit={handleLogin} className="bg-white dark:bg-gray-800 p-10 rounded-3xl shadow-2xl w-full max-w-sm border border-gray-100 dark:border-gray-700">
-        <h2 className="text-3xl font-[900] uppercase tracking-tighter mb-8 text-center text-gray-900 dark:text-white italic">Welcome Back</h2>
+      <form onSubmit={handleLogin} className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100 dark:border-gray-700">
+        <div className="text-center mb-8">
+          <h1 className="text-red-600 font-black text-2xl animate-pulse mb-4">DIAGNOSA MODE: AKTIF</h1>
+          <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+            {t('login.title')}
+          </h2>
+        </div>
         
         <label className="block mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">{t('login.email')}</label>
         <input
@@ -110,6 +127,9 @@ export default function LoginPage() {
                shape="pill"
                width="320"
                logo_alignment="left"
+               auto_select={false}
+               use_fedcm_for_prompt={false}
+               context="signin"
             />
           </div>
         </div>

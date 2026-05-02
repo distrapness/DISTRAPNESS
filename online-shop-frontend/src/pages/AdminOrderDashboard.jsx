@@ -104,7 +104,7 @@ const AdminOrderDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div>
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-2 block italic">Management</span>
-            <h1 className="text-4xl font-[900] text-black dark:text-white uppercase tracking-tighter italic">{t('admin.orders.title')}</h1>
+            <h1 className="text-4xl font-[900] text-black dark:text-white uppercase tracking-tighter italic">Manajemen Pesanan</h1>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto bg-white dark:bg-gray-900 p-3 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800">
@@ -112,7 +112,7 @@ const AdminOrderDashboard = () => {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</span>
               <input
                 type="text"
-                placeholder={t('admin.orders.searchPlaceholder')}
+                placeholder="Cari ID Pesanan atau Pengguna..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 text-[10px] font-black uppercase tracking-widest border-none bg-gray-50 dark:bg-gray-800/50 rounded-xl dark:text-white focus:ring-2 focus:ring-black outline-none transition-all"
@@ -123,34 +123,34 @@ const AdminOrderDashboard = () => {
               onChange={e => setStatusFilter(e.target.value)}
               className="px-4 py-3 text-[10px] font-black uppercase tracking-widest border-none bg-gray-50 dark:bg-gray-800/50 rounded-xl dark:text-white cursor-pointer outline-none"
             >
-              <option value="all">ALL STATUS</option>
-              <option value="waiting_verification">NEED VERIFY</option>
-              <option value="pending">UNPAID</option>
-              <option value="paid">READY TO SHIP</option>
-              <option value="shipped">SHIPPED</option>
-              <option value="completed">COMPLETED</option>
-              <option value="failed">FAILED</option>
+              <option value="all">SEMUA STATUS</option>
+              <option value="waiting_verification">BUTUH VERIFIKASI</option>
+              <option value="pending">BELUM BAYAR</option>
+              <option value="paid">SIAP KIRIM</option>
+              <option value="shipped">DIKIRIM</option>
+              <option value="completed">SELESAI</option>
+              <option value="failed">GAGAL</option>
             </select>
           </div>
         </div>
 
         {loading ? (
           <div className="p-20 text-center flex flex-col items-center gap-4">
-             <div className="w-10 h-10 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin"></div>
-             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">{t('admin.orders.loading')}</p>
-          </div>
+              <div className="w-10 h-10 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 animate-pulse">Memuat data pesanan...</p>
+           </div>
         ) : (
           <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.orderId')}</th>
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.userInfo')}</th>
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.total')}</th>
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.date')}</th>
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">{t('admin.orders.status')}</th>
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400 text-right">{t('admin.orders.actions')}</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">ID Pesanan</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Info Pembeli</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Total Tagihan</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Tanggal</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Status</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -217,8 +217,8 @@ const AdminOrderDashboard = () => {
                           <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
                             <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
                           </div>
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Order List is Empty</h4>
-                          <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase mt-2 italic tracking-widest">Awaiting first customer transaction...</p>
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">Daftar Pesanan Kosong</h4>
+                          <p className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase mt-2 italic tracking-widest">Menunggu transaksi pertama dari pelanggan...</p>
                         </div>
                       </td>
                     </tr>

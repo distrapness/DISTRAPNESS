@@ -21,13 +21,13 @@ const NewsletterSection = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                setMessage(data.message || 'Subscribed!');
+                setMessage(data.message || 'Berhasil Berlangganan!');
                 setEmail('');
             } else {
-                setMessage(data.error || 'Failed to subscribe');
+                setMessage(data.error || 'Gagal berlangganan');
             }
         } catch (error) {
-            setMessage('Something went wrong. Please try again.');
+            setMessage('Terjadi kesalahan. Silakan coba lagi.');
         } finally {
             setLoading(false);
         }

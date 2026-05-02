@@ -29,22 +29,35 @@ const AdminDashboard = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      const statsRes = await axios.get(`${config.API_URL}/api/admin/stats`, { headers });
-      const chartRes = await axios.get(`${config.API_URL}/api/orders/stats/chart`, { headers });
+      // FORCE LOCAL BACKEND - BYPASS PROXY/CONFIG
+      const LOCAL_API = "http://localhost:5001";
+      const statsRes = await axios.get(`${LOCAL_API}/api/admin/stats`, { headers });
+      const chartRes = await axios.get(`${LOCAL_API}/api/orders/stats/chart`, { headers });
       
       setStats({
         ...statsRes.data,
         chartData: chartRes.data.map(d => d.revenue) // Use real revenue data for charts
       });
 
-      const ordersRes = await axios.get(`${config.API_URL}/api/orders`, { headers });
+      const ordersRes = await axios.get(`${LOCAL_API}/api/orders`, { headers });
       setRecentOrders(ordersRes.data.slice(0, 5));
     } catch (error) {
       console.error("Dashboard fetch error:", error);
-      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      if (error.response && error.response.status === 401) {
+        // Token truly invalid or expired -> Logout
         localStorage.removeItem("token");
         localStorage.removeItem("role");
         window.location.href = "/login";
+      } else if (error.response && error.response.status === 403) {
+        const debug = error.response.data.debug;
+        const msg = debug 
+          ? `Akses Terbatas: Backend melihat role Anda sebagai "${debug.receivedRole}" (Email: ${debug.email}).`
+          : `Akses Terbatas: Akun Anda belum memiliki akses Admin penuh.`;
+        alert(msg);
+        // window.location.href = "/";
+      } else {
+        // Other errors (network, 500, etc) -> Keep session, just show error in console
+        console.error("Dashboard data fetch failed:", error.message);
       }
     } finally {
       setLoading(false);
@@ -83,8 +96,8 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">{t('admin.dashboard.title')}</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">{t('admin.dashboard.subtitle')}</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Ikhtisar Dashboard</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Inilah yang terjadi di toko Anda hari ini.</p>
         </div>
         <div className="flex gap-3">
           <button 
@@ -110,8 +123,8 @@ const AdminDashboard = () => {
           {/* Revenue Chart Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold text-lg text-gray-800 dark:text-white">Revenue Analysis (Last 30 Days)</h2>
-              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Daily Sales Growth</span>
+              <h2 className="font-bold text-lg text-gray-800 dark:text-white">Analisis Pendapatan (30 Hari Terakhir)</h2>
+              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Pertumbuhan Harian</span>
             </div>
             <div className="h-48 w-full">
               {stats.chartData && <Sparkline data={stats.chartData} color="green" height={180} />}
@@ -121,18 +134,18 @@ const AdminDashboard = () => {
           {/* Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StatCard
-              title={t('admin.dashboard.totalRevenue')}
+              title="Total Pendapatan"
               value={formatCurrency(stats.totalRevenue)}
-              trend="+12% vs last week"
+              trend="+12% vs minggu lalu"
               trendColor="text-green-500"
               icon={<FaMoneyBillWave className="text-green-600 text-xl" />}
               chartData={stats.chartData}
               color="green"
             />
             <StatCard
-              title={t('admin.dashboard.totalOrders')}
+              title="Total Pesanan"
               value={stats.totalOrders}
-              trend="+5% vs last week"
+              trend="+5% vs minggu lalu"
               trendColor="text-green-500"
               icon={<FaShoppingCart className="text-blue-600 text-xl" />}
               chartData={stats.chartData}
@@ -143,19 +156,19 @@ const AdminDashboard = () => {
           {/* Recent Orders Table */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold text-lg text-gray-800 dark:text-white">{t('admin.dashboard.recentOrders')}</h2>
+              <h2 className="font-bold text-lg text-gray-800 dark:text-white">Pesanan Terbaru</h2>
               <Link to="/admin/orders" className="text-blue-600 dark:text-blue-400 text-sm hover:underline font-medium">
-                {t('admin.dashboard.viewAllOrders')}
+                Lihat Semua Pesanan
               </Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">{t('admin.dashboard.orderId')}</th>
-                    <th className="px-4 py-3 font-semibold">{t('admin.dashboard.paymentTotal')}</th>
-                    <th className="px-4 py-3 font-semibold">{t('admin.dashboard.date')}</th>
-                    <th className="px-4 py-3 font-semibold text-right">{t('admin.dashboard.status')}</th>
+                    <th className="px-4 py-3 font-semibold">ID Pesanan</th>
+                    <th className="px-4 py-3 font-semibold">Total / Pembayaran</th>
+                    <th className="px-4 py-3 font-semibold">Tanggal</th>
+                    <th className="px-4 py-3 font-semibold text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -180,7 +193,7 @@ const AdminDashboard = () => {
                   ))}
                   {recentOrders.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="text-center py-8 text-gray-500">{t('admin.dashboard.noOrders')}</td>
+                      <td colSpan="4" className="text-center py-8 text-gray-500">Belum ada pesanan terbaru.</td>
                     </tr>
                   )}
                 </tbody>
@@ -196,7 +209,7 @@ const AdminDashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                <FaExclamationTriangle className="text-orange-500" /> {t('admin.dashboard.inventoryAlert')}
+                <FaExclamationTriangle className="text-orange-500" /> Peringatan Stok
               </h3>
               {stats.lowStock?.length > 0 && (
                 <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">
@@ -215,27 +228,27 @@ const AdminDashboard = () => {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 dark:text-white truncate">{p.name}</p>
-                    <p className="text-xs text-red-500 font-bold">{t('admin.dashboard.onlyLeft')}{p.stock}{t('admin.dashboard.inStock')}</p>
+                    <p className="text-xs text-red-500 font-bold">Sisa {p.stock} di stok</p>
                   </div>
                   <Link to={`/product-admin?edit=${p.id}`} className="text-blue-600 text-xs font-bold hover:underline">
-                    {t('admin.dashboard.restock')}
+                    Restok
                   </Link>
                 </div>
               ))}
               {(!stats.lowStock || stats.lowStock.length === 0) && (
-                <p className="text-sm text-gray-500">{t('admin.dashboard.healthyStock')}</p>
+                <p className="text-sm text-gray-500">Semua stok dalam kondisi aman.</p>
               )}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 text-center">
               <Link to="/product-admin" className="text-gray-500 text-sm hover:text-gray-800 dark:hover:text-white transition">
-                {t('admin.dashboard.viewInventory')}
+                Lihat Semua Inventaris
               </Link>
             </div>
           </div>
 
           {/* Top Performing */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="font-bold text-gray-800 dark:text-white mb-6">{t('admin.dashboard.topPerforming')}</h3>
+            <h3 className="font-bold text-gray-800 dark:text-white mb-6">Produk Terbaik</h3>
             <div className="space-y-6">
               {stats.bestSellers && stats.bestSellers.map((p, idx) => (
                 <div key={p.id} className="flex items-center justify-between">
@@ -243,7 +256,7 @@ const AdminDashboard = () => {
                     <div className="text-gray-400 font-bold text-lg w-6">0{idx + 1}</div>
                     <div>
                       <p className="font-medium text-gray-800 dark:text-white">{p.name}</p>
-                      <p className="text-xs text-gray-500">{p.sales} {t('admin.dashboard.sales')}</p>
+                      <p className="text-xs text-gray-500">{p.sales} Penjualan</p>
                     </div>
                   </div>
                   <div className="text-green-500 font-bold text-sm">+{p.growth}%</div>

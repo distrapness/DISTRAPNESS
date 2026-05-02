@@ -16,40 +16,33 @@ const AdminLayout = ({ children }) => {
 
     const menuGroups = [
         {
-            title: 'Storefront',
+            title: 'Overview',
             items: [
                 { path: '/admin', label: 'Dashboard', icon: <FaHome /> },
-                { path: '/admin/orders', label: 'Pesanan', icon: <FaShoppingCart /> },
+                { path: '/admin/orders', label: 'Daftar Pesanan', icon: <FaShoppingCart /> },
             ]
         },
         {
             title: 'Katalog',
             items: [
-                { path: '/product-admin', label: 'Semua Produk', icon: <FaBoxOpen /> },
-                { path: '/admin/categories', label: 'Kategori', icon: <FaTags /> },
+                { path: '/product-admin', label: 'Produk Toko', icon: <FaBoxOpen /> },
+                { path: '/admin/categories', label: 'Kategori Produk', icon: <FaTags /> },
             ]
         },
         {
-            title: 'Pemasaran',
+            title: 'Promosi & Brand',
             items: [
+                { path: '/banner-admin', label: 'Banner Utama', icon: <FaImage /> },
+                { path: '/brand-admin', label: 'Identitas Toko', icon: <FaStar /> },
                 { path: '/admin/discounts', label: 'Kupon Diskon', icon: <FaTags /> },
-                { path: '/admin/shipping', label: 'Pengiriman Manual', icon: <FaBoxOpen /> },
-                { path: '/admin/withdrawals', label: 'Tarik Komisi', icon: <FaWallet /> },
-                { path: '/banner-admin', label: 'Banner Promosi', icon: <FaImage /> },
-                { path: '/brand-admin', label: 'Identitas Brand', icon: <FaStar /> },
             ]
         },
         {
-            title: 'Komunikasi',
+            title: 'Sistem & Feedback',
             items: [
-                { path: '/admin-chat', label: 'Live Chat', icon: <FaBars /> },
-                { path: '/admin/reviews', label: 'Ulasan Produk', icon: <FaStar /> },
-            ]
-        },
-        {
-            title: 'Sistem',
-            items: [
-                { path: '/admin/settings', label: 'Pengaturan', icon: <FaCog /> },
+                { path: '/admin/shipping', label: 'Ongkir Manual', icon: <FaBoxOpen /> },
+                { path: '/admin/reviews', label: 'Ulasan Pelanggan', icon: <FaStar /> },
+                { path: '/admin/settings', label: 'Pengaturan Web', icon: <FaCog /> },
             ]
         }
     ];

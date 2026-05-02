@@ -17,8 +17,12 @@ export default function ProtectedRoute({ children, role }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (role && userRole !== role) {
-    if (userRole === 'admin') return <Navigate to="/admin" replace />;
+  // Use case-insensitive and trimmed comparison for roles to avoid subtle logout bugs
+  const normalizedUserRole = userRole ? userRole.trim().toLowerCase() : "";
+  const normalizedRequiredRole = role ? role.trim().toLowerCase() : "";
+
+  if (role && normalizedUserRole !== normalizedRequiredRole) {
+    if (normalizedUserRole === 'admin') return <Navigate to="/admin" replace />;
     return <Navigate to="/" replace />;
   }
 

@@ -66,13 +66,22 @@ const PaymentConfirm = () => {
 
   const handlePayment = async () => {
     if (!method) return;
-    if (method === "cod") {
-      navigate("/payment-success");
-      return;
-    }
 
     try {
       setProcessing(true);
+
+      if (method === "cod") {
+        // Use the new customer-facing confirm-cod endpoint
+        const res = await fetch(`${config.API_URL}/api/orders/${paymentData.id}/confirm-cod`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Gagal mengonfirmasi pesanan COD");
+        navigate("/payment-success");
+        return;
+      }
+
       const res = await fetch(`${config.API_URL}/api/midtrans/token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,6 +106,7 @@ const PaymentConfirm = () => {
       setProcessing(false);
     }
   };
+
 
   const [proofFile, setProofFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -205,7 +215,13 @@ const PaymentConfirm = () => {
                         </div>
                       </div>
                     ) : (
-                      <button onClick={handlePayment} disabled={processing} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] shadow-xl">{processing ? 'Processing' : 'Pay Now'}</button>
+                      <button 
+                        onClick={handlePayment} 
+                        disabled={processing} 
+                        className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        {processing ? 'Processing' : (method === 'cod' ? 'Confirm Order' : 'Pay Now')}
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -214,7 +230,10 @@ const PaymentConfirm = () => {
               </div>
             )}
             
-            <div className="mt-12 text-[9px] font-bold uppercase text-gray-300 tracking-[0.2em]">SSL Encrypted Transaction</div>
+            <div className="mt-12 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-gray-300">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              Secure 256-bit SSL Metadata Encryption
+            </div>
           </div>
         </div>
       </div>
