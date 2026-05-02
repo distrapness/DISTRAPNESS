@@ -64,7 +64,6 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
       <form onSubmit={handleLogin} className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100 dark:border-gray-700">
         <div className="text-center mb-8">
-          <h1 className="text-red-600 font-black text-2xl animate-pulse mb-4">DIAGNOSA MODE: AKTIF</h1>
           <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
             {t('login.title')}
           </h2>
