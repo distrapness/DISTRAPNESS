@@ -98,22 +98,40 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   }
 }));
 
-// Multer setup
-// Multer setup (Memory Storage for Base64)
-const storage = multer.memoryStorage();
+// Multer setup (Dual Mode: Cloudinary or Memory Storage)
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+let storage;
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+  storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: { folder: 'distrapness-shop' }
+  });
+  console.log("✅ Cloudinary Storage Active");
+} else {
+  storage = multer.memoryStorage();
+  console.warn("⚠️ Using Memory Storage (Base64). Please configure Cloudinary for production.");
+}
+
 const upload = multer({
   storage,
   limits: { fileSize: 4 * 1024 * 1024 } // Limit 4MB
 });
 
-// Cloudinary removed to support "Automatic" mode without keys
-// If you want Cloudinary later, you can revert this.
-
-// Upload endpoint -> Returns Base64 Data URI
+// Upload endpoint -> Returns URL (Cloudinary) or Base64 Data URI
 app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  // Convert buffer to Base64
+  // If Cloudinary, req.file.path contains the secure URL
+  if (req.file.path) {
+    return res.json({ url: req.file.path });
+  }  // Convert buffer to Base64
   const b64 = Buffer.from(req.file.buffer).toString('base64');
   const mime = req.file.mimetype;
   const url = `data:${mime};base64,${b64}`;

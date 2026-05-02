@@ -15,7 +15,10 @@ const parseSizes = (str) => {
 
 // GET /api/products
 router.get('/', (req, res) => {
-  pool.query('SELECT * FROM products', (err, results) => {
+  const limit = parseInt(req.query.limit) || 1000;
+  const offset = parseInt(req.query.offset) || 0;
+
+  pool.query('SELECT * FROM products LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const products = results.map(product => {

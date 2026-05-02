@@ -115,12 +115,26 @@ router.get('/methods', (req, res) => {
   res.json(methods);
 });
 
+const crypto = require('crypto');
+
 // Webhook endpoint untuk update status order otomatis
 router.post('/webhook', express.json(), async (req, res) => {
   const notif = req.body;
   // Midtrans akan mengirim notifikasi status pembayaran ke endpoint ini
-  // Update status order di database sesuai notif.transaction_status
+  
   try {
+    // 1. VERIFIKASI KEAMANAN (SIGNATURE KEY)
+    const config = await getMidtransConfig();
+    const hashData = notif.order_id + notif.status_code + notif.gross_amount + config.serverKey;
+    const expectedSignature = crypto.createHash('sha512').update(hashData).digest('hex');
+    
+    if (expectedSignature !== notif.signature_key) {
+      console.warn('⚠️ Webhook ditolak: Signature Key tidak valid. Kemungkinan serangan.');
+      return res.status(403).json({ error: 'Invalid Signature Key' });
+    }
+
+    // Update status order di database sesuai notif.transaction_status
+
     const orderId = notif.order_id.split('-')[1]; // Format: ORDER-<orderId>-timestamp
     let status = 'pending';
     if (notif.transaction_status === 'settlement' || notif.transaction_status === 'capture') status = 'paid';

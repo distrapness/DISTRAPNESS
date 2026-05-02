@@ -4,16 +4,32 @@ const router = express.Router();
 const pool = require('../db');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
-// Memory Storage for Base64 (Serverless friendly)
-const storage = multer.memoryStorage();
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Multer setup (Dual Mode)
+let storage;
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+  storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: { folder: 'distrapness-banners' }
+  });
+} else {
+  storage = multer.memoryStorage();
+}
+
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB Limit for Banners
 });
 
-// UPLOAD banner image -> Base64
+// UPLOAD banner image -> Returns URL or Base64
 router.post('/upload', verifyToken, verifyAdmin, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  if (req.file.path) {
+    return res.json({ url: req.file.path });
+  }
 
   const b64 = Buffer.from(req.file.buffer).toString('base64');
   const mime = req.file.mimetype;

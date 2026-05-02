@@ -187,7 +187,13 @@ router.post('/upload-proof/:orderId', upload.single('paymentProof'), (req, res) 
 
 // GET ALL ORDERS (Admin)
 router.get('/', verifyToken, verifyAdmin, (req, res) => {
-  pool.query('SELECT * FROM orders ORDER BY createdAt DESC', (err, results) => {
+  const limit = parseInt(req.query.limit) || 1000;
+  const offset = parseInt(req.query.offset) || 0;
+  
+  // Custom adapter in db.js requires parameterized syntax but doesn't fully support $1, $2 for LIMIT yet
+  // However, I previously changed the adapter to support standard parameterized queries for PG
+  // Let's use standard ? for adapter to convert to $1
+  pool.query('SELECT * FROM orders ORDER BY createdAt DESC LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
     const data = results.map(r => ({
       ...r,
