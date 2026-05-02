@@ -174,7 +174,7 @@ const HomePage = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
+              Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
               ))
             ) : error ? (

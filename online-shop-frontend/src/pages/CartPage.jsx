@@ -183,7 +183,7 @@ const CartPage = () => {
                     <h3 className="text-lg font-[900] uppercase tracking-widest mb-10 text-center">{t('cart.youMayLike') || "You May Also Like"}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                         {Object.values(realProducts).slice(0, 4).map(p => (
-                            <Link key={p.id} to={`/product/${p.id}`} className="group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-700">
+                            <Link key={p.id} to={`/shop/${p.id}`} className="group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-700">
                                 <div className="aspect-[3/4] bg-gray-50 dark:bg-gray-700 mb-4 overflow-hidden rounded-lg">
                                     <img 
                                         src={getImageUrl(p.images?.[0] || p.image)} 

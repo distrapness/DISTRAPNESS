@@ -13,7 +13,7 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition-property: background-color, color, border-color, box-shadow, fill, stroke;
-  transition-duration: 900ms;
+  transition-duration: 300ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
   overflow-x: hidden;
@@ -31,33 +31,33 @@ html {
 
 *, *:before, *:after {
   transition-property: background-color, color, border-color, box-shadow, fill, stroke;
-  transition-duration: 900ms;
+  transition-duration: 300ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: inherit;
 }
 
 header, nav, .dark header, .dark nav {
-  transition: background-color 0.9s cubic-bezier(0.4,0,0.2,1), color 0.9s cubic-bezier(0.4,0,0.2,1);
+  transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1), color 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 
 /* Perbaikan agar container dan card ikut full dark/bright */
 .container, .card, .dark .container, .dark .card {
   background-color: inherit !important;
   color: inherit !important;
-  transition: background-color 0.9s cubic-bezier(0.4,0,0.2,1), color 0.9s cubic-bezier(0.4,0,0.2,1);
+  transition: background-color 0.3s cubic-bezier(0.4,0,0.2,1), color 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 
 /* Perbaikan border dan shadow agar smooth di darkmode */
 .border, .dark .border {
   border-color: #e5e7eb !important;
-  transition: border-color 0.9s cubic-bezier(0.4,0,0.2,1);
+  transition: border-color 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 .dark .border {
   border-color: #27272a !important;
 }
 
 .shadow, .dark .shadow {
-  transition: box-shadow 0.9s cubic-bezier(0.4,0,0.2,1);
+  transition: box-shadow 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 
 .fade-enter {

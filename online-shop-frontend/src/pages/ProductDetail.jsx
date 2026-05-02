@@ -195,8 +195,8 @@ const ProductDetail = () => {
                   ))}
                 </div>
 
-                {/* Desktop Main Image - Constrained Height, NO CROP */}
-                <div className="hidden md:flex w-full h-[450px] lg:h-[500px] bg-[#f9f9f9] dark:bg-gray-800 cursor-zoom-in relative items-center justify-center overflow-hidden rounded-md border border-gray-100 dark:border-gray-700">
+                {/* Desktop Main Image - Constrained Aspect Ratio */}
+                <div className="hidden md:flex w-full aspect-[3/4] bg-[#f9f9f9] dark:bg-gray-800 cursor-zoom-in relative items-center justify-center overflow-hidden rounded-md border border-gray-100 dark:border-gray-700">
                   <img
                     src={getImageUrl(images[selectedImageIndex])}
                     alt={product.name}
