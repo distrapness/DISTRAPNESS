@@ -225,7 +225,21 @@ const HomePage = () => {
                   </div>
                   <div className="text-center w-full mt-auto">
                     <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider line-clamp-2">{product.name}</div>
-                    <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
+                    <div className="flex flex-col items-center gap-1">
+                      {product.is_flash_sale ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm md:text-base text-red-600 font-bold">{convertPrice(product.flash_sale_price)}</span>
+                            <span className="text-[10px] text-gray-400 line-through">{convertPrice(product.price)}</span>
+                          </div>
+                          <div className="bg-red-100 dark:bg-red-900/30 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                            Flash Sale -{Math.round((1 - product.flash_sale_price / product.price) * 100)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
