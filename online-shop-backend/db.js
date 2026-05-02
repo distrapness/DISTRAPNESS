@@ -62,10 +62,7 @@ const pool = {
     const pgValues = values || [];
 
     pgPool.query(pgSql, pgValues, (err, res) => {
-      if (err) {
-        console.error('[DB ADAPTER ERROR]', err.message, '| SQL:', sql);
-        return callback(err);
-      }
+      if (err) return callback(err);
       callback(null, processResult(sql, res));
     });
   },
@@ -82,7 +79,6 @@ const pool = {
           // MySQL2 promise returns [rows, fields]
           return [processed, res.fields];
         } catch (err) {
-          console.error('[DB ADAPTER ERROR]', err.message, '| SQL:', sql);
           throw err;
         }
       },

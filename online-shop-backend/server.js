@@ -113,10 +113,8 @@ if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
     cloudinary: cloudinary,
     params: { folder: 'distrapness-shop' }
   });
-  console.log("✅ Cloudinary Storage Active");
 } else {
   storage = multer.memoryStorage();
-  console.warn("⚠️ Using Memory Storage (Base64). Please configure Cloudinary for production.");
 }
 
 const upload = multer({
