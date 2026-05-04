@@ -49,9 +49,22 @@ const Header = ({ onCartClick, onWishlistClick }) => {
 
   useEffect(() => {
     fetch(BRAND_API_URL)
-      .then((res) => res.json())
-      .then(setBrand)
-      .catch(() => setBrand({ brandName: "DISTRAPNESS", logo: "/uploads/logo-hitam.png", logoWhite: "/uploads/logo-putih.png" }));
+      .then((res) => {
+        if (!res.ok) throw new Error("API Error");
+        return res.json();
+      })
+      .then(data => {
+        // Ensure paths are correct
+        setBrand({
+          ...data,
+          logo: data.logo || "/uploads/logo-hitam.png",
+          logoWhite: data.logoWhite || "/uploads/logo-putih.png"
+        });
+      })
+      .catch((err) => {
+        console.error("Fetch logo failed:", err);
+        setBrand({ brandName: "DISTRAPNESS", logo: "/uploads/logo-hitam.png", logoWhite: "/uploads/logo-putih.png" });
+      });
   }, []);
 
   useEffect(() => {
@@ -79,7 +92,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
-    <header className={`fixed top-0 left-0 w-full z-50 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300 h-[60px] lg:h-[88px]`}>
+    <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 border-b border-gray-100/10 dark:border-white/5 ${dark ? 'bg-gray-900/80' : 'bg-white/80'} backdrop-blur-xl h-[60px] lg:h-[88px]`}>
       <div className="max-w-[1600px] mx-auto flex items-center h-full px-4 md:px-6 lg:px-12">
 
         {/* Mobile Left: Hamburger */}
@@ -95,13 +108,19 @@ const Header = ({ onCartClick, onWishlistClick }) => {
 
         {/* LOGO (Always Left and Visible) */}
         <div className="flex-1 lg:flex-none flex justify-center lg:justify-start">
-          <Link to="/" className="flex items-center gap-1 md:gap-2">
-            <img
-              src={logoUrl}
-              alt="Logo"
-              className="h-8 md:h-10 lg:h-14 w-auto object-contain"
-            />
-            <span className="text-black dark:text-white font-[900] text-lg md:text-xl lg:text-2xl tracking-tighter uppercase font-sans">
+          <Link to="/" className="flex items-center gap-1 md:gap-3 group">
+            <div className="relative overflow-hidden rounded-lg">
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="h-8 md:h-10 lg:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-110"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/assets/placeholder.jpg"; // Fallback if logo fails
+                }}
+              />
+            </div>
+            <span className="text-black dark:text-white font-[900] text-lg md:text-xl lg:text-3xl tracking-tighter uppercase font-sans group-hover:text-red-600 transition-colors duration-300">
               {brand.brandName}
             </span>
           </Link>

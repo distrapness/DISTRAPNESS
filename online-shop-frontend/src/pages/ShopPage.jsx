@@ -258,6 +258,7 @@ const ShopPage = () => {
                     <img
                       src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
                       alt={product.name}
+                      loading="lazy"
                       className={`object-contain w-full h-full transition-transform duration-500 ease-in-out p-4 ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'} ${product.stock <= 0 ? 'grayscale opacity-50' : ''}`}
                       onError={handleImageError}
                     />

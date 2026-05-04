@@ -25,7 +25,9 @@ export function CartProvider({ children }) {
     // Determine active price: Use flash sale price if active and not expired
     let activePrice = Number(product.price);
     const now = new Date();
-    const isFlashActive = product.is_flash_sale && product.flash_sale_end && new Date(product.flash_sale_end) > now;
+    // Simplified check: If is_flash_sale is true, use the flash sale price
+    // We only check date if flash_sale_end is explicitly provided.
+    const isFlashActive = product.is_flash_sale && (!product.flash_sale_end || new Date(product.flash_sale_end) > now);
     
     if (isFlashActive && product.flash_sale_price) {
       activePrice = Number(product.flash_sale_price);

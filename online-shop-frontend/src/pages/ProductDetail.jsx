@@ -53,9 +53,13 @@ const ProductDetail = () => {
       .then((res) => res.json())
       .then(data => {
         setProduct(data);
-        // Set page title for SEO
-        if (data.name) {
-          document.title = `${data.name} | Distrapness`;
+        if (data && data.name) {
+          document.title = `${data.name} - DISTRAPNESS`;
+          // Optional: Update meta description
+          const metaDesc = document.querySelector('meta[name="description"]');
+          if (metaDesc) {
+            metaDesc.setAttribute("content", data.description?.substring(0, 150) || "Beli produk ini di DISTRAPNESS");
+          }
         }
         // Auto-select first available size
         if (data.sizes) {

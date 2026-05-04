@@ -58,13 +58,37 @@ const CartDrawer = ({ open, onClose }) => {
             </button>
           </div>
 
+          {/* Free Shipping Progress */}
+          {cart.length > 0 && (
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-2">
+                <span>{total >= 500000 ? '🎉 You get Free Shipping!' : `Spend Rp${(500000 - total).toLocaleString('id-ID')} more for Free Shipping`}</span>
+                <span className="text-gray-400">{Math.min(100, Math.round((total / 500000) * 100))}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-black dark:bg-white transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(0,0,0,0.1)]"
+                  style={{ width: `${Math.min(100, (total / 500000) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-6 space-y-8">
             {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-4">
-                <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                <p>Your cart is empty.</p>
-                <button onClick={onClose} className="text-black dark:text-white underline text-sm font-bold">Continue Shopping</button>
+              <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
+                  <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-black dark:text-white mb-2">Your cart is empty</h3>
+                <p className="text-xs text-gray-400 mb-8 max-w-[200px]">Looks like you haven't added anything to your cart yet.</p>
+                <button 
+                  onClick={onClose} 
+                  className="px-8 py-3 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg"
+                >
+                  Start Shopping
+                </button>
               </div>
             ) : (
               cart.map((item) => (
