@@ -84,18 +84,19 @@ const rajaOngkirService = {
 
         if (!matchedCity) throw new Error(`Kota "${cityName}" tidak ditemukan di RajaOngkir.`);
 
-        // 2. Get rates for major couriers
+        // 2. Get rates for major couriers in PARALLEL to reduce waiting time
         const couriers = ['jne', 'tiki', 'pos'];
-        let allPricing = [];
         
-        for (const courier of couriers) {
-            try {
-                const rates = await rajaOngkirService.calculateCost(matchedCity.city_id, totalWeight, courier);
-                allPricing = [...allPricing, ...rates];
-            } catch (e) {
-                console.error(`Error fetching RajaOngkir for ${courier}:`, e.message);
-            }
-        }
+        const ratePromises = couriers.map(courier => 
+            rajaOngkirService.calculateCost(matchedCity.city_id, totalWeight, courier)
+                .catch(e => {
+                    console.error(`Error fetching RajaOngkir for ${courier}:`, e.message);
+                    return [];
+                })
+        );
+        
+        const results = await Promise.all(ratePromises);
+        let allPricing = results.flat();
 
         return { 
             pricing: allPricing, 

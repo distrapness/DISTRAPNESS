@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { translations, getTranslation } from "../utils/translations";
 
 const CurrencyContext = createContext();
@@ -11,7 +11,12 @@ export const CURRENCY_OPTIONS = [
 export const CurrencyProvider = ({ children }) => {
   const [currency, setCurrency] = useState(CURRENCY_OPTIONS[0]);
   const [dark, setDark] = useState(false);
-  const [language, setLanguage] = useState("ID"); // EN or ID
+  const [language, setLanguage] = useState(() => localStorage.getItem('language') || "ID"); // EN or ID
+
+  // Save language preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
 
   // Helper translation function
   const t = (path) => getTranslation(language, path);
