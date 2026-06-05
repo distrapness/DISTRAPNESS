@@ -486,6 +486,20 @@ app.get('/api/settings', async (req, res) => {
   }
 });
 
+// GET PUBLIC SETTINGS (For Frontend Initialization)
+app.get('/api/config/public', async (req, res) => {
+  try {
+    const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('google_client_id', 'midtrans_client_key')");
+    const settings = rows.reduce((acc, row) => {
+      acc[row.setting_key] = row.setting_value;
+      return acc;
+    }, {});
+    res.json(settings);
+  } catch (err) {
+    res.json({}); // Fallback gracefully
+  }
+});
+
 app.put('/api/settings', verifyToken, verifyAdmin, async (req, res) => {
   const settings = req.body; // { site_title: "My Shop", ... }
   const connection = await pool.promise().getConnection();

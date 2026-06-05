@@ -225,11 +225,22 @@ const AdminSettings = () => {
                     <h2 className="text-xl font-bold mb-4 text-gray-700 dark:text-gray-200 border-b pb-2">API & Integration Settings</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Google Client ID</label>
+                            <input
+                                name="google_client_id"
+                                value={settings.google_client_id || ''}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="xxx.apps.googleusercontent.com"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Digunakan untuk fitur Login with Google.</p>
+                        </div>
+                        <div>
                             <label className="block text-sm font-bold mb-2 dark:text-white">Biteship API Key</label>
                             <input
                                 name="biteship_api_key"
                                 type="password"
-                                value={settings.biteship_api_key}
+                                value={settings.biteship_api_key || ''}
                                 onChange={handleChange}
                                 className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="biteship_..."
