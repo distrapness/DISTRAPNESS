@@ -11,17 +11,19 @@ const getMidtransConfig = async () => {
             acc[row.setting_key] = row.setting_value;
             return acc;
         }, {});
+        const serverKeyFallback = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx';
         return {
-            serverKey: settings.midtrans_server_key || process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx',
+            serverKey: settings.midtrans_server_key || serverKeyFallback,
             clientKey: settings.midtrans_client_key || process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
-            isProduction: settings.midtrans_production === 'true'
+            isProduction: settings.midtrans_production ? settings.midtrans_production === 'true' : !serverKeyFallback.startsWith('SB-')
         };
     } catch (err) {
         console.error("Error fetching Midtrans config", err);
+        const serverKeyFallback = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx';
         return {
-            serverKey: process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx',
+            serverKey: serverKeyFallback,
             clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
-            isProduction: false
+            isProduction: !serverKeyFallback.startsWith('SB-')
         };
     }
 };
