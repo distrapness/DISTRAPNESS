@@ -292,6 +292,7 @@ const ShopPage = () => {
               )}
             </div>
           {/* Pagination controls */}
+          {totalPages > 1 && (
             <div className="flex justify-center mt-12 gap-3 items-center">
               <button
                 className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-black dark:hover:text-white transition-all disabled:opacity-30"
