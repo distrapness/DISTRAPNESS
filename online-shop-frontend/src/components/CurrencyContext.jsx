@@ -11,7 +11,7 @@ export const CURRENCY_OPTIONS = [
 export const CurrencyProvider = ({ children }) => {
   const [currency, setCurrency] = useState(CURRENCY_OPTIONS[0]);
   const [dark, setDark] = useState(false);
-  const [language, setLanguage] = useState(() => localStorage.getItem('language') || "ID"); // EN or ID
+  const [language, setLanguage] = useState(() => localStorage.getItem('language') || "EN"); // EN or ID
 
   // Save language preference to localStorage
   useEffect(() => {

@@ -91,6 +91,15 @@ const pool = {
             const res = await client.query(pgSql, pgValues);
             return [processResult(sql, res), res.fields];
           },
+          beginTransaction: async () => {
+            await client.query('BEGIN');
+          },
+          commit: async () => {
+            await client.query('COMMIT');
+          },
+          rollback: async () => {
+            await client.query('ROLLBACK');
+          },
           release: () => client.release()
         };
       }
