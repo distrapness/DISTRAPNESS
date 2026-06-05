@@ -182,7 +182,7 @@ router.post('/:id/reviews', verifyToken, async (req, res) => {
   // Verify that the user has purchased this product
   try {
     const [orders] = await pool.promise().query(
-      "SELECT id, items FROM orders WHERE userId = ? AND status IN ('paid', 'shipped', 'completed')",
+      'SELECT id, items FROM orders WHERE "userId" = ? AND status IN (\'paid\', \'shipped\', \'completed\')',
       [user_email]
     );
 

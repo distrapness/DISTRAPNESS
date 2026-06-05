@@ -112,7 +112,7 @@ router.post('/cost-by-query', async (req, res) => {
         // Jika manual pricing juga kosong, tambahkan satu kurir dummy agar checkout tidak stuck
         if (manualPricing.length === 0) {
            manualPricing.push({
-             company: 'demo',
+             company: 'manual',
              courier_name: 'Standard Delivery (Demo)',
              courier_service_name: 'Reguler',
              courier_service_code: 'demo_reg',

@@ -220,7 +220,7 @@ router.get('/:orderId', (req, res) => {
 router.put('/:orderId/confirm-cod', async (req, res) => {
   const { orderId } = req.params;
   try {
-    const [rows] = await pool.promise().query('SELECT status, paymentMethod FROM orders WHERE id = ?', [orderId]);
+    const [rows] = await pool.promise().query('SELECT status, "paymentMethod" FROM orders WHERE id = ?', [orderId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     
     if (rows[0].paymentMethod !== 'cod') {
@@ -336,7 +336,7 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
 // ─── EXPORT ORDERS TO CSV ────────────────────────────────────────────────────
 router.get('/export/csv', verifyAdmin, async (req, res) => {
   try {
-    const [orders] = await pool.promise().query('SELECT * FROM orders ORDER BY createdAt DESC');
+    const [orders] = await pool.promise().query('SELECT * FROM orders ORDER BY "createdAt" DESC');
 
     const rows = orders.map(o => {
       let addr = {};
@@ -377,13 +377,13 @@ router.get('/stats/chart', verifyAdmin, async (req, res) => {
   try {
     const [rows] = await pool.promise().query(`
       SELECT 
-        DATE(createdAt) as date,
+        DATE("createdAt") as date,
         COUNT(*) as orders,
         SUM(total) as revenue
       FROM orders
-      WHERE createdAt >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      WHERE "createdAt" >= DATE_SUB(NOW(), INTERVAL 30 DAY)
         AND status NOT IN ('cancelled', 'pending')
-      GROUP BY DATE(createdAt)
+      GROUP BY DATE("createdAt")
       ORDER BY date ASC
     `);
 
