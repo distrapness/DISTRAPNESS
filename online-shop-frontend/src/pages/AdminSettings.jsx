@@ -15,6 +15,8 @@ const AdminSettings = () => {
         logo_url: '',
         biteship_api_key: '',
         shipping_origin: '',
+        rajaongkir_api_key: '',
+        rajaongkir_origin: '',
         midtrans_server_key: '',
         midtrans_client_key: '',
         midtrans_production: 'false'
@@ -235,15 +237,38 @@ const AdminSettings = () => {
                             <p className="text-xs text-gray-400 mt-1">Used to calculate shipping costs via Biteship.</p>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-white">Shipping Origin (Area ID)</label>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">Shipping Origin (Area ID/City ID)</label>
                             <input
                                 name="shipping_origin"
                                 value={settings.shipping_origin}
                                 onChange={handleChange}
                                 className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="IDNP... (e.g. IDNP6IDNC147IDND829)"
+                                placeholder="IDNP... atau 151 (Biteship/RajaOngkir)"
                             />
-                            <p className="text-xs text-gray-400 mt-1">Check Biteship docs for your Area ID.</p>
+                            <p className="text-xs text-gray-400 mt-1">Gunakan ID Kota untuk RajaOngkir, atau Area ID untuk Biteship.</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">RajaOngkir API Key</label>
+                            <input
+                                name="rajaongkir_api_key"
+                                type="password"
+                                value={settings.rajaongkir_api_key}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="rajaongkir_..."
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Digunakan untuk menghitung ongkos kirim melalui RajaOngkir.</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-white">RajaOngkir Origin (City ID)</label>
+                            <input
+                                name="rajaongkir_origin"
+                                value={settings.rajaongkir_origin}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="151 (e.g., Jakarta Barat)"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">ID Kota pengiriman toko Anda.</p>
                         </div>
                         <div>
                             <label className="block text-sm font-bold mb-2 dark:text-white">Midtrans Server Key</label>
