@@ -109,6 +109,18 @@ router.post('/cost-by-query', async (req, res) => {
         });
       } catch (apiError) {
         // 4. Final Fallback: Manual Only
+        // Jika manual pricing juga kosong, tambahkan satu kurir dummy agar checkout tidak stuck
+        if (manualPricing.length === 0) {
+           manualPricing.push({
+             company: 'demo',
+             courier_name: 'Standard Delivery (Demo)',
+             courier_service_name: 'Reguler',
+             courier_service_code: 'demo_reg',
+             price: 15000,
+             duration: '2-3 Hari',
+             note: 'Mode Trial/Demo (Harap atur API Key)'
+           });
+        }
         res.json({
           pricing: manualPricing,
           error: `RajaOngkir & Biteship error: ${apiError.message}`,
