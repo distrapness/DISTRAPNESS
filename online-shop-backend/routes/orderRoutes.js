@@ -25,7 +25,7 @@ router.get('/user', (req, res) => {
   // Pattern matches "email":"value" structure roughly
   const search = `%"email":"${email}"%`;
 
-  pool.query('SELECT * FROM orders WHERE shipping_address LIKE ? ORDER BY createdAt DESC', [search], (err, results) => {
+  pool.query('SELECT * FROM orders WHERE shipping_address LIKE ? ORDER BY "createdAt" DESC', [search], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
     const data = results.map(r => ({
       ...r,
@@ -90,7 +90,7 @@ router.post('/', async (req, res) => {
 
     // 3. Simpan Order
     const [result] = await connection.query(
-      'INSERT INTO orders (userId, items, total, paymentMethod, status, shipping_address, coupon_code, discount_amount, referral_code, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      'INSERT INTO orders ("userId", items, total, "paymentMethod", status, shipping_address, coupon_code, discount_amount, referral_code, "createdAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
       [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending', JSON.stringify(finalShipping), couponCode || null, discountAmount || 0, refCode]
     );
 
@@ -176,7 +176,7 @@ router.post('/upload-proof/:orderId', upload.single('paymentProof'), (req, res) 
   const url = `data:${mime};base64,${b64}`;
 
   pool.query(
-    'UPDATE orders SET paymentProof=?, status=? WHERE id=?',
+    'UPDATE orders SET "paymentProof"=?, status=? WHERE id=?',
     [url, 'waiting_verification', orderId],
     (err, result) => {
       if (err) return res.status(500).json({ error: 'Database error', detail: err });
@@ -193,7 +193,7 @@ router.get('/', verifyToken, verifyAdmin, (req, res) => {
   // Custom adapter in db.js requires parameterized syntax but doesn't fully support $1, $2 for LIMIT yet
   // However, I previously changed the adapter to support standard parameterized queries for PG
   // Let's use standard ? for adapter to convert to $1
-  pool.query('SELECT * FROM orders ORDER BY createdAt DESC LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
+  pool.query('SELECT * FROM orders ORDER BY "createdAt" DESC LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: 'Database error', detail: err });
     const data = results.map(r => ({
       ...r,
