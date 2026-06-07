@@ -7,7 +7,8 @@ import { useCurrency } from "../components/CurrencyContext.jsx";
 
 const PaymentDashboard = () => {
   const { userEmail } = useAuth();
-  const { t } = useCurrency();
+  const { t, language } = useCurrency();
+  const isId = language !== 'EN';
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -346,16 +347,16 @@ const PaymentDashboard = () => {
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold">1</div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Address</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isId ? 'Alamat Pengiriman' : 'Shipping Address'}</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <input
-                  type="text" placeholder="First Name" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
+                  type="text" placeholder={isId ? "Nama Depan" : "First Name"} className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
                   value={address.firstName} onChange={e => setAddress({ ...address, firstName: e.target.value })}
                 />
                 <input
-                  type="text" placeholder="Last Name" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
+                  type="text" placeholder={isId ? "Nama Belakang" : "Last Name"} className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
                   value={address.lastName} onChange={e => setAddress({ ...address, lastName: e.target.value })}
                 />
               </div>
@@ -365,7 +366,7 @@ const PaymentDashboard = () => {
                   className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black dark:text-white"
                   value={selectedProvince} onChange={e => setSelectedProvince(e.target.value)}
                 >
-                  <option value="">Pilih Provinsi</option>
+                  <option value="">{isId ? "Pilih Provinsi" : "Select Province"}</option>
                   {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
 
@@ -374,7 +375,7 @@ const PaymentDashboard = () => {
                   value={selectedCity} onChange={e => setSelectedCity(e.target.value)}
                   disabled={!selectedProvince}
                 >
-                  <option value="">Pilih Kota/Kabupaten</option>
+                  <option value="">{isId ? "Pilih Kota/Kabupaten" : "Select City/Regency"}</option>
                   {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -385,7 +386,7 @@ const PaymentDashboard = () => {
                   value={selectedDistrict} onChange={e => setSelectedDistrict(e.target.value)}
                   disabled={!selectedCity}
                 >
-                  <option value="">Pilih Kecamatan</option>
+                  <option value="">{isId ? "Pilih Kecamatan" : "Select District"}</option>
                   {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
 
@@ -394,32 +395,32 @@ const PaymentDashboard = () => {
                   value={selectedVillage} onChange={e => setSelectedVillage(e.target.value)}
                   disabled={!selectedDistrict}
                 >
-                  <option value="">Pilih Desa/Kelurahan</option>
+                  <option value="">{isId ? "Pilih Desa/Kelurahan" : "Select Village"}</option>
                   {villages.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
               </div>
 
               <div className="mb-4">
                 <textarea
-                  placeholder="Detail Alamat (Jalan, No. Rumah, RT/RW)" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black min-h-[100px]"
+                  placeholder={isId ? "Detail Alamat (Jalan, No. Rumah, RT/RW)" : "Detailed Address (Street, House No, etc)"} className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black min-h-[100px]"
                   value={address.address} onChange={e => setAddress({ ...address, address: e.target.value })}
                 />
               </div>
 
               <div className="mb-4">
                 <textarea
-                  placeholder="Catatan untuk Penjual (Opsional)" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black min-h-[80px]"
+                  placeholder={isId ? "Catatan untuk Penjual (Opsional)" : "Notes for Seller (Optional)"} className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black min-h-[80px]"
                   value={address.note} onChange={e => setAddress({ ...address, note: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <input
-                  type="text" placeholder="Postal Code" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
+                  type="text" placeholder={isId ? "Kode Pos" : "Postal Code"} className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
                   value={address.postalCode} onChange={e => setAddress({ ...address, postalCode: e.target.value })}
                 />
                 <input
-                  type="text" placeholder="Phone Number" className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
+                  type="text" placeholder={isId ? "Nomor Handphone" : "Phone Number"} className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black"
                   value={address.phone} onChange={e => setAddress({ ...address, phone: e.target.value })}
                 />
               </div>
@@ -429,7 +430,7 @@ const PaymentDashboard = () => {
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold">2</div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Shipping Method</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isId ? 'Metode Pengiriman' : 'Shipping Method'}</h2>
               </div>
 
               {/* Kurir Selection */}
@@ -452,13 +453,13 @@ const PaymentDashboard = () => {
 
               <div className="space-y-3">
                 {!selectedVillage && (
-                  <p className="text-sm text-gray-500 italic text-center p-4 bg-gray-50 dark:bg-gray-800 rounded">Pilih alamat lengkap terlebih dahulu untuk melihat ongkir.</p>
+                  <p className="text-sm text-gray-500 italic text-center p-4 bg-gray-50 dark:bg-gray-800 rounded">{isId ? 'Pilih alamat lengkap terlebih dahulu untuk melihat ongkir.' : 'Select a complete address first to view shipping cost.'}</p>
                 )}
                 
                 {selectedVillage && loadingShipping && (
                   <div className="flex flex-col items-center justify-center p-8 space-y-3 bg-white dark:bg-gray-800 rounded shadow-sm border border-dashed border-gray-200">
                     <div className="w-8 h-8 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-sm font-medium animate-pulse">Menghitung ongkos kirim terbaik...</p>
+                    <p className="text-sm font-medium animate-pulse">{isId ? 'Menghitung ongkos kirim terbaik...' : 'Calculating best shipping rates...'}</p>
                   </div>
                 )}
                 
@@ -506,7 +507,7 @@ const PaymentDashboard = () => {
             <section>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold">3</div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Method</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isId ? 'Metode Pembayaran' : 'Payment Method'}</h2>
               </div>
 
               {/* Methods Tab */}
@@ -530,7 +531,7 @@ const PaymentDashboard = () => {
           {/* RIGHT COLUMN: ORDER SUMMARY */}
           <div className="w-full lg:w-[400px]">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm sticky top-32">
-              <h2 className="text-xl font-bold mb-6">Order Summary</h2>
+              <h2 className="text-xl font-bold mb-6">{isId ? 'Ringkasan Pesanan' : 'Order Summary'}</h2>
 
               <div className="space-y-6 mb-6">
                 {cart.map((item, idx) => (
@@ -618,7 +619,7 @@ const PaymentDashboard = () => {
                 disabled={creating}
                 className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-black py-5 rounded-xl shadow-2xl uppercase tracking-[0.2em] text-[10px] transition-all active:scale-[0.97] mb-4 disabled:opacity-50"
               >
-                {creating ? "Processing..." : "Konfirmasi Pesanan →"}
+                {creating ? (isId ? "Memproses..." : "Processing...") : (isId ? "Konfirmasi Pesanan →" : "Confirm Order →")}
               </button>
 
               <div className="mt-8 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-gray-300">
