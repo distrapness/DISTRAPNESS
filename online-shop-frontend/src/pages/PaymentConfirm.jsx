@@ -10,6 +10,39 @@ const PaymentConfirm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [snapToken, setSnapToken] = useState("");
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenError, setTokenError] = useState("");
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  const fetchSnapToken = async (order) => {
+    try {
+      setTokenLoading(true);
+      setTokenError("");
+      
+      const email = (order.shipping_address && order.shipping_address.email) || order.email || "customer@mail.com";
+      
+      const res = await fetch(`${config.API_URL}/api/midtrans/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          total: order.total,
+          email: email
+        })
+      });
+      const data = await res.json();
+      if (!data.token) throw new Error(data.detail || "Gagal mendapatkan token pembayaran");
+      
+      setSnapToken(data.token);
+    } catch (err) {
+      console.error("Token prefetch error:", err);
+      setTokenError(err.message || "Gagal membuat token pembayaran");
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
   useEffect(() => {
     const orderId = searchParams.get("orderId") || localStorage.getItem("lastOrderId");
 
@@ -34,12 +67,20 @@ const PaymentConfirm = () => {
           items = JSON.parse(localStorage.getItem("cart") || "[]");
         }
 
-        setPaymentData({
+        const parsedOrder = {
           ...data,
           items: items,
           total: parseFloat(data.total)
-        });
+        };
+
+        setPaymentData(parsedOrder);
         setError("");
+
+        // Prefetch token immediately if it uses Midtrans
+        const method = parsedOrder.paymentMethod;
+        if (method && method !== "cod" && method !== "mandiri_tf") {
+          fetchSnapToken(parsedOrder);
+        }
       })
       .catch((err) => setError(err.message || "Gagal mengambil data pesanan"))
       .finally(() => setLoading(false));
@@ -49,11 +90,25 @@ const PaymentConfirm = () => {
       .then(res => res.json())
       .then(data => {
         const scriptUrl = data.isProduction ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js';
-        if (!document.querySelector(`script[src="${scriptUrl}"]`)) {
+        
+        if (window.snap) {
+          setScriptLoaded(true);
+          return;
+        }
+
+        const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
+        if (existingScript) {
+          setScriptLoaded(true);
+        } else {
           const script = document.createElement('script');
           script.src = scriptUrl;
           script.setAttribute('data-client-key', data.clientKey);
           script.async = true;
+          script.onload = () => setScriptLoaded(true);
+          script.onerror = () => {
+            console.error("Gagal memuat script Midtrans");
+            setTokenError("Gagal memuat library Midtrans. Pastikan Adblocker Anda mati.");
+          };
           document.body.appendChild(script);
         }
       })
@@ -71,7 +126,6 @@ const PaymentConfirm = () => {
       setProcessing(true);
 
       if (method === "cod") {
-        // Use the new customer-facing confirm-cod endpoint
         const res = await fetch(`${config.API_URL}/api/orders/${paymentData.id}/confirm-cod`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' }
@@ -82,25 +136,23 @@ const PaymentConfirm = () => {
         return;
       }
 
-      const res = await fetch(`${config.API_URL}/api/midtrans/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: paymentData.id,
-          total: paymentData.total,
-          email: paymentData.email || "customer@mail.com"
-        })
-      });
-      const data = await res.json();
-      if (!data.token) throw new Error(data.detail || "Gagal mendapatkan token pembayaran");
+      if (!window.snap) {
+        throw new Error("Sistem pembayaran Midtrans sedang disiapkan atau diblokir oleh ekstensi browser (seperti Adblocker). Silakan refresh halaman dan coba beberapa detik lagi.");
+      }
 
-      window.snap.pay(data.token, {
+      if (!snapToken) {
+        if (tokenError) throw new Error(tokenError);
+        throw new Error("Token pembayaran belum siap. Silakan tunggu beberapa detik.");
+      }
+
+      window.snap.pay(snapToken, {
         onSuccess: () => navigate("/payment-success"),
         onPending: () => { alert("Menunggu pembayaran..."); navigate("/"); },
         onError: () => alert("Pembayaran gagal!"),
         onClose: () => alert("Pembayaran dibatalkan")
       });
     } catch (err) {
+      console.error("Payment Error:", err);
       alert(err.message);
     } finally {
       setProcessing(false);
@@ -202,6 +254,11 @@ const PaymentConfirm = () => {
 
                 {paymentData.status === 'pending' ? (
                   <div className="space-y-6">
+                    {tokenError && (
+                      <div className="p-4 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-2xl text-xs font-semibold">
+                        ⚠️ {tokenError}
+                      </div>
+                    )}
                     {method === 'mandiri_tf' ? (
                       <div className="space-y-6">
                         <div className="bg-black text-white p-8 rounded-3xl text-center">
@@ -217,10 +274,25 @@ const PaymentConfirm = () => {
                     ) : (
                       <button 
                         onClick={handlePayment} 
-                        disabled={processing} 
-                        className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        disabled={
+                          processing || 
+                          (method !== 'cod' && (!scriptLoaded || tokenLoading || !snapToken))
+                        } 
+                        className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all ${
+                          processing || (method !== 'cod' && (!scriptLoaded || tokenLoading || !snapToken))
+                            ? 'bg-gray-300 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                            : 'bg-black dark:bg-white text-white dark:text-black'
+                        }`}
                       >
-                        {processing ? 'Processing' : (method === 'cod' ? 'Confirm Order' : 'Pay Now')}
+                        {processing 
+                          ? 'Processing' 
+                          : method === 'cod' 
+                            ? 'Confirm Order' 
+                            : !scriptLoaded 
+                              ? 'Loading Payment System...' 
+                              : tokenLoading 
+                                ? 'Generating Payment Token...' 
+                                : 'Pay Now'}
                       </button>
                     )}
                   </div>
