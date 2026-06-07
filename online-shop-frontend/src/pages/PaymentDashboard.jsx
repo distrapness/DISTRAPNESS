@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton.jsx";
 import config from '../config.js';
 import { useAuth } from "../contexts/AuthContext";
@@ -6,12 +7,44 @@ import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 
 const PaymentDashboard = () => {
+  const navigate = useNavigate();
   const { userEmail } = useAuth();
   const { t, language } = useCurrency();
   const isId = language !== 'EN';
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  useEffect(() => {
+    // Load Midtrans script
+    fetch(`${config.API_URL}/api/midtrans/config`)
+      .then(res => res.json())
+      .then(data => {
+        const scriptUrl = data.isProduction ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js';
+        
+        if (window.snap) {
+          setScriptLoaded(true);
+          return;
+        }
+
+        const existingScript = document.querySelector(`script[src="${scriptUrl}"]`);
+        if (existingScript) {
+          setScriptLoaded(true);
+        } else {
+          const script = document.createElement('script');
+          script.src = scriptUrl;
+          script.setAttribute('data-client-key', data.clientKey);
+          script.async = true;
+          script.onload = () => setScriptLoaded(true);
+          script.onerror = () => {
+            console.error("Gagal memuat script Midtrans");
+          };
+          document.body.appendChild(script);
+        }
+      })
+      .catch(console.error);
+  }, []);
   const [cart, setCart] = useState([]);
   const [creating, setCreating] = useState(false);
   const [subtotal, setSubtotal] = useState(0);
@@ -312,6 +345,8 @@ const PaymentDashboard = () => {
       localStorage.setItem('lastOrderId', data.orderId);
       localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
       localStorage.setItem('cartTotal', finalTotal);
+      localStorage.setItem('lastOrderItems', JSON.stringify(items));
+      localStorage.setItem('lastOrderEmail', userEmail || "guest@mail.com");
       localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
       
       // ✅ FIX: Clear cart after successful order creation
@@ -320,7 +355,64 @@ const PaymentDashboard = () => {
       // Clean up referral after use
       localStorage.removeItem('referral_code');
 
-      window.location.href = '/payment/confirm';
+      // 1. COD Flow: automatically confirm order
+      if (selectedPaymentMethod === "cod") {
+        const codRes = await fetch(`${config.API_URL}/api/orders/${data.orderId}/confirm-cod`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const codData = await codRes.json();
+        if (!codRes.ok) throw new Error(codData.error || "Gagal mengonfirmasi pesanan COD");
+        
+        navigate("/payment-success");
+        return;
+      }
+
+      // 2. Midtrans Flow: get Snap token and open payment modal directly
+      if (selectedPaymentMethod !== "mandiri_tf") {
+        let token = data.snapToken;
+
+        // Fallback: if backend failed to return snapToken, request it now
+        if (!token) {
+          try {
+            const tokenRes = await fetch(`${config.API_URL}/api/midtrans/token`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: data.orderId,
+                total: finalTotal,
+                email: userEmail || "customer@mail.com"
+              })
+            });
+            const tokenData = await tokenRes.json();
+            token = tokenData.token;
+          } catch (err) {
+            console.error("Token fallback failed:", err);
+          }
+        }
+
+        if (!token) {
+          throw new Error("Gagal mendapatkan token pembayaran Midtrans. Silakan lakukan pembayaran dari halaman konfirmasi.");
+        }
+
+        if (!window.snap) {
+          throw new Error("Sistem pembayaran Midtrans sedang disiapkan atau diblokir oleh ekstensi browser (seperti Adblocker). Silakan refresh halaman dan coba beberapa detik lagi.");
+        }
+
+        window.snap.pay(token, {
+          onSuccess: () => navigate("/payment-success"),
+          onPending: () => { alert("Menunggu pembayaran..."); navigate("/"); },
+          onError: () => alert("Pembayaran gagal!"),
+          onClose: () => {
+            alert("Pembayaran ditunda/dibatalkan. Anda dapat melanjutkannya nanti melalui halaman profil.");
+            navigate(`/payment/confirm?orderId=${data.orderId}`);
+          }
+        });
+        return;
+      }
+
+      // 3. Manual Bank Transfer (mandiri_tf) Flow: redirect to PaymentConfirm page to upload proof
+      navigate(`/payment/confirm?orderId=${data.orderId}`);
 
     } catch (e) {
       alert(e.message || "Gagal memproses pesanan");

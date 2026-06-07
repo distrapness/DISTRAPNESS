@@ -13,16 +13,27 @@ const PaymentSuccess = () => {
     // Retrieve order details from localStorage
     const storedOrderId = localStorage.getItem("lastOrderId") || `INV${Date.now().toString().slice(-6)}`;
     const storedTotal = localStorage.getItem("cartTotal") || 0;
-    const storedCart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const storedEmail = localStorage.getItem("userEmail") || "yourname@example.com"; // Fallback if not authorized
+    
+    let storedCart = JSON.parse(localStorage.getItem("cart") || "[]");
+    if (!storedCart || storedCart.length === 0) {
+      try {
+        storedCart = JSON.parse(localStorage.getItem("lastOrderItems") || "[]");
+      } catch (e) {
+        storedCart = [];
+      }
+    }
+    
+    const storedEmail = localStorage.getItem("lastOrderEmail") || localStorage.getItem("userEmail") || "yourname@example.com";
 
     setOrderId(storedOrderId);
     setTotal(parseFloat(storedTotal));
     setItems(storedCart);
     setEmail(storedEmail);
 
-    // Clear cart ONLY after successfully viewing this page (optional, but good UX)
+    // Clear cart and temporary items
     localStorage.removeItem("cart");
+    localStorage.removeItem("lastOrderItems");
+    localStorage.removeItem("lastOrderEmail");
   }, []);
 
   return (

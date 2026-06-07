@@ -6,6 +6,41 @@ const path = require('path');
 const fs = require('fs');
 const { sendOrderConfirmation, sendAdminNotification, sendStatusUpdateEmail } = require('../services/emailService');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const midtransClient = require('midtrans-client');
+
+const getMidtransConfig = async () => {
+    try {
+        const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('midtrans_server_key', 'midtrans_client_key', 'midtrans_production')");
+        const settings = rows.reduce((acc, row) => {
+            acc[row.setting_key] = row.setting_value;
+            return acc;
+        }, {});
+        const serverKeyFallback = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx';
+        return {
+            serverKey: settings.midtrans_server_key || serverKeyFallback,
+            clientKey: settings.midtrans_client_key || process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
+            isProduction: settings.midtrans_production ? settings.midtrans_production === 'true' : !serverKeyFallback.startsWith('SB-')
+        };
+    } catch (err) {
+        console.error("Error fetching Midtrans config", err);
+        const serverKeyFallback = process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-xxx';
+        return {
+            serverKey: serverKeyFallback,
+            clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-xxx',
+            isProduction: !serverKeyFallback.startsWith('SB-')
+        };
+    }
+};
+
+const getSnapInstance = async () => {
+    const config = await getMidtransConfig();
+    return new midtransClient.Snap({
+        isProduction: config.isProduction,
+        serverKey: config.serverKey,
+        clientKey: config.clientKey
+    });
+};
+
 
 
 // Multer setup for payment proof uploads
@@ -154,7 +189,30 @@ router.post('/', async (req, res) => {
       console.warn("Admin email sync error:", e.message);
     }
 
-    res.json({ success: true, orderId: newOrderId });
+    let snapToken = null;
+    if (paymentMethod !== 'cod' && paymentMethod !== 'mandiri_tf') {
+      try {
+        const snap = await getSnapInstance();
+        const parameter = {
+          transaction_details: {
+            order_id: `ORDER-${newOrderId}-${Date.now()}`,
+            gross_amount: Math.round(total)
+          },
+          credit_card: {
+            secure: true
+          },
+          customer_details: {
+            email: targetEmail || "customer@mail.com"
+          }
+        };
+        const transaction = await snap.createTransaction(parameter);
+        snapToken = transaction.token;
+      } catch (err) {
+        console.error('Midtrans token creation failed on order create:', err.ApiResponse || err);
+      }
+    }
+
+    res.json({ success: true, orderId: newOrderId, snapToken });
 
   } catch (err) {
     await connection.rollback();
