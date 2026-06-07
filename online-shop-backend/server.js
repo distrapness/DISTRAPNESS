@@ -551,7 +551,8 @@ app.get('/api/categories', async (req, res) => {
 
     res.json(categoriesWithImages);
   } catch (err) {
-    res.status(500).json({ error: 'Categories fetch error' });
+    console.error("Categories fetch error:", err);
+    res.status(500).json({ error: 'Categories fetch error', detail: err.message });
   }
 });
 
