@@ -26,19 +26,19 @@ const getShippingConfig = async () => {
 const shippingService = {
   // --- New Manual Hierarchy Methods (emsifa API) ---
   getProvinces: async () => {
-    const res = await axios.get('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json');
+    const res = await axios.get('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json', { timeout: 5000 });
     return res.data;
   },
   getCities: async (provinceId) => {
-    const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinceId}.json`);
+    const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinceId}.json`, { timeout: 5000 });
     return res.data;
   },
   getDistricts: async (cityId) => {
-    const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${cityId}.json`);
+    const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${cityId}.json`, { timeout: 5000 });
     return res.data;
   },
   getVillages: async (districtId) => {
-    const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${districtId}.json`);
+    const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${districtId}.json`, { timeout: 5000 });
     return res.data;
   },
 
@@ -48,7 +48,8 @@ const shippingService = {
       const config = await getShippingConfig();
       const response = await axios.get(`${BITESHIP_BASE_URL}/maps/areas`, {
         params: { countries: 'ID', input: query, type: 'single' },
-        headers: { authorization: config.apiKey }
+        headers: { authorization: config.apiKey },
+        timeout: 5000
       });
       // Return the first match's ID
       return response.data.areas?.[0]?.id || null;

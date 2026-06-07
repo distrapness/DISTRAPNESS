@@ -134,9 +134,9 @@ router.post('/', async (req, res) => {
           orderId: newOrderId,
           cart: items,
           total: total
-        });
+        }).catch(e => console.warn("Email confirmation async error:", e.message));
       } catch (e) {
-        console.warn("Email confirmation warning:", e.message);
+        console.warn("Email confirmation sync error:", e.message);
       }
     }
 
@@ -149,9 +149,9 @@ router.post('/', async (req, res) => {
         email: targetEmail,
         paymentMethod: paymentMethod,
         shippingAddress: finalShipping
-      });
+      }).catch(e => console.warn("Admin email async error:", e.message));
     } catch (e) {
-      console.warn("Admin email warning:", e.message);
+      console.warn("Admin email sync error:", e.message);
     }
 
     res.json({ success: true, orderId: newOrderId });

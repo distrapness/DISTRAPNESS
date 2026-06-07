@@ -24,7 +24,8 @@ const rajaOngkirService = {
     getProvinces: async () => {
         const config = await getRajaOngkirConfig();
         const res = await axios.get('https://api.rajaongkir.com/starter/province', {
-            headers: { key: config.apiKey }
+            headers: { key: config.apiKey },
+            timeout: 5000
         });
         return res.data.rajaongkir.results;
     },
@@ -32,7 +33,8 @@ const rajaOngkirService = {
     getCities: async (provinceId) => {
         const config = await getRajaOngkirConfig();
         const res = await axios.get(`https://api.rajaongkir.com/starter/city?province=${provinceId}`, {
-            headers: { key: config.apiKey }
+            headers: { key: config.apiKey },
+            timeout: 5000
         });
         return res.data.rajaongkir.results;
     },
@@ -49,7 +51,8 @@ const rajaOngkirService = {
             headers: { 
                 key: config.apiKey,
                 'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            },
+            timeout: 5000
         });
 
         const results = res.data.rajaongkir.results[0];
