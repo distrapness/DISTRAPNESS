@@ -302,8 +302,7 @@ const PaymentDashboard = () => {
           },
           couponCode: appliedCoupon,
           discountAmount: discountAmount + referralDiscount,
-          referralCode: referralCode,
-          email: userEmail || "" // Always send email
+          referralCode: referralCode
         })
       });
 

@@ -1,10 +1,13 @@
 const nodemailer = require('nodemailer');
 
+const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.replace(/\\n/g, '').trim() : '';
+const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\\n/g, '').trim() : '';
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: emailUser,
+    pass: emailPass,
   },
   connectionTimeout: 5000,
   socketTimeout: 5000,
@@ -16,7 +19,7 @@ const formatCurrency = (amount) => {
 };
 
 const sendOrderConfirmation = async (orderData) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!emailUser || !emailPass) {
     console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
     return false;
   }
@@ -32,11 +35,11 @@ const sendOrderConfirmation = async (orderData) => {
   `).join('');
 
   const mailOptions = {
-    from: `"Online Shop" <${process.env.EMAIL_USER}>`,
+    from: `"Online Shop" <${emailUser}>`,
     to: email,
     subject: `Konfirmasi Pesanan #${orderId}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-w-600px; margin: 0 auto; color: #333;">
+      <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; color: #333;">
         <h2 style="color: #000;">Terima Kasih atas Pesanan Anda!</h2>
         <p>Halo,</p>
         <p>Pesanan Anda dengan ID <strong>#${orderId}</strong> telah kami terima dan sedang diproses.</p>
@@ -78,7 +81,7 @@ const sendOrderConfirmation = async (orderData) => {
 };
 
 const sendStatusUpdateEmail = async (orderData) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!emailUser || !emailPass) {
     console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
     return false;
   }
@@ -100,7 +103,7 @@ const sendStatusUpdateEmail = async (orderData) => {
   }
 
   const mailOptions = {
-    from: `"Distrapness Support" <${process.env.EMAIL_USER}>`,
+    from: `"Distrapness Support" <${emailUser}>`,
     to: email,
     subject: `Update Pesanan #${orderId} - ${statusText}`,
     html: `
@@ -140,7 +143,7 @@ const sendStatusUpdateEmail = async (orderData) => {
 
 const sendRegistrationWelcome = async (userEmail) => {
   const mailOptions = {
-    from: `"Distrapness" <${process.env.EMAIL_USER}>`,
+    from: `"Distrapness" <${emailUser}>`,
     to: userEmail,
     subject: `Selamat Datang di Distrapness!`,
     html: `
@@ -176,10 +179,10 @@ const sendRegistrationWelcome = async (userEmail) => {
 
 const sendContactNotification = async (contactData) => {
   const { name, email, message } = contactData;
-  const adminEmail = process.env.EMAIL_USER;
+  const adminEmail = emailUser;
 
   const mailOptions = {
-    from: `"Distrapness Contact" <${process.env.EMAIL_USER}>`,
+    from: `"Distrapness Contact" <${emailUser}>`,
     to: adminEmail,
     replyTo: email,
     subject: `📩 Pesan Baru dari ${name}`,
@@ -206,13 +209,13 @@ const sendContactNotification = async (contactData) => {
 };
 
 const sendAdminNotification = async (orderData) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!emailUser || !emailPass) {
     console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
     return false;
   }
 
   const { orderId, cart, total, email, shippingAddress } = orderData;
-  const adminEmail = process.env.EMAIL_USER || 'distrapness@gmail.com';
+  const adminEmail = emailUser || 'distrapness@gmail.com';
 
   const itemsHtml = cart.map(item => `
     <tr>
@@ -222,7 +225,7 @@ const sendAdminNotification = async (orderData) => {
   `).join('');
 
   const mailOptions = {
-    from: `"Online Shop Admin" <${process.env.EMAIL_USER}>`,
+    from: `"Online Shop Admin" <${emailUser}>`,
     to: adminEmail,
     subject: `🚨 PESANAN BARU MASUK! - #${orderId}`,
     html: `
@@ -258,7 +261,7 @@ const sendAdminNotification = async (orderData) => {
           </tfoot>
         </table>
 
-        <p><a href="https://online-shop-beige-one.vercel.app/admin/orders" style="display: inline-block; padding: 10px 20px; background-color: #0275d8; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Buka Dashboard Admin</a></p>
+        <p><a href="https://online-shop-beige-one.vercel.app/admin/orders" style="display: inline-block; padding: 10px 20px; background-color: #000; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Buka Dashboard Admin</a></p>
       </div>
     `,
   };
