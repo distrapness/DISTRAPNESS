@@ -31,8 +31,10 @@ function convertQuery(sql) {
     pgSql += ' RETURNING id';
   }
 
-  // 4. Perbaikan syntax LIMIT (MySQL: LIMIT offset, count -> Postgres: LIMIT count OFFSET offset)
-  // Catatan: Proyek ini sepertinya hanya menggunakan LIMIT sederhana atau offset sederhana.
+  // 4. Perbaikan syntax AUTO_INCREMENT & DATETIME untuk PostgreSQL
+  pgSql = pgSql.replace(/INT\s+AUTO_INCREMENT/gi, 'SERIAL');
+  pgSql = pgSql.replace(/AUTO_INCREMENT/gi, 'SERIAL');
+  pgSql = pgSql.replace(/DATETIME/gi, 'TIMESTAMP');
   
   return pgSql;
 }

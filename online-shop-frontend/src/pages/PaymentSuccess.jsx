@@ -8,11 +8,13 @@ const PaymentSuccess = () => {
   const [email, setEmail] = useState("");
   const [total, setTotal] = useState(0);
   const [items, setItems] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     // Retrieve order details from localStorage
     const storedOrderId = localStorage.getItem("lastOrderId") || `INV${Date.now().toString().slice(-6)}`;
     const storedTotal = localStorage.getItem("cartTotal") || 0;
+    const storedMethod = localStorage.getItem("selectedPaymentMethod") || "";
     
     let storedCart = JSON.parse(localStorage.getItem("cart") || "[]");
     if (!storedCart || storedCart.length === 0) {
@@ -29,11 +31,13 @@ const PaymentSuccess = () => {
     setTotal(parseFloat(storedTotal));
     setItems(storedCart);
     setEmail(storedEmail);
+    setPaymentMethod(storedMethod);
 
     // Clear cart and temporary items
     localStorage.removeItem("cart");
     localStorage.removeItem("lastOrderItems");
     localStorage.removeItem("lastOrderEmail");
+    localStorage.removeItem("selectedPaymentMethod");
   }, []);
 
   return (
@@ -137,7 +141,7 @@ const PaymentSuccess = () => {
             onClick={() => navigate(`/payment/confirm?orderId=${orderId}`)}
             className="w-full md:w-auto px-8 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-85 transition transform active:scale-95 flex items-center justify-center"
           >
-            Halaman Pay Now
+            {paymentMethod === "cod" ? "Detail Pesanan" : paymentMethod === "mandiri_tf" ? "Upload Bukti Transfer" : "Halaman Pay Now"}
           </button>
 
           <button
