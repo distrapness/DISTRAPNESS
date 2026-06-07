@@ -123,6 +123,13 @@ const PaymentSuccess = () => {
           </a>
 
           <button
+            onClick={() => navigate(`/payment/confirm?orderId=${orderId}`)}
+            className="w-full md:w-auto px-8 py-3 bg-black dark:bg-white text-white dark:text-black font-bold rounded-full hover:opacity-85 transition transform active:scale-95 flex items-center justify-center"
+          >
+            Halaman Pay Now
+          </button>
+
+          <button
             onClick={() => navigate("/profile")}
             className="w-full md:w-auto px-8 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 transition"
           >
