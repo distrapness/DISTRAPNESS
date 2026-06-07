@@ -524,7 +524,7 @@ app.put('/api/settings', verifyToken, verifyAdmin, async (req, res) => {
 // Categories API
 app.get('/api/categories', async (req, res) => {
   try {
-    const [rows] = await pool.promise().query('SELECT * FROM categories ORDER BY id DESC');
+    const [rows] = await pool.promise().query('SELECT * FROM categories ORDER BY category_id DESC');
     
     // Fallback images for categories: use first product image found in that category if null or placeholder
     const categoriesWithImages = await Promise.all(rows.map(async (cat) => {
