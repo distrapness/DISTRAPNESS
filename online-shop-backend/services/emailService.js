@@ -16,6 +16,11 @@ const formatCurrency = (amount) => {
 };
 
 const sendOrderConfirmation = async (orderData) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+
   const { email, orderId, cart, total } = orderData;
 
   // Buat list item HTML
@@ -73,6 +78,11 @@ const sendOrderConfirmation = async (orderData) => {
 };
 
 const sendStatusUpdateEmail = async (orderData) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+
   const { email, orderId, status, trackingNumber } = orderData;
 
   let statusText = status;
@@ -196,6 +206,11 @@ const sendContactNotification = async (contactData) => {
 };
 
 const sendAdminNotification = async (orderData) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+
   const { orderId, cart, total, email, shippingAddress } = orderData;
   const adminEmail = process.env.EMAIL_USER || 'distrapness@gmail.com';
 
