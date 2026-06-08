@@ -64,6 +64,10 @@ const PaymentDashboard = () => {
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(localStorage.getItem('selectedPaymentMethod') || "midtrans");
 
+  useEffect(() => {
+    localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
+  }, [selectedPaymentMethod]);
+
   // Coupon State
   const [couponCode, setCouponCode] = useState(localStorage.getItem('appliedCoupon') || "");
   const [discountAmount, setDiscountAmount] = useState(Number(localStorage.getItem('discountAmount')) || 0);
@@ -181,6 +185,10 @@ const PaymentDashboard = () => {
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [courier, setCourier] = useState(localStorage.getItem('selectedCourier') || "jne");
+
+  useEffect(() => {
+    localStorage.setItem('selectedCourier', courier);
+  }, [courier]);
 
   // Load Provinces
   useEffect(() => {
@@ -386,13 +394,44 @@ const PaymentDashboard = () => {
       return;
     }
 
-    setCreating(true);
-
     // Consistent total calculation (same formula used in display)
     const discountedAmount = Math.max(0, subtotal - discountAmount - referralDiscount);
     const taxes = Math.round(discountedAmount * 0.11);
     const finalTotal = discountedAmount + shippingCost + taxes;
     const items = cart;
+
+    // For COD, we bypass creating the order in the database and clearing the cart on checkout page.
+    // Instead, we save the details temporarily to localStorage and let the confirmation page trigger the write.
+    if (selectedPaymentMethod === 'cod') {
+      const tempOrder = {
+        id: "temp",
+        items,
+        total: finalTotal > 0 ? finalTotal : 0,
+        paymentMethod: 'cod',
+        status: 'pending',
+        shippingAddress: {
+          ...address,
+          province: provinces.find(p => p.id === selectedProvince)?.name || "",
+          city: cities.find(c => c.id === selectedCity)?.name || "",
+          district: districts.find(d => d.id === selectedDistrict)?.name || "",
+          area: villages.find(v => v.id === selectedVillage)?.name || "",
+          courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
+        },
+        couponCode: appliedCoupon,
+        discountAmount: discountAmount + referralDiscount,
+        referralCode: referralCode,
+        email: userEmail || "guest@mail.com"
+      };
+
+      localStorage.setItem('tempCodOrder', JSON.stringify(tempOrder));
+      localStorage.setItem('selectedPaymentMethod', 'cod');
+      localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
+      
+      navigate(`/payment/confirm?temp=true`);
+      return;
+    }
+
+    setCreating(true);
 
     try {
       const res = await fetch(`${config.API_URL}/api/orders`, {
@@ -434,6 +473,8 @@ const PaymentDashboard = () => {
       
       // Clean up referral after use
       localStorage.removeItem('referral_code');
+      localStorage.removeItem('appliedCoupon');
+      localStorage.removeItem('discountAmount');
 
       // Redirect to Order Confirmation page (Halaman Confirm Order / Status)
       navigate(`/payment/confirm?orderId=${data.orderId}`);

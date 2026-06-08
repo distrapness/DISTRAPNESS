@@ -44,6 +44,20 @@ const PaymentConfirm = () => {
   };
 
   useEffect(() => {
+    const isTemp = searchParams.get("temp") === "true";
+    if (isTemp) {
+      const tempStr = localStorage.getItem('tempCodOrder');
+      if (tempStr) {
+        try {
+          const tempData = JSON.parse(tempStr);
+          setPaymentData(tempData);
+          setError("");
+          setLoading(false);
+          return;
+        } catch(e){}
+      }
+    }
+
     const orderId = searchParams.get("orderId") || localStorage.getItem("lastOrderId");
 
     if (!orderId) {
@@ -126,14 +140,64 @@ const PaymentConfirm = () => {
       setProcessing(true);
 
       if (method === "cod") {
-        const res = await fetch(`${config.API_URL}/api/orders/${paymentData.id}/confirm-cod`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Gagal mengonfirmasi pesanan COD");
-        navigate("/payment-success");
-        return;
+        const isTemp = searchParams.get("temp") === "true";
+        if (isTemp) {
+          // 1. Create order in database first
+          const createRes = await fetch(`${config.API_URL}/api/orders`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: paymentData.userId || "guest",
+              email: paymentData.email || "guest@mail.com",
+              items: paymentData.items,
+              total: paymentData.total,
+              paymentMethod: "cod",
+              status: "pending",
+              shippingAddress: paymentData.shippingAddress,
+              couponCode: paymentData.couponCode,
+              discountAmount: paymentData.discountAmount,
+              referralCode: paymentData.referralCode
+            })
+          });
+          const createData = await createRes.json();
+          if (!createRes.ok) throw new Error(createData.error || "Gagal membuat pesanan COD");
+
+          const realOrderId = createData.orderId;
+
+          // 2. Confirm COD order (sends email & changes status to processing)
+          const confirmRes = await fetch(`${config.API_URL}/api/orders/${realOrderId}/confirm-cod`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const confirmData = await confirmRes.json();
+          if (!confirmRes.ok) throw new Error(confirmData.error || "Gagal mengonfirmasi pesanan COD");
+
+          // Save success metadata for Success page
+          localStorage.setItem('lastOrderId', realOrderId);
+          localStorage.setItem('cartTotal', paymentData.total);
+          localStorage.setItem('lastOrderItems', JSON.stringify(paymentData.items));
+          localStorage.setItem('lastOrderEmail', paymentData.email || "guest@mail.com");
+
+          // 3. Clear cart & temp files
+          localStorage.removeItem('cart');
+          localStorage.removeItem('tempCodOrder');
+          localStorage.removeItem('referral_code');
+          localStorage.removeItem('appliedCoupon');
+          localStorage.removeItem('discountAmount');
+
+          navigate("/payment-success");
+          return;
+        } else {
+          // Existing order confirm COD
+          const res = await fetch(`${config.API_URL}/api/orders/${paymentData.id}/confirm-cod`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Gagal mengonfirmasi pesanan COD");
+          navigate("/payment-success");
+          return;
+        }
       }
 
       if (!window.snap) {
@@ -160,6 +224,11 @@ const PaymentConfirm = () => {
   };
 
   const handleGoBack = () => {
+    const isTemp = searchParams.get("temp") === "true";
+    if (isTemp) {
+      navigate('/payment');
+      return;
+    }
     const lastItems = localStorage.getItem('lastOrderItems');
     if (lastItems) {
       localStorage.setItem('cart', lastItems);
