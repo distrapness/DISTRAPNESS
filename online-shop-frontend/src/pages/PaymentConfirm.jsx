@@ -207,22 +207,6 @@ const PaymentConfirm = () => {
               </div>
             ) : paymentData && (
               <div className="w-full text-left">
-                {/* Header Status */}
-                <div className="flex flex-col items-center mb-10">
-                   <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Order Status</span>
-                   <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                      paymentData.status === 'paid' ? 'bg-green-100 text-green-700' :
-                      paymentData.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                      paymentData.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700 animate-pulse'
-                    }`}>
-                      {paymentData.status === 'paid' ? '✔ Paid' : 
-                       paymentData.status === 'shipped' ? '🚚 Shipped' :
-                       paymentData.status === 'cancelled' ? '✘ Cancelled' :
-                       '⌛ Waiting for Payment'}
-                   </div>
-                </div>
-
                 {/* Delivery Info */}
                 {paymentData.status === 'shipped' && (
                    <div className="mb-10 bg-black text-white p-8 rounded-3xl">
@@ -297,7 +281,23 @@ const PaymentConfirm = () => {
                     )}
                   </div>
                 ) : (
-                  <button onClick={() => navigate('/shop')} className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white py-5 rounded-2xl font-bold uppercase tracking-widest text-[10px]">Continue Shopping</button>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 text-center rounded-2xl border border-gray-100 dark:border-gray-700">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">Status</span>
+                      <span className={`text-xs font-bold uppercase tracking-wider ${
+                        paymentData.status === 'paid' ? 'text-green-600' :
+                        paymentData.status === 'shipped' ? 'text-blue-600' :
+                        paymentData.status === 'cancelled' ? 'text-red-600' :
+                        'text-yellow-600'
+                      }`}>
+                        {paymentData.status === 'paid' ? '✔ Paid' : 
+                         paymentData.status === 'shipped' ? '🚚 Shipped' :
+                         paymentData.status === 'cancelled' ? '✘ Cancelled' :
+                         paymentData.status}
+                      </span>
+                    </div>
+                    <button onClick={() => navigate('/shop')} className="w-full bg-black dark:bg-white text-white dark:text-black py-5 rounded-2xl font-bold uppercase tracking-widest text-[10px]">Continue Shopping</button>
+                  </div>
                 )}
               </div>
             )}

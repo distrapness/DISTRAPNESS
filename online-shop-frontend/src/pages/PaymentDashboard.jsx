@@ -73,8 +73,7 @@ const PaymentDashboard = () => {
 
   // Manual methods (always available)
   const staticMethods = [
-    { label: "QRIS / E-Wallet (Midtrans)", value: "qris" },
-    { label: "Bank Transfer / VA (Midtrans)", value: "bca_va" },
+    { label: "Midtrans (QRIS, VA, E-Wallet)", value: "midtrans" },
     { label: "COD (Bayar di Tempat)", value: "cod" }
   ];
 
@@ -82,7 +81,7 @@ const PaymentDashboard = () => {
     // ... existing useEffect ...
     // Merge static methods with API methods if any (or just use static for stability now)
     setMethods(staticMethods);
-    setSelectedPaymentMethod("qris");
+    setSelectedPaymentMethod("midtrans");
     setLoading(false);
 
     /* 
@@ -602,7 +601,7 @@ const PaymentDashboard = () => {
               </div>
 
               {/* Methods Tab */}
-              <div className="grid grid-cols-3 gap-2 mb-6">
+              <div className="grid grid-cols-2 gap-2 mb-6">
                 {methods.map(m => (
                   <button
                     key={m.value}
