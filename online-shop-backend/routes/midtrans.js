@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const midtransClient = require('midtrans-client');
 const pool = require('../db');
-const { sendStatusUpdateEmail } = require('../services/emailService');
+const { sendStatusUpdateEmail, sendOrderConfirmation } = require('../services/emailService');
 
 const getMidtransConfig = async () => {
     try {
@@ -175,12 +175,14 @@ router.post('/webhook', express.json(), async (req, res) => {
       pool.query('UPDATE orders SET status=? WHERE id=?', [status, orderId], async (err) => {
         if (err) return res.status(500).json({ error: 'DB error' });
         
-        // Referral & Affiliate Reward Logic
+        // Referral & Affiliate Reward Logic & Invoice Email
         if (status === 'paid' && oldStatus !== 'paid') {
             try {
-                const [orders] = await pool.promise().query('SELECT referral_code, total FROM orders WHERE id = ?', [orderId]);
+                const [orders] = await pool.promise().query('SELECT referral_code, total, items, shipping_address FROM orders WHERE id = ?', [orderId]);
                 const refCode = orders[0]?.referral_code;
                 const totalAmount = orders[0]?.total || 0;
+                const items = JSON.parse(orders[0]?.items || '[]');
+                const addr = JSON.parse(orders[0]?.shipping_address || '{}');
                 
                 if (refCode) {
                     // Reward the referrer (1000 points per success + 10% cash commission)
@@ -191,8 +193,18 @@ router.post('/webhook', express.json(), async (req, res) => {
                     );
                     console.log(`Referral reward & affiliate commission (${commission}) given to code: ${refCode}`);
                 }
+
+                // Kirim Email Konfirmasi Pesanan dengan rincian barang (invoice) setelah pembayaran sukses
+                if (addr.email) {
+                    sendOrderConfirmation({
+                        email: addr.email,
+                        orderId: orderId,
+                        cart: items,
+                        total: totalAmount
+                    }).catch(e => console.error("Midtrans invoice email failed:", e.message));
+                }
             } catch (e) {
-                console.error("Affiliate reward error:", e.message);
+                console.error("Affiliate reward or invoice email error:", e.message);
             }
         }
 

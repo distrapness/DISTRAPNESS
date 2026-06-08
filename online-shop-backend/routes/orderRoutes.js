@@ -117,9 +117,10 @@ router.post('/', async (req, res) => {
 
     // 2. Siapkan Data
     const dbUserId = (userId && !isNaN(userId)) ? userId : null;
+    const targetEmail = email || (userId && typeof userId === 'string' && userId.includes('@') ? userId : '') || 'customer@mail.com';
     const finalShipping = {
       ...(shippingAddress || {}),
-      email: email || (userId && typeof userId === 'string' && userId.includes('@') ? userId : '')
+      email: targetEmail
     };
     const refCode = req.body.referralCode || null;
 
@@ -160,20 +161,7 @@ router.post('/', async (req, res) => {
 
     await connection.commit();
 
-    // 5. Kirim Email ke Customer (safe)
-    const targetEmail = email || (userId && typeof userId === 'string' && userId.includes('@') ? userId : null);
-    if (targetEmail) {
-      try {
-        sendOrderConfirmation({
-          email: targetEmail,
-          orderId: newOrderId,
-          cart: items,
-          total: total
-        }).catch(e => console.warn("Email confirmation async error:", e.message));
-      } catch (e) {
-        console.warn("Email confirmation sync error:", e.message);
-      }
-    }
+    // 5. Kirim Email ke Customer ditunda sampai pesanan dibayar (untuk Midtrans) atau dikonfirmasi (untuk COD)
 
     // 6. Kirim Email Notifikasi ke Admin (safe)
     try {
@@ -278,7 +266,7 @@ router.get('/:orderId', (req, res) => {
 router.put('/:orderId/confirm-cod', async (req, res) => {
   const { orderId } = req.params;
   try {
-    const [rows] = await pool.promise().query('SELECT status, "paymentMethod" FROM orders WHERE id = ?', [orderId]);
+    const [rows] = await pool.promise().query('SELECT status, "paymentMethod", shipping_address, total, items FROM orders WHERE id = ?', [orderId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     
     if (rows[0].paymentMethod !== 'cod') {
@@ -286,6 +274,23 @@ router.put('/:orderId/confirm-cod', async (req, res) => {
     }
 
     await pool.promise().query('UPDATE orders SET status = ? WHERE id = ?', ['processing', orderId]);
+
+    // Kirim Email Konfirmasi Pesanan COD (karena sudah dikonfirmasi ulang oleh customer)
+    try {
+      const addr = JSON.parse(rows[0].shipping_address || '{}');
+      const items = JSON.parse(rows[0].items || '[]');
+      if (addr.email) {
+        sendOrderConfirmation({
+          email: addr.email,
+          orderId: orderId,
+          cart: items,
+          total: rows[0].total
+        }).catch(e => console.warn("COD Email confirmation async error:", e.message));
+      }
+    } catch (emailErr) {
+      console.error("Failed to send COD confirmation email:", emailErr.message);
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
