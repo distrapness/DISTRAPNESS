@@ -655,7 +655,7 @@ const PaymentDashboard = () => {
                 disabled={creating}
                 className="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-black py-5 rounded-xl shadow-2xl uppercase tracking-[0.2em] text-[10px] transition-all active:scale-[0.97] mb-4 disabled:opacity-50"
               >
-                {creating ? (isId ? "Memproses..." : "Processing...") : (isId ? "Konfirmasi Pesanan →" : "Confirm Order →")}
+                {creating ? (isId ? "Memproses..." : "Processing...") : (isId ? "Lanjut ke Status Pesanan →" : "Continue to Order Status →")}
               </button>
 
               <div className="mt-8 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-gray-300">
