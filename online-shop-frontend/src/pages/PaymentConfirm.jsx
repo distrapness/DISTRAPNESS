@@ -50,6 +50,9 @@ const PaymentConfirm = () => {
       if (tempStr) {
         try {
           const tempData = JSON.parse(tempStr);
+          // Normalize address field
+          tempData.shippingAddress = tempData.shippingAddress || tempData.shipping_address;
+          tempData.shipping_address = tempData.shippingAddress;
           setPaymentData(tempData);
           setError("");
           setLoading(false);
@@ -84,7 +87,10 @@ const PaymentConfirm = () => {
         const parsedOrder = {
           ...data,
           items: items,
-          total: parseFloat(data.total)
+          total: parseFloat(data.total),
+          // Normalize address field
+          shippingAddress: data.shipping_address || data.shippingAddress,
+          shipping_address: data.shipping_address || data.shippingAddress
         };
 
         setPaymentData(parsedOrder);
@@ -309,6 +315,64 @@ const PaymentConfirm = () => {
                       <p className="text-xl font-mono font-black tracking-widest">{paymentData.tracking_number || "PENDING"}</p>
                    </div>
                 )}
+
+                {/* Invoice / Receipt Details */}
+                <div className="mb-6 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 bg-gray-50/30 dark:bg-gray-800/20 space-y-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b pb-2">Rincian Nota & Pengiriman</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">No. Invoice / ID</span>
+                      <span className="font-bold font-mono text-gray-800 dark:text-gray-200">
+                        {paymentData.id === 'temp' ? 'DRAFT_COD' : `#${paymentData.id}`}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Tanggal</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        {paymentData.createdAt ? new Date(paymentData.createdAt).toLocaleDateString('id-ID', {
+                          year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        }) : new Date().toLocaleDateString('id-ID', {
+                          year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Metode Pembayaran</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200 uppercase text-[10px]">
+                        {paymentData.paymentMethod === 'cod' ? 'COD (Bayar di Tempat)' :
+                         paymentData.paymentMethod === 'mandiri_tf' ? 'Transfer Bank Mandiri' : 'Midtrans (QRIS/VA/E-Wallet)'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">Metode Pengiriman</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200 uppercase text-[10px]">
+                        {paymentData.shippingAddress?.courierInfo || 'Manual / Standard'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-100 dark:border-gray-800 pt-4 text-xs">
+                    <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-2">Alamat Pengiriman</span>
+                    <div className="bg-white/50 dark:bg-black/10 p-3 rounded-2xl border border-gray-50 dark:border-gray-800/50">
+                      <p className="font-bold text-gray-950 dark:text-white mb-0.5">
+                        {paymentData.shippingAddress?.firstName} {paymentData.shippingAddress?.lastName || ''}
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400 text-[10px] mb-2 font-mono">
+                        📞 {paymentData.shippingAddress?.phone}
+                      </p>
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {paymentData.shippingAddress?.address}, Kel. {paymentData.shippingAddress?.area}, Kec. {paymentData.shippingAddress?.district}, {paymentData.shippingAddress?.city}, {paymentData.shippingAddress?.province} - {paymentData.shippingAddress?.postalCode}
+                      </p>
+                      {paymentData.shippingAddress?.note && (
+                        <div className="mt-3 pt-2 border-t border-dashed border-gray-100 dark:border-gray-800 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                          <span className="font-bold uppercase text-[9px] block mb-1 opacity-70">Catatan:</span>
+                          "{paymentData.shippingAddress.note}"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Order Summary */}
                 <div className="mb-10 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 bg-gray-50/30 dark:bg-gray-800/20">
