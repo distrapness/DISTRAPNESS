@@ -62,12 +62,12 @@ const PaymentDashboard = () => {
     }
   }, [userEmail]);
   const [shippingMethod, setShippingMethod] = useState("standard");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(localStorage.getItem('selectedPaymentMethod') || "midtrans");
 
   // Coupon State
-  const [couponCode, setCouponCode] = useState("");
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponCode, setCouponCode] = useState(localStorage.getItem('appliedCoupon') || "");
+  const [discountAmount, setDiscountAmount] = useState(Number(localStorage.getItem('discountAmount')) || 0);
+  const [appliedCoupon, setAppliedCoupon] = useState(localStorage.getItem('appliedCoupon') || null);
   const [referralCode, setReferralCode] = useState(localStorage.getItem('referral_code') || "");
   const [referralDiscount, setReferralDiscount] = useState(0);
 
@@ -81,7 +81,8 @@ const PaymentDashboard = () => {
     // ... existing useEffect ...
     // Merge static methods with API methods if any (or just use static for stability now)
     setMethods(staticMethods);
-    setSelectedPaymentMethod("midtrans");
+    const savedMethod = localStorage.getItem('selectedPaymentMethod');
+    setSelectedPaymentMethod(savedMethod || "midtrans");
     setLoading(false);
 
     /* 
@@ -127,10 +128,14 @@ const PaymentDashboard = () => {
       if (res.ok && data.valid) {
         setDiscountAmount(data.discountAmount);
         setAppliedCoupon(data.couponCode); // Use returned code (formatted)
+        localStorage.setItem('appliedCoupon', data.couponCode);
+        localStorage.setItem('discountAmount', String(data.discountAmount));
         alert(`Kupon ${data.couponCode} berhasil! Hemat Rp${data.discountAmount.toLocaleString('id-ID')}`);
       } else {
         setDiscountAmount(0);
         setAppliedCoupon(null);
+        localStorage.removeItem('appliedCoupon');
+        localStorage.removeItem('discountAmount');
         alert(data.error || "Kupon tidak valid");
       }
     } catch (e) {
@@ -155,7 +160,7 @@ const PaymentDashboard = () => {
   const [shippingError, setShippingError] = useState(null);
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
-  const [courier, setCourier] = useState("jne");
+  const [courier, setCourier] = useState(localStorage.getItem('selectedCourier') || "jne");
 
   // Load Provinces
   useEffect(() => {
@@ -258,6 +263,20 @@ const PaymentDashboard = () => {
           setSelectedAreaId(data.area_id);
           setShippingError(null);
           
+          const savedServiceStr = localStorage.getItem('selectedService');
+          if (savedServiceStr) {
+            try {
+              const savedService = JSON.parse(savedServiceStr);
+              const matched = data.pricing.find(opt => opt.courier_service_code === savedService.courier_service_code && opt.company === savedService.company);
+              if (matched) {
+                setSelectedService(matched);
+                setShippingCost(matched.price);
+                setShippingMethod(`${matched.company.toUpperCase()} - ${matched.courier_service_name}`);
+                return;
+              }
+            } catch(e){}
+          }
+
           const courierOptions = data.pricing.filter(opt => opt.company === courier);
           if (courierOptions.length > 0) {
             handleServiceChange(courierOptions[0]);
@@ -285,6 +304,7 @@ const PaymentDashboard = () => {
     setSelectedService(service);
     setShippingCost(service.price);
     setShippingMethod(`${service.company.toUpperCase()} - ${service.courier_service_name}`);
+    localStorage.setItem('selectedService', JSON.stringify(service));
   };
 
   const handleCreateOrder = async () => {
@@ -603,7 +623,7 @@ const PaymentDashboard = () => {
                   disabled={appliedCoupon}
                 />
                 {appliedCoupon ? (
-                  <button onClick={() => { setAppliedCoupon(null); setDiscountAmount(0); setCouponCode(""); }} className="bg-red-500 text-white px-4 py-2 text-sm font-bold rounded">Cancel</button>
+                  <button onClick={() => { setAppliedCoupon(null); setDiscountAmount(0); setCouponCode(""); localStorage.removeItem('appliedCoupon'); localStorage.removeItem('discountAmount'); }} className="bg-red-500 text-white px-4 py-2 text-sm font-bold rounded">Cancel</button>
                 ) : (
                   <button onClick={handleApplyCoupon} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 text-sm font-bold rounded">Apply</button>
                 )}

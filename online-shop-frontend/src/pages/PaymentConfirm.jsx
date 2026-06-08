@@ -159,6 +159,14 @@ const PaymentConfirm = () => {
     }
   };
 
+  const handleGoBack = () => {
+    const lastItems = localStorage.getItem('lastOrderItems');
+    if (lastItems) {
+      localStorage.setItem('cart', lastItems);
+    }
+    navigate('/payment');
+  };
+
 
   const [proofFile, setProofFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -297,6 +305,13 @@ const PaymentConfirm = () => {
                                 : 'Pay Now'}
                       </button>
                     )}
+
+                    <button 
+                      onClick={handleGoBack}
+                      className="w-full py-4 border border-gray-200 dark:border-gray-700 hover:border-black dark:hover:border-white text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all"
+                    >
+                      ← Kembali & Ubah Pesanan
+                    </button>
                   </div>
                 ) : (
                   <button onClick={() => navigate('/shop')} className="w-full bg-gray-100 dark:bg-gray-800 dark:text-white py-5 rounded-2xl font-bold uppercase tracking-widest text-[10px]">Continue Shopping</button>
