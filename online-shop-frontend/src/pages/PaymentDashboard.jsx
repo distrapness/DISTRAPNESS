@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton.jsx";
 import config from '../config.js';
@@ -154,6 +154,26 @@ const PaymentDashboard = () => {
   const [selectedDistrict, setSelectedDistrict] = useState(localStorage.getItem('sel_dist') || ""); // ID
   const [selectedVillage, setSelectedVillage] = useState(localStorage.getItem('sel_vill') || ""); // ID
 
+  const isInitialProv = useRef(true);
+  const isInitialCity = useRef(true);
+  const isInitialDist = useRef(true);
+
+  const provinceOptions = useMemo(() => {
+    return provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>);
+  }, [provinces]);
+
+  const cityOptions = useMemo(() => {
+    return cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>);
+  }, [cities]);
+
+  const districtOptions = useMemo(() => {
+    return districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>);
+  }, [districts]);
+
+  const villageOptions = useMemo(() => {
+    return villages.map(v => <option key={v.id} value={v.id}>{v.name}</option>);
+  }, [villages]);
+
   const [selectedAreaId, setSelectedAreaId] = useState(null); // The resolved Biteship ID
   
   const [loadingShipping, setLoadingShipping] = useState(false);
@@ -171,6 +191,16 @@ const PaymentDashboard = () => {
 
   // Cascading Fetches
   useEffect(() => {
+    if (isInitialProv.current) {
+      isInitialProv.current = false;
+      if (selectedProvince) {
+        fetch(`${config.API_URL}/api/shipping/cities/${selectedProvince}`)
+          .then(res => res.json())
+          .then(data => setCities(Array.isArray(data) ? data : []));
+      }
+      return;
+    }
+
     localStorage.setItem('sel_prov', selectedProvince);
     if (selectedProvince) {
       fetch(`${config.API_URL}/api/shipping/cities/${selectedProvince}`)
@@ -183,9 +213,23 @@ const PaymentDashboard = () => {
     setSelectedCity("");
     setSelectedDistrict("");
     setSelectedVillage("");
+    localStorage.removeItem('sel_city');
+    localStorage.removeItem('sel_dist');
+    localStorage.removeItem('sel_vill');
+    localStorage.removeItem('selectedService');
   }, [selectedProvince]);
 
   useEffect(() => {
+    if (isInitialCity.current) {
+      isInitialCity.current = false;
+      if (selectedCity) {
+        fetch(`${config.API_URL}/api/shipping/districts/${selectedCity}`)
+          .then(res => res.json())
+          .then(data => setDistricts(Array.isArray(data) ? data : []));
+      }
+      return;
+    }
+
     localStorage.setItem('sel_city', selectedCity);
     if (selectedCity) {
       fetch(`${config.API_URL}/api/shipping/districts/${selectedCity}`)
@@ -196,9 +240,22 @@ const PaymentDashboard = () => {
     }
     setSelectedDistrict("");
     setSelectedVillage("");
+    localStorage.removeItem('sel_dist');
+    localStorage.removeItem('sel_vill');
+    localStorage.removeItem('selectedService');
   }, [selectedCity]);
 
   useEffect(() => {
+    if (isInitialDist.current) {
+      isInitialDist.current = false;
+      if (selectedDistrict) {
+        fetch(`${config.API_URL}/api/shipping/villages/${selectedDistrict}`)
+          .then(res => res.json())
+          .then(data => setVillages(Array.isArray(data) ? data : []));
+      }
+      return;
+    }
+
     localStorage.setItem('sel_dist', selectedDistrict);
     if (selectedDistrict) {
       fetch(`${config.API_URL}/api/shipping/villages/${selectedDistrict}`)
@@ -208,6 +265,8 @@ const PaymentDashboard = () => {
       setVillages([]);
     }
     setSelectedVillage("");
+    localStorage.removeItem('sel_vill');
+    localStorage.removeItem('selectedService');
   }, [selectedDistrict]);
 
   useEffect(() => {
@@ -423,7 +482,7 @@ const PaymentDashboard = () => {
                   value={selectedProvince} onChange={e => setSelectedProvince(e.target.value)}
                 >
                   <option value="">{isId ? "Pilih Provinsi" : "Select Province"}</option>
-                  {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {provinceOptions}
                 </select>
 
                 <select 
@@ -432,7 +491,7 @@ const PaymentDashboard = () => {
                   disabled={!selectedProvince}
                 >
                   <option value="">{isId ? "Pilih Kota/Kabupaten" : "Select City/Regency"}</option>
-                  {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {cityOptions}
                 </select>
               </div>
 
@@ -443,7 +502,7 @@ const PaymentDashboard = () => {
                   disabled={!selectedCity}
                 >
                   <option value="">{isId ? "Pilih Kecamatan" : "Select District"}</option>
-                  {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {districtOptions}
                 </select>
 
                 <select 
@@ -452,7 +511,7 @@ const PaymentDashboard = () => {
                   disabled={!selectedDistrict}
                 >
                   <option value="">{isId ? "Pilih Desa/Kelurahan" : "Select Village"}</option>
-                  {villages.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  {villageOptions}
                 </select>
               </div>
 
