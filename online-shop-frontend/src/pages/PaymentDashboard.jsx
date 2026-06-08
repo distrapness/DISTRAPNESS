@@ -211,13 +211,15 @@ const PaymentDashboard = () => {
 
   // Calculate Cost (Optimized: combined area resolution + rates)
   useEffect(() => {
-    if (selectedVillage && villages.length > 0) {
-      setLoadingShipping(true);
+    if (selectedVillage && villages.length > 0 && cart.length > 0) {
       const v = villages.find(v => v.id === selectedVillage);
       const d = districts.find(d => d.id === selectedDistrict);
       const c = cities.find(c => c.id === selectedCity);
       const p = provinces.find(p => p.id === selectedProvince);
       
+      if (!v || !d || !c || !p) return;
+      
+      setLoadingShipping(true);
       const query = `${v.name}, ${d.name}, ${c.name}, ${p.name}`;
 
       const items = cart.map(item => ({
@@ -277,7 +279,7 @@ const PaymentDashboard = () => {
         console.error("Error calculating cost:", err);
       });
     }
-  }, [selectedVillage, courier, cart]);
+  }, [selectedVillage, courier, cart, provinces, cities, districts, villages]);
 
   const handleServiceChange = (service) => {
     setSelectedService(service);
