@@ -83,9 +83,29 @@ export default function Profile() {
     switch (status) {
       case "paid": return "text-green-600 bg-green-50 dark:bg-green-900/20";
       case "pending": return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20";
-      case "shipped": return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
+      case "waiting_payment": return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 animate-pulse";
+      case "waiting_verification": return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
+      case "processing": return "text-teal-600 bg-teal-50 dark:bg-teal-900/20";
+      case "shipped": return "text-purple-600 bg-purple-50 dark:bg-purple-900/20";
+      case "completed": return "text-gray-600 bg-gray-50 dark:bg-gray-800";
       case "cancelled": return "text-red-600 bg-red-50 dark:bg-red-900/20";
+      case "failed": return "text-red-600 bg-red-50 dark:bg-red-900/20";
       default: return "text-gray-600 bg-gray-50";
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "paid": return "Lunas";
+      case "pending": return "Menunggu Pembayaran";
+      case "waiting_payment": return "Menunggu Pembayaran";
+      case "waiting_verification": return "Menunggu Verifikasi";
+      case "processing": return "Diproses";
+      case "shipped": return "Dikirim";
+      case "completed": return "Selesai";
+      case "cancelled": return "Dibatalkan";
+      case "failed": return "Gagal";
+      default: return status;
     }
   };
 
@@ -394,7 +414,7 @@ export default function Profile() {
                             <div className="text-xs text-gray-500">{t('profile.placedOn')} {new Date(order.createdAt).toLocaleDateString(currency.locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                           </div>
                           <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColor(order.status)}`}>
-                            {order.status}
+                            {getStatusLabel(order.status)}
                           </span>
                         </div>
 

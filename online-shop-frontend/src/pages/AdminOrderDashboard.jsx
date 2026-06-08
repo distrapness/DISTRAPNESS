@@ -9,6 +9,7 @@ const statusColors = {
   waiting_payment: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400",
   waiting_verification: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
   paid: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
+  processing: "bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400",
   shipped: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400",
   completed: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   failed: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400",
@@ -27,14 +28,15 @@ const AdminOrderDashboard = () => {
 
   const getStatusLabel = (status) => {
     const map = {
-      pending: t('admin.orders.unpaid'),
-      waiting_payment: t('admin.orders.unpaid'),
-      waiting_verification: t('admin.orders.needVerification'),
-      paid: t('admin.orders.readyToShip'),
-      shipped: t('admin.orders.shipped'),
-      completed: t('admin.orders.completed'),
-      failed: t('admin.orders.failed'),
-      cancelled: t('admin.orders.failed'),
+      pending: t('admin.orders.unpaid') || "Belum Bayar",
+      waiting_payment: t('admin.orders.unpaid') || "Belum Bayar",
+      waiting_verification: t('admin.orders.needVerification') || "Butuh Verifikasi",
+      paid: t('admin.orders.readyToShip') || "Siap Kirim (Paid)",
+      processing: "Diproses (COD)",
+      shipped: t('admin.orders.shipped') || "Dikirim",
+      completed: t('admin.orders.completed') || "Selesai",
+      failed: t('admin.orders.failed') || "Gagal",
+      cancelled: "Dibatalkan",
     };
     return map[status] || status;
   };
@@ -126,9 +128,11 @@ const AdminOrderDashboard = () => {
               <option value="all">SEMUA STATUS</option>
               <option value="waiting_verification">BUTUH VERIFIKASI</option>
               <option value="pending">BELUM BAYAR</option>
-              <option value="paid">SIAP KIRIM</option>
+              <option value="paid">SIAP KIRIM (PAID)</option>
+              <option value="processing">DIPROSES (COD)</option>
               <option value="shipped">DIKIRIM</option>
               <option value="completed">SELESAI</option>
+              <option value="cancelled">DIBATALKAN</option>
               <option value="failed">GAGAL</option>
             </select>
           </div>

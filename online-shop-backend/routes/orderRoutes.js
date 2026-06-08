@@ -313,8 +313,12 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
     const oldStatus = orders[0].status;
     const items = JSON.parse(orders[0].items || '[]');
 
-    // If changing to 'cancelled' or 'expired' from a non-cancelled status, return stock
-    if ((status === 'cancelled' || status === 'expired') && oldStatus !== 'cancelled' && oldStatus !== 'expired') {
+    const isDead = (s) => s === 'cancelled' || s === 'expired' || s === 'failed';
+    const oldDead = isDead(oldStatus);
+    const newDead = isDead(status);
+
+    // If changing to a dead status from a live status, return stock
+    if (newDead && !oldDead) {
       for (const item of items) {
         await connection.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
         
@@ -322,21 +326,36 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
         const [pRows] = await connection.query('SELECT sizes FROM products WHERE id = ?', [item.id]);
         if (pRows.length > 0 && pRows[0].sizes) {
           try {
-            let sizes = JSON.parse(pRows[0].sizes);
-            if (item.selectedSize && sizes[item.selectedSize] !== undefined) {
+            let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
+            if (item.selectedSize && sizes && sizes[item.selectedSize] !== undefined) {
               sizes[item.selectedSize] += item.qty;
               await connection.query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
             }
-          } catch(e) {}
+          } catch(e) {
+            console.error("Failed to restore size stock on status change:", e.message);
+          }
         }
       }
     }
 
-    // If changing FROM 'cancelled' back to something else (rare but possible), reduce stock again
-    if (oldStatus === 'cancelled' && status !== 'cancelled' && status !== 'expired') {
-       for (const item of items) {
+    // If changing FROM a dead status back to a live status, reduce stock again
+    if (oldDead && !newDead) {
+      for (const item of items) {
         await connection.query('UPDATE products SET stock = stock - ? WHERE id = ?', [item.qty, item.id]);
-        // sizes update logic omitted for brevity in this specific edge case, but ideally should match above
+        
+        // Also update size-specific stock if sizes exist
+        const [pRows] = await connection.query('SELECT sizes FROM products WHERE id = ?', [item.id]);
+        if (pRows.length > 0 && pRows[0].sizes) {
+          try {
+            let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
+            if (item.selectedSize && sizes && sizes[item.selectedSize] !== undefined) {
+              sizes[item.selectedSize] = Math.max(0, sizes[item.selectedSize] - item.qty);
+              await connection.query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
+            }
+          } catch(e) {
+            console.error("Failed to reduce size stock on status change:", e.message);
+          }
+        }
       }
     }
 

@@ -14,7 +14,20 @@ const AdminOrderDetail = () => {
     const [trackingInput, setTrackingInput] = useState("");
     const printRef = useRef();
 
-    const getStatusLabel = (s) => t(`admin.status.${s}`) || s;
+    const getStatusLabel = (s) => {
+        const customMap = {
+            pending: "Belum Bayar",
+            waiting_payment: "Belum Bayar",
+            waiting_verification: "Menunggu Verifikasi",
+            paid: "Siap Kirim (Paid)",
+            processing: "Diproses (COD)",
+            shipped: "Dikirim",
+            completed: "Selesai",
+            cancelled: "Dibatalkan",
+            failed: "Gagal"
+        };
+        return t(`admin.status.${s}`) || customMap[s] || s;
+    };
 
     useEffect(() => {
         fetch(`${config.API_URL}/api/orders/${id}`, {
@@ -132,7 +145,12 @@ const AdminOrderDetail = () => {
                          <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm
                              ${order.status === 'paid' ? 'bg-green-100 text-green-700' :
                              order.status === 'pending' ? 'bg-orange-100 text-orange-700' :
-                             order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-700'}`}>
+                             order.status === 'waiting_verification' ? 'bg-blue-100 text-blue-700' :
+                             order.status === 'processing' ? 'bg-teal-100 text-teal-700' :
+                             order.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                             order.status === 'completed' ? 'bg-gray-100 text-gray-700' :
+                             order.status === 'cancelled' || order.status === 'failed' ? 'bg-red-100 text-red-700' :
+                             'bg-gray-200 text-gray-700'}`}>
                              {getStatusLabel(order.status)}
                          </span>
                         <button onClick={handlePrint} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl hover:bg-black hover:text-white transition-all shadow-lg flex items-center gap-2">
@@ -147,7 +165,7 @@ const AdminOrderDetail = () => {
                             </button>
                             {showStatusDropdown && (
                                 <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-50 py-2">
-                                    {['pending', 'paid', 'shipped', 'completed', 'failed'].map(s => (
+                                    {['pending', 'paid', 'processing', 'shipped', 'completed', 'cancelled', 'failed'].map(s => (
                                         <button 
                                             key={s} 
                                             onClick={() => { handleUpdateStatus(s); setShowStatusDropdown(false); }} 
