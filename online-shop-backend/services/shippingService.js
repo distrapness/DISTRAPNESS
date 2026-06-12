@@ -23,23 +23,36 @@ const getShippingConfig = async () => {
     }
 };
 
+let emsifaProvinces = null;
+const emsifaCities = {};
+const emsifaDistricts = {};
+const emsifaVillages = {};
+
 const shippingService = {
   // --- New Manual Hierarchy Methods (emsifa API) ---
   getProvinces: async () => {
+    if (emsifaProvinces) return emsifaProvinces;
     const res = await axios.get('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json', { timeout: 5000 });
-    return res.data;
+    emsifaProvinces = res.data;
+    return emsifaProvinces;
   },
   getCities: async (provinceId) => {
+    if (emsifaCities[provinceId]) return emsifaCities[provinceId];
     const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinceId}.json`, { timeout: 5000 });
-    return res.data;
+    emsifaCities[provinceId] = res.data;
+    return emsifaCities[provinceId];
   },
   getDistricts: async (cityId) => {
+    if (emsifaDistricts[cityId]) return emsifaDistricts[cityId];
     const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${cityId}.json`, { timeout: 5000 });
-    return res.data;
+    emsifaDistricts[cityId] = res.data;
+    return emsifaDistricts[cityId];
   },
   getVillages: async (districtId) => {
+    if (emsifaVillages[districtId]) return emsifaVillages[districtId];
     const res = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${districtId}.json`, { timeout: 5000 });
-    return res.data;
+    emsifaVillages[districtId] = res.data;
+    return emsifaVillages[districtId];
   },
 
   // Map manual string selection to Biteship Area ID

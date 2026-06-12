@@ -24,6 +24,7 @@ import { useCurrency } from './components/CurrencyContext.jsx';
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import Profile from "./pages/Profile.jsx";
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import './App.css';
@@ -60,13 +61,6 @@ function App() {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
-    }
-
-    // Referral Check
-    const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('ref');
-    if (ref) {
-      localStorage.setItem('referral_code', ref);
     }
   }, [dark, location]);
 
@@ -110,6 +104,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/" element={<HomePage onAddToCart={handleAddToCart} />} />
             <Route path="/shop" element={<ShopPage onAddToCart={handleAddToCart} />} />
@@ -154,13 +149,6 @@ function App() {
               <ProtectedRoute role="admin">
                 <AdminLayout>
                   <AdminShipping />
-                </AdminLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/withdrawals" element={
-              <ProtectedRoute role="admin">
-                <AdminLayout>
-                  <AdminWithdrawals />
                 </AdminLayout>
               </ProtectedRoute>
             } />

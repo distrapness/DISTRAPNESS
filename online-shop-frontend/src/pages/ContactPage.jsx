@@ -70,18 +70,18 @@ const ContactPage = () => {
         {/* Left: Info */}
         <div className="lg:w-1/3 text-center lg:text-left">
           <h1 className="text-5xl md:text-6xl font-[900] text-black dark:text-white mb-6 tracking-tighter uppercase italic">{t('contact.title')}</h1>
-          <p className="text-gray-500 text-sm uppercase tracking-widest font-black mb-8 opacity-60">Get In Touch With Distrapness</p>
+          <p className="text-gray-500 text-sm uppercase tracking-widest font-black mb-8 opacity-60">{t('contact.subtitle')}</p>
           <div className="space-y-6 text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">
             <div className="flex flex-col gap-1">
-              <span className="text-black dark:text-white">Email Support</span>
+              <span className="text-black dark:text-white">{t('contact.emailSupport')}</span>
               <a href="mailto:distrapness@gmail.com" className="hover:text-black dark:hover:text-white transition-colors">distrapness@gmail.com</a>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-black dark:text-white">Direct Message</span>
+              <span className="text-black dark:text-white">{t('contact.directMessage')}</span>
               <a href={`https://wa.me/${brand.phone.replace(/[^0-9]/g, '')}`} className="hover:text-black dark:hover:text-white transition-colors">{brand.phone}</a>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-black dark:text-white">Headquarters</span>
+              <span className="text-black dark:text-white">{t('contact.headquarters')}</span>
               <span>Bogor, Indonesia</span>
             </div>
           </div>
@@ -92,24 +92,24 @@ const ContactPage = () => {
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Full Name</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{t('contact.fullName')}</label>
                 <input
                   className="w-full bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
                   type="text"
                   name="nama"
-                  placeholder="Enter your name"
+                  placeholder={t('contact.namePlaceholder')}
                   value={form.nama}
                   onChange={handleChange}
                   disabled={loading}
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Email Address</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{t('contact.email')}</label>
                 <input
                   className="w-full bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
                   type="email"
                   name="email"
-                  placeholder="name@company.com"
+                  placeholder={t('contact.emailPlaceholder')}
                   value={form.email}
                   onChange={handleChange}
                   disabled={loading}
@@ -117,11 +117,11 @@ const ContactPage = () => {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Message</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{t('contact.message')}</label>
               <textarea
                 className="w-full bg-gray-50 dark:bg-gray-700/50 border-none rounded-2xl px-4 py-4 text-sm focus:ring-2 focus:ring-black outline-none dark:text-white transition-all font-bold"
                 name="pesan"
-                placeholder="How can we help you?"
+                placeholder={t('contact.messagePlaceholder')}
                 rows={6}
                 value={form.pesan}
                 onChange={handleChange}
@@ -137,7 +137,7 @@ const ContactPage = () => {
               disabled={loading}
               className="w-full bg-black dark:bg-white text-white dark:text-black px-8 py-5 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl disabled:opacity-50"
             >
-              {loading ? t('contact.sending') : "Submit Inquiry →"}
+              {loading ? t('contact.sending') : t('contact.submitButton')}
             </button>
           </form>
         </div>

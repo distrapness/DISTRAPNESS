@@ -107,13 +107,13 @@ const Header = ({ onCartClick, onWishlistClick }) => {
         </button>
 
         {/* LOGO (Always Left and Visible) */}
-        <div className="flex-1 lg:flex-none flex justify-center lg:justify-start">
+        <div className="flex-none flex justify-start items-center ml-1 md:ml-2 lg:ml-0">
           <Link to="/" className="flex items-center gap-1 md:gap-3 group">
             <div className="relative overflow-hidden rounded-lg">
               <img
                 src={logoUrl}
                 alt="Logo"
-                className="h-8 md:h-10 lg:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-110"
+                className="h-10 md:h-12 lg:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-110"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = "/assets/placeholder.jpg"; // Fallback if logo fails
@@ -136,7 +136,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
 
           {userRole === 'admin' && (
             <Link to="/admin" className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 hover:text-[#FF0000] transition-colors border border-blue-600 dark:border-blue-400 px-3 py-1 rounded">
-              Admin Panel
+              {t('admin.panel') || 'Admin Panel'}
             </Link>
           )}
         </div>
@@ -336,7 +336,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
           <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.contact').toUpperCase()}</Link>
 
           {userRole === 'admin' && (
-            <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800 pb-2">Admin Panel</Link>
+            <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800 pb-2">{t('admin.panel') || 'Admin Panel'}</Link>
           )}
 
           {/* Settings Section (Lang, Currency, Theme) */}

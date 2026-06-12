@@ -173,7 +173,12 @@ router.get('/:id/reviews', (req, res) => {
 router.post('/:id/reviews', verifyToken, async (req, res) => {
   const { id } = req.params;
   const { rating, comment } = req.body;
-  const user_email = req.user?.email || req.userEmail;
+  const user_id = req.user?.id || null;
+  const user_email = req.user?.email || "";
+
+  if (!user_email) {
+    return res.status(401).json({ error: 'Pengguna tidak terautentikasi' });
+  }
 
   if (!rating || rating < 1 || rating > 5) {
     return res.status(400).json({ error: 'Rating requires a value between 1 and 5' });
@@ -181,9 +186,10 @@ router.post('/:id/reviews', verifyToken, async (req, res) => {
 
   // Verify that the user has purchased this product
   try {
+    const searchEmail = `%"email":"${user_email}"%`;
     const [orders] = await pool.promise().query(
-      'SELECT id, items FROM orders WHERE "userId" = ? AND status IN (\'paid\', \'shipped\', \'completed\')',
-      [user_email]
+      'SELECT id, items FROM orders WHERE ("userId" = ? OR shipping_address LIKE ?) AND status IN (\'paid\', \'shipped\', \'completed\')',
+      [user_id, searchEmail]
     );
 
     let hasPurchased = false;

@@ -27,7 +27,7 @@ router.post('/', verifyToken, verifyAdmin, (req, res) => {
         [code.toUpperCase(), type || 'percent', value, min_purchase || 0, start_date || null, expiry_date || null, usage_limit || 0, is_active ?? true],
         (err, result) => {
             if (err) {
-                if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: "Coupon code already exists" });
+                if (err.code === 'ER_DUP_ENTRY' || err.code === '23505') return res.status(400).json({ error: "Coupon code already exists" });
                 return res.status(500).json({ error: err.message });
             }
             res.json({ id: result.insertId, code, message: "Coupon created" });

@@ -115,3 +115,12 @@ header, nav, .dark header, .dark nav {
 .dark .hover-lux:hover {
   box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
 }
+
+/* Hide scrollbar utility class */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getImageUrl } from "../utils/imageHelper";
+import config from "../config.js";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
@@ -9,8 +10,18 @@ const PaymentSuccess = () => {
   const [total, setTotal] = useState(0);
   const [items, setItems] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [shippingAddress, setShippingAddress] = useState(null);
+  const [brand, setBrand] = useState({ phone: "6285888159265" });
 
   useEffect(() => {
+    // Fetch brand contact details
+    fetch(`${config.API_URL}/api/brand`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.phone) setBrand(data);
+      })
+      .catch(err => console.error("Error fetching brand contact:", err));
+
     // Retrieve order details from localStorage
     const storedOrderId = localStorage.getItem("lastOrderId") || `INV${Date.now().toString().slice(-6)}`;
     const storedTotal = localStorage.getItem("cartTotal") || 0;
@@ -33,6 +44,31 @@ const PaymentSuccess = () => {
     setEmail(storedEmail);
     setPaymentMethod(storedMethod);
 
+    // Fetch complete order details from backend to display full invoice
+    if (storedOrderId) {
+      fetch(`${config.API_URL}/api/orders/${storedOrderId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.error) {
+          if (data.items) {
+            try { setItems(JSON.parse(data.items)); } catch(e){}
+          }
+          if (data.total) setTotal(Number(data.total));
+          if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
+          if (data.shipping_address) {
+            try {
+              const addr = JSON.parse(data.shipping_address);
+              setShippingAddress(addr);
+              if (addr.email) setEmail(addr.email);
+            } catch(e){}
+          }
+        }
+      })
+      .catch(err => console.error("Error fetching success invoice details:", err));
+    }
+
     // Clear cart and temporary items
     localStorage.removeItem("cart");
     localStorage.removeItem("lastOrderItems");
@@ -41,7 +77,7 @@ const PaymentSuccess = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-900 pt-24 pb-12 px-4 flex justify-center items-start">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-900 pt-4 md:pt-6 pb-12 px-4 flex justify-center items-start">
       <div className="w-full max-w-3xl">
 
         {/* Success Header */}
@@ -88,7 +124,7 @@ const PaymentSuccess = () => {
                       <img
                         src={getImageUrl(item.image)}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain p-1"
                         onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100?text=Prod"; }}
                       />
                     </div>
@@ -122,13 +158,39 @@ const PaymentSuccess = () => {
               </div>
             </div>
 
+            {/* Shipping & Payment Invoice Details */}
+            {shippingAddress && (
+              <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-700 grid md:grid-cols-2 gap-6 text-sm">
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs mb-3">Shipping Address</h4>
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">{shippingAddress.fullName || `${shippingAddress.firstName || ''} ${shippingAddress.lastName || ''}`.trim()}</p>
+                  <p className="text-gray-500 mt-1">{shippingAddress.phone}</p>
+                  <p className="text-gray-500 leading-relaxed mt-1">
+                    {shippingAddress.address}<br />
+                    {shippingAddress.area || shippingAddress.district || ''}, {shippingAddress.city}<br />
+                    {shippingAddress.province} {shippingAddress.postalCode || shippingAddress.postal_code || ''}
+                  </p>
+                  {shippingAddress.courierInfo && (
+                    <p className="text-xs text-gray-400 mt-2 uppercase tracking-wide">
+                      🚚 Courier: <strong className="text-gray-700 dark:text-gray-300">{shippingAddress.courierInfo}</strong>
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs mb-3">Billing Info</h4>
+                  <p className="text-gray-500">Payment Method: <strong className="text-gray-800 dark:text-gray-200 capitalize">{paymentMethod === 'cod' ? 'COD (Bayar di Tempat)' : paymentMethod === 'midtrans' ? 'Midtrans (VA/QRIS)' : paymentMethod}</strong></p>
+                  <p className="text-gray-500 mt-1">Status: <strong className="text-yellow-600 bg-yellow-50 dark:bg-yellow-900/10 px-2 py-0.5 rounded text-xs uppercase font-bold tracking-wider inline-block">Waiting for Payment</strong></p>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
 
         {/* Actions - Centered Buttons */}
         <div className="mt-10 flex flex-col md:flex-row gap-4 justify-center items-center">
           <a
-            href={`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo Admin, saya sudah order dengan ID #${orderId}. Mohon diproses ya! Total: Rp ${total.toLocaleString('id-ID')}`)}`}
+            href={`https://wa.me/${brand.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo Admin, saya sudah order dengan ID #${orderId}. Mohon diproses ya! Total: Rp ${total.toLocaleString('id-ID')}`)}`}
             target="_blank"
             rel="noreferrer"
             className="w-full md:w-auto px-8 py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold rounded-full shadow-lg hover:shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2"

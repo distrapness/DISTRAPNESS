@@ -15,27 +15,20 @@ import './index.css';
 import { useState, useEffect } from 'react';
 
 const RootComponent = () => {
-  const [clientId, setClientId] = useState(null);
+  const [clientId, setClientId] = useState(config.GOOGLE_CLIENT_ID);
 
   useEffect(() => {
     fetch(`${config.API_URL}/api/config/public`)
       .then(r => r.json())
       .then(d => {
-        setClientId(d.google_client_id || config.GOOGLE_CLIENT_ID);
+        if (d.google_client_id && d.google_client_id !== config.GOOGLE_CLIENT_ID) {
+          setClientId(d.google_client_id);
+        }
       })
       .catch(() => {
-        setClientId(config.GOOGLE_CLIENT_ID);
+        // Fallback already set
       });
   }, []);
-
-  if (!clientId) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
-        <div style={{ width: '40px', height: '40px', border: '4px solid #333', borderTop: '4px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
 
   return (
     <GoogleOAuthProvider clientId={clientId}>

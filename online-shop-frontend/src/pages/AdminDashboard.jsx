@@ -13,7 +13,10 @@ import {
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalRevenue: 0, totalOrders: 0, totalProducts: 0,
-    lowStock: [], bestSellers: [], chartData: []
+    lowStock: [], bestSellers: [], chartData: [],
+    thisMonthRevenue: 0, lastMonthRevenue: 0,
+    statusCounts: { success: 0, pending: 0, failed: 0 },
+    paymentMethodStats: {}
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [activeVisitors, setActiveVisitors] = useState(0);
@@ -152,6 +155,130 @@ const AdminDashboard = () => {
             />
           </div>
 
+          {/* Detailed Sales Reports & Analysis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* MoM Revenue and Order Status Ratio */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-6">
+              <div>
+                <h3 className="font-bold text-base text-gray-800 dark:text-white mb-4">Perbandingan Pendapatan Bulanan</h3>
+                <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl">
+                  <div>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Bulan Ini</span>
+                    <span className="text-xl font-black text-gray-900 dark:text-white">{formatCurrency(stats.thisMonthRevenue)}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Bulan Lalu</span>
+                    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{formatCurrency(stats.lastMonthRevenue)}</span>
+                  </div>
+                </div>
+                
+                {/* Growth indicator */}
+                {(() => {
+                  const diff = stats.thisMonthRevenue - stats.lastMonthRevenue;
+                  const pct = stats.lastMonthRevenue > 0 ? (diff / stats.lastMonthRevenue) * 100 : 0;
+                  const isUp = diff >= 0;
+                  return (
+                    <div className="mt-3 flex items-center gap-2 text-xs font-bold">
+                      <span className={isUp ? "text-green-600 bg-green-50 px-2 py-0.5 rounded" : "text-red-600 bg-red-50 px-2 py-0.5 rounded"}>
+                        {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% MoM Growth
+                      </span>
+                      <span className="text-gray-400 font-normal">selisih {formatCurrency(Math.abs(diff))}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                <h3 className="font-bold text-base text-gray-800 dark:text-white mb-4">Rasio Status Pesanan</h3>
+                {(() => {
+                  const status = stats.statusCounts || { success: 0, pending: 0, failed: 0 };
+                  const total = status.success + status.pending + status.failed || 1;
+                  const successPct = (status.success / total) * 100;
+                  const pendingPct = (status.pending / total) * 100;
+                  const failedPct = (status.failed / total) * 100;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Success Bar */}
+                      <div>
+                        <div className="flex justify-between text-xs font-bold mb-1">
+                          <span className="text-gray-600 dark:text-gray-400">Berhasil (Lunas/Diproses)</span>
+                          <span className="text-green-600">{status.success} ({successPct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                          <div className="bg-green-500 h-full rounded-full transition-all duration-1000" style={{ width: `${successPct}%` }}></div>
+                        </div>
+                      </div>
+                      
+                      {/* Pending Bar */}
+                      <div>
+                        <div className="flex justify-between text-xs font-bold mb-1">
+                          <span className="text-gray-600 dark:text-gray-400">Menunggu Pembayaran</span>
+                          <span className="text-yellow-600">{status.pending} ({pendingPct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                          <div className="bg-yellow-500 h-full rounded-full transition-all duration-1000" style={{ width: `${pendingPct}%` }}></div>
+                        </div>
+                      </div>
+
+                      {/* Failed Bar */}
+                      <div>
+                        <div className="flex justify-between text-xs font-bold mb-1">
+                          <span className="text-gray-600 dark:text-gray-400">Batal / Kedaluwarsa</span>
+                          <span className="text-red-600">{status.failed} ({failedPct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                          <div className="bg-red-500 h-full rounded-full transition-all duration-1000" style={{ width: `${failedPct}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Payment Method Performance Breakdown */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <h3 className="font-bold text-base text-gray-800 dark:text-white mb-4">Performa Metode Pembayaran</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-gray-100 dark:border-gray-700 uppercase font-black tracking-wider">
+                      <th className="py-2">Metode</th>
+                      <th className="py-2 text-center">Transaksi</th>
+                      <th className="py-2 text-right">Pendapatan</th>
+                      <th className="py-2 text-right">Rata-rata (AOV)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {Object.entries(stats.paymentMethodStats || {}).map(([method, data]) => (
+                      <tr key={method} className="hover:bg-gray-50 dark:hover:bg-gray-700/20">
+                        <td className="py-3 font-bold text-gray-800 dark:text-gray-200 capitalize">
+                          {method === 'midtrans' ? 'Midtrans (VA/QRIS)' : method.toUpperCase()}
+                        </td>
+                        <td className="py-3 text-center text-gray-600 dark:text-gray-400 font-semibold">{data.count}</td>
+                        <td className="py-3 text-right font-black text-gray-900 dark:text-white">{formatCurrency(data.total)}</td>
+                        <td className="py-3 text-right text-gray-500 font-medium">{formatCurrency(data.total / (data.count || 1))}</td>
+                      </tr>
+                    ))}
+                    {Object.keys(stats.paymentMethodStats || {}).length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="text-center py-6 text-gray-400 italic">Belum ada data pembayaran lunas.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg border border-blue-100 dark:border-blue-800 mt-4">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                  💡 <strong>Analisis:</strong> Pendapatan di atas hanya dihitung dari pesanan yang sukses (lunas/proses). Gunakan data ini untuk mengoptimalkan metode pembayaran yang paling disukai pelanggan.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Recent Orders Table */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
             <div className="flex justify-between items-center mb-6">
@@ -272,6 +399,7 @@ const AdminDashboard = () => {
 
 // CSS Sparkline Chart Component
 const Sparkline = ({ data, color = "green", height = 40 }) => {
+  if (!data || data.length < 2) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
   const range = max - min || 1;

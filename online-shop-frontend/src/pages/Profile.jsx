@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useCurrency } from "../components/CurrencyContext.jsx";
@@ -18,10 +18,42 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [reorderToast, setReorderToast] = useState('');
   const [copyStatus, setCopyStatus] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [bankAccount, setBankAccount] = useState('');
-  const [withdrawStatus, setWithdrawStatus] = useState(null);
-  const [withdrawals, setWithdrawals] = useState([]);
+
+  // Profile Form States
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  
+  // Geography States
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [villages, setVillages] = useState([]);
+  
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedVillage, setSelectedVillage] = useState("");
+  
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [addressSaving, setAddressSaving] = useState(false);
+  const [profileToast, setProfileToast] = useState("");
+  const [addressToast, setAddressToast] = useState("");
+
+  // Password Change States
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordToast, setPasswordToast] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const isInitialProv = useRef(true);
+  const isInitialCity = useRef(true);
+  const isInitialDist = useRef(true);
 
   useEffect(() => {
     if (userEmail) {
@@ -34,33 +66,263 @@ export default function Profile() {
       }
       setLoading(true);
       
-      // Fetch Profile (Referral Info)
+      // Fetch Profile (Referral Info & Address)
       fetch(`${config.API_URL}/api/profile`, { headers })
-        .then(res => res.json())
-        .then(data => setProfile(data))
+        .then(res => {
+          if (res.status === 401) {
+            logout();
+            navigate('/login');
+            throw new Error("Session expired");
+          }
+          return res.json();
+        })
+        .then(data => {
+          setProfile(data);
+          
+          // Fallback to local storage if database fields are empty
+          const savedLocal = localStorage.getItem(`savedAddress_${userEmail}`);
+          let localAddr = {};
+          if (savedLocal) {
+            try { localAddr = JSON.parse(savedLocal); } catch (e) {}
+          }
+
+          setFirstName(data.first_name || localAddr.firstName || '');
+          setLastName(data.last_name || localAddr.lastName || '');
+          setPhone(data.phone || localAddr.phone || '');
+          setStreetAddress(data.address || localAddr.address || '');
+          setPostalCode(data.postal_code || localAddr.postalCode || '');
+
+          const provId = data.province_id || localStorage.getItem('sel_prov') || '';
+          const cityId = data.city_id || localStorage.getItem('sel_city') || '';
+          const distId = data.district_id || localStorage.getItem('sel_dist') || '';
+          const villId = data.area_id || localStorage.getItem('sel_vill') || '';
+
+          if (provId) setSelectedProvince(provId);
+          if (cityId) setSelectedCity(cityId);
+          if (distId) setSelectedDistrict(distId);
+          if (villId) setSelectedVillage(villId);
+        })
         .catch(err => console.error("Profile fetch error:", err));
 
-      fetch(`${config.API_URL}/api/orders/user?email=${encodeURIComponent(userEmail)}`)
-        .then((res) => res.json())
+      fetch(`${config.API_URL}/api/orders/user?email=${encodeURIComponent(userEmail)}`, { headers })
+        .then((res) => {
+          if (res.status === 401) {
+            logout();
+            navigate('/login');
+            throw new Error("Session expired");
+          }
+          return res.json();
+        })
         .then((data) => {
           setOrders(Array.isArray(data) ? data : []);
         })
         .catch((err) => console.error(err))
         .finally(() => setLoading(false));
 
-      // Fetch Withdrawals
-      fetch(`${config.API_URL}/api/affiliate/stats`, { headers })
-        .then(res => res.json())
-        .then(data => setWithdrawals(data.withdrawals || []))
-        .catch(err => console.error("Withdrawals fetch error:", err));
+
     } else {
-      setLoading(false);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate('/login');
+      } else {
+        setLoading(false);
+      }
     }
-  }, [userEmail]);
+  }, [userEmail, navigate]);
+
+  // Load Provinces
+  useEffect(() => {
+    fetch(`${config.API_URL}/api/shipping/provinces`)
+      .then(res => res.json())
+      .then(data => setProvinces(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error loading provinces:", err));
+  }, []);
+
+  // Fetch Cities
+  useEffect(() => {
+    if (isInitialProv.current) {
+      isInitialProv.current = false;
+      if (selectedProvince) {
+        fetch(`${config.API_URL}/api/shipping/cities/${selectedProvince}`)
+          .then(res => res.json())
+          .then(data => setCities(Array.isArray(data) ? data : []));
+      }
+      return;
+    }
+    if (selectedProvince) {
+      fetch(`${config.API_URL}/api/shipping/cities/${selectedProvince}`)
+        .then(res => res.json())
+        .then(data => setCities(Array.isArray(data) ? data : []));
+    } else {
+      setCities([]);
+    }
+    setSelectedCity("");
+    setSelectedDistrict("");
+    setSelectedVillage("");
+  }, [selectedProvince]);
+
+  // Fetch Districts
+  useEffect(() => {
+    if (isInitialCity.current) {
+      isInitialCity.current = false;
+      if (selectedCity) {
+        fetch(`${config.API_URL}/api/shipping/districts/${selectedCity}`)
+          .then(res => res.json())
+          .then(data => setDistricts(Array.isArray(data) ? data : []));
+      }
+      return;
+    }
+    if (selectedCity) {
+      fetch(`${config.API_URL}/api/shipping/districts/${selectedCity}`)
+        .then(res => res.json())
+        .then(data => setDistricts(Array.isArray(data) ? data : []));
+    } else {
+      setDistricts([]);
+    }
+    setSelectedDistrict("");
+    setSelectedVillage("");
+  }, [selectedCity]);
+
+  // Fetch Villages
+  useEffect(() => {
+    if (isInitialDist.current) {
+      isInitialDist.current = false;
+      if (selectedDistrict) {
+        fetch(`${config.API_URL}/api/shipping/villages/${selectedDistrict}`)
+          .then(res => res.json())
+          .then(data => setVillages(Array.isArray(data) ? data : []));
+      }
+      return;
+    }
+    if (selectedDistrict) {
+      fetch(`${config.API_URL}/api/shipping/villages/${selectedDistrict}`)
+        .then(res => res.json())
+        .then(data => setVillages(Array.isArray(data) ? data : []));
+    } else {
+      setVillages([]);
+    }
+    setSelectedVillage("");
+  }, [selectedDistrict]);
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileToast('');
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch(`${config.API_URL}/api/profile`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          firstName, 
+          lastName, 
+          phone, 
+          address: streetAddress, 
+          province: provinces.find(p => p.id === selectedProvince)?.name || "", 
+          city: cities.find(c => c.id === selectedCity)?.name || "", 
+          district: districts.find(d => d.id === selectedDistrict)?.name || "", 
+          area: villages.find(v => v.id === selectedVillage)?.name || "", 
+          postalCode,
+          provinceId: selectedProvince,
+          cityId: selectedCity,
+          districtId: selectedDistrict,
+          areaId: selectedVillage
+        })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        setProfileToast('Profil berhasil diperbarui!');
+        // Update local address cache for checkout page to pick it up immediately
+        const cachedAddr = {
+          firstName,
+          lastName,
+          address: streetAddress,
+          city: cities.find(c => c.id === selectedCity)?.name || "",
+          postalCode,
+          phone,
+          note: ""
+        };
+        localStorage.setItem(`savedAddress_${userEmail}`, JSON.stringify(cachedAddr));
+        localStorage.setItem('sel_prov', selectedProvince);
+        localStorage.setItem('sel_city', selectedCity);
+        localStorage.setItem('sel_dist', selectedDistrict);
+        localStorage.setItem('sel_vill', selectedVillage);
+        setSavedAddress(cachedAddr);
+        setTimeout(() => setProfileToast(''), 3000);
+      } else {
+        setProfileToast('Gagal memperbarui profil: ' + (data.error || data.message || 'Database error'));
+      }
+    } catch (err) {
+      setProfileToast('Server error');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordToast('');
+
+    if (newPassword.length < 6) {
+      setPasswordToast('err:Password baru minimal 6 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordToast('err:Konfirmasi password tidak cocok');
+      return;
+    }
+
+    setPasswordSaving(true);
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch(`${config.API_URL}/api/profile/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: currentPassword || undefined,
+          newPassword
+        })
+      });
+
+      if (res.status === 401 && !currentPassword) {
+        logout();
+        navigate('/login');
+        return;
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setPasswordToast('ok:Password berhasil diperbarui!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordToast(''), 4000);
+      } else {
+        setPasswordToast('err:' + (data.message || 'Gagal memperbarui password'));
+      }
+    } catch (err) {
+      setPasswordToast('err:Server error');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleReorder = (order) => {
@@ -82,8 +344,8 @@ export default function Profile() {
   const statusColor = (status) => {
     switch (status) {
       case "paid": return "text-green-600 bg-green-50 dark:bg-green-900/20";
-      case "pending": return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20";
-      case "waiting_payment": return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 animate-pulse";
+      case "pending": return "text-red-600 bg-red-50 dark:bg-red-900/20";
+      case "waiting_payment": return "text-red-600 bg-red-50 dark:bg-red-900/20 animate-pulse";
       case "waiting_verification": return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
       case "processing": return "text-teal-600 bg-teal-50 dark:bg-teal-900/20";
       case "shipped": return "text-purple-600 bg-purple-50 dark:bg-purple-900/20";
@@ -97,8 +359,8 @@ export default function Profile() {
   const getStatusLabel = (status) => {
     switch (status) {
       case "paid": return "Lunas";
-      case "pending": return "Menunggu Pembayaran";
-      case "waiting_payment": return "Menunggu Pembayaran";
+      case "pending": return "Belum Dibayar";
+      case "waiting_payment": return "Belum Dibayar";
       case "waiting_verification": return "Menunggu Verifikasi";
       case "processing": return "Diproses";
       case "shipped": return "Dikirim";
@@ -109,36 +371,7 @@ export default function Profile() {
     }
   };
 
-  const handleWithdraw = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
-    setWithdrawStatus({ type: 'loading', message: 'Memproses...' });
 
-    try {
-      const res = await fetch(`${config.API_URL}/api/affiliate/withdraw`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ amount: withdrawAmount, bank_account: bankAccount })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setWithdrawStatus({ type: 'success', message: 'Permintaan penarikan berhasil dikirim!' });
-        setWithdrawAmount('');
-        setBankAccount('');
-        // Refresh profile & withdrawals
-        const headers = { Authorization: `Bearer ${token}` };
-        fetch(`${config.API_URL}/api/profile`, { headers }).then(r => r.json()).then(setProfile);
-        fetch(`${config.API_URL}/api/affiliate/stats`, { headers }).then(r => r.json()).then(d => setWithdrawals(d.withdrawals));
-      } else {
-        setWithdrawStatus({ type: 'error', message: data.error || 'Gagal mengirim permintaan' });
-      }
-    } catch (err) {
-      setWithdrawStatus({ type: 'error', message: 'Server error' });
-    }
-  };
 
   return (
     <div className="container mx-auto px-4 py-8 md:py-12 min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
@@ -177,22 +410,10 @@ export default function Profile() {
                 {t('profile.myOrders')}
               </button>
               <button
-                onClick={() => setActiveTab("referral")}
-                className={`text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${activeTab === 'referral' ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-gray-500 dark:text-gray-400'}`}
-              >
-                Referral Program
-              </button>
-              <button
                 onClick={() => setActiveTab("profile")}
                 className={`text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${activeTab === 'profile' ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-gray-500 dark:text-gray-400'}`}
               >
                 {t('profile.accountDetails')}
-              </button>
-              <button
-                onClick={() => setActiveTab("affiliate")}
-                className={`text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${activeTab === 'affiliate' ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-gray-500 dark:text-gray-400'}`}
-              >
-                Affiliate & Komisi
               </button>
               <button
                 onClick={() => setActiveTab("address")}
@@ -206,183 +427,7 @@ export default function Profile() {
 
         {/* Content Area */}
         <div className="flex-1">
-          {activeTab === "referral" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
-              <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
-                <h2 className="text-xl font-bold uppercase tracking-wide text-black dark:text-white">Referral Program</h2>
-                <div className="flex gap-2">
-                   <div className="text-center bg-gray-50 dark:bg-gray-700 p-2 rounded min-w-[80px]">
-                      <div className="text-[10px] text-gray-500 uppercase font-bold">Total Poin</div>
-                      <div className="text-lg font-bold text-black dark:text-white">{profile?.points || 0}</div>
-                   </div>
-                   <div className="text-center bg-gray-50 dark:bg-gray-700 p-2 rounded min-w-[80px]">
-                      <div className="text-[10px] text-gray-500 uppercase font-bold">Referrals</div>
-                      <div className="text-lg font-bold text-black dark:text-white">{profile?.referrals_count || 0}</div>
-                   </div>
-                </div>
-              </div>
 
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-black dark:to-gray-900 p-8 rounded-2xl text-white mb-8 shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-colors"></div>
-                <div className="relative z-10">
-                  <h3 className="text-lg font-bold mb-2 uppercase tracking-[0.2em]">Bagikan Gaya, Dapatkan Hadiah</h3>
-                  <p className="text-gray-400 text-sm mb-6 max-w-sm">Ajak temanmu berbelanja di Distrapness dan dapatkan poin eksklusif serta diskon khusus untuk setiap pembelian pertama mereka.</p>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Kode Referral Anda</label>
-                      <div className="bg-white/10 backdrop-blur-md rounded-lg p-4 flex justify-between items-center border border-white/10">
-                        <span className="font-mono text-xl font-bold tracking-[0.3em]">{profile?.referral_code || 'LOADING...'}</span>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(profile?.referral_code || '');
-                            setCopyStatus('code');
-                            setTimeout(() => setCopyStatus(false), 2000);
-                          }}
-                          className="px-4 py-2 bg-white text-black text-[10px] font-bold uppercase tracking-wider rounded hover:bg-gray-200 transition-colors"
-                        >
-                          {copyStatus === 'code' ? 'TERSALIN' : 'SALIN KODE'}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Halaman Referral</label>
-                      <div className="bg-white/10 backdrop-blur-md rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center border border-white/10 gap-4">
-                        <span className="text-xs text-gray-300 break-all font-light">{`${window.location.origin}?ref=${profile?.referral_code}`}</span>
-                        <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}?ref=${profile?.referral_code}`);
-                            setCopyStatus('link');
-                            setTimeout(() => setCopyStatus(false), 2000);
-                          }}
-                          className="px-4 py-2 bg-gray-700 text-white text-[10px] font-bold uppercase tracking-wider rounded border border-white/20 hover:bg-gray-600 transition-colors whitespace-nowrap"
-                        >
-                          {copyStatus === 'link' ? 'TERSALIN' : 'SALIN LINK'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 border border-gray-100 dark:border-gray-700 rounded-xl">
-                  <h4 className="font-bold text-sm uppercase mb-4 tracking-wider flex items-center gap-2">
-                    <span className="w-6 h-6 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center text-[10px]">1</span>
-                    Cara Kerja
-                  </h4>
-                  <ul className="space-y-3 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                    <li>• Bagikan kode/link toko atau link produk spesifik ke teman-temanmu.</li>
-                    <li>• Temanmu mendapatkan poin/potongan harga otomatis.</li>
-                    <li>• Kamu mendapatkan <strong>Komisi Tunai 10%</strong> + Poin setelah transaksi selesai.</li>
-                  </ul>
-                </div>
-                <div className="p-6 border border-gray-100 dark:border-gray-700 rounded-xl">
-                  <h4 className="font-bold text-sm uppercase mb-4 tracking-wider flex items-center gap-2">
-                    <span className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center text-[10px]">2</span>
-                    Keuntungan Poin
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Poin yang terkumpul dapat ditukarkan dengan Merchandise Eksklusif, Voucher Potongan Langsung, hingga Akses Early Bird untuk drop produk terbaru.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "affiliate" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
-              <div className="flex justify-between items-center mb-8 border-b border-gray-100 dark:border-gray-700 pb-4">
-                <h2 className="text-xl font-bold uppercase tracking-wide text-black dark:text-white">Affiliate Dashboard</h2>
-                <div className="bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-xl border border-green-100 dark:border-green-800 text-right">
-                  <div className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-widest">Saldo Komisi (IDR)</div>
-                  <div className="text-2xl font-black text-green-600 dark:text-green-400">Rp {Number(profile?.balance || 0).toLocaleString('id-ID')}</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                {/* Left: Withdrawal Form */}
-                <div className="bg-gray-50 dark:bg-gray-700/30 p-6 rounded-2xl">
-                  <h3 className="text-sm font-bold uppercase tracking-wider mb-6 flex items-center gap-2">
-                    💵 Tarik Komisi
-                  </h3>
-                  <form onSubmit={handleWithdraw} className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Jumlah Penarikan (Min Rp 50.000)</label>
-                      <input 
-                        type="number" 
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
-                        placeholder="Contoh: 100000"
-                        className="w-full bg-white dark:bg-gray-800 border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-black transition-all"
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Informasi Rekening (Bank & Atas Nama)</label>
-                      <textarea 
-                        value={bankAccount}
-                        onChange={(e) => setBankAccount(e.target.value)}
-                        placeholder="Contoh: BCA 1234567890 a/n Distrapness Partner"
-                        className="w-full bg-white dark:bg-gray-800 border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-black transition-all"
-                        rows="3"
-                        required
-                      ></textarea>
-                    </div>
-                    
-                    {withdrawStatus && (
-                      <div className={`p-3 rounded-lg text-xs font-bold ${withdrawStatus.type === 'success' ? 'bg-green-100 text-green-700' : withdrawStatus.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {withdrawStatus.message}
-                      </div>
-                    )}
-
-                    <button 
-                      type="submit"
-                      disabled={withdrawStatus?.type === 'loading'}
-                      className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-lg"
-                    >
-                      Kirim Permintaan
-                    </button>
-                  </form>
-                </div>
-
-                {/* Right: History */}
-                <div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider mb-6 flex items-center gap-2">
-                    🕒 Riwayat Penarikan
-                  </h3>
-                  {withdrawals.length === 0 ? (
-                    <div className="text-center py-12 bg-white dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-100 dark:border-gray-700">
-                      <p className="text-xs text-gray-400 italic">Belum ada riwayat penarikan</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {withdrawals.map((w) => (
-                        <div key={w.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                          <div>
-                            <div className="text-sm font-bold text-black dark:text-white">Rp {Number(w.amount).toLocaleString('id-ID')}</div>
-                            <div className="text-[10px] text-gray-500 uppercase tracking-tight">{new Date(w.created_at).toLocaleDateString()}</div>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-sm
-                            ${w.status === 'approved' ? 'bg-green-100 text-green-700' : w.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {w.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-12 bg-blue-50 dark:bg-blue-900/10 p-6 rounded-2xl border border-blue-100 dark:border-blue-800">
-                <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-2">Bagaimana cara mendapatkan komisi?</h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                  Gunakan kode referral Anda di tab <strong>Referral Program</strong>. Setiap kali seseorang berbelanja menggunakan kode Anda, Anda akan mendapatkan <strong>Komisi Tunai sebesar 10%</strong> dari total belanja mereka (setelah pembayaran selesai). Komisi akan otomatis masuk ke Saldo Anda dan dapat ditarik setelah mencapai Rp 50.000.
-                </p>
-              </div>
-            </div>
-          )}
 
           {activeTab === "orders" && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
@@ -421,7 +466,7 @@ export default function Profile() {
                         <div className="flex gap-4 items-center">
                           {firstItem && (
                             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden shrink-0">
-                              <img src={getImageUrl(firstItem.image || (firstItem.images && firstItem.images[0]))} className="w-full h-full object-cover" alt="Product" />
+                              <img src={getImageUrl(firstItem.image || (firstItem.images && firstItem.images[0]))} className="w-full h-full object-contain p-1" alt="Product" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -436,12 +481,21 @@ export default function Profile() {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                          <button
-                            onClick={() => handleReorder(order)}
-                            className="text-xs font-bold uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black px-4 py-2 hover:opacity-80 transition-opacity flex items-center gap-1"
-                          >
-                            🔄 Pesan Lagi
-                          </button>
+                          {["pending", "waiting_payment"].includes(order.status) ? (
+                            <button
+                              onClick={() => navigate(`/payment/confirm?orderId=${order.id}`)}
+                              className="text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white px-4 py-2 hover:opacity-95 transition-all flex items-center gap-1 animate-pulse rounded"
+                            >
+                              💳 Bayar Sekarang
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleReorder(order)}
+                              className="text-xs font-bold uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black px-4 py-2 hover:opacity-80 transition-opacity flex items-center gap-1"
+                            >
+                              🔄 Pesan Lagi
+                            </button>
+                          )}
                           <button
                             onClick={() => navigate(`/payment/confirm?orderId=${order.id}`)}
                             className="text-xs font-bold uppercase tracking-wider border-b border-black dark:border-white hover:text-gray-600 dark:hover:text-gray-400 transition-colors pb-0.5"
@@ -459,45 +513,297 @@ export default function Profile() {
 
           {activeTab === "profile" && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
-              <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">{t('profile.accountDetails')}</h2>
-              <div className="max-w-md space-y-4">
+              <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">
+                {t('profile.accountDetails')}
+              </h2>
+              <form onSubmit={handleUpdateProfile} className="max-w-md space-y-5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{t('profile.emailAddress')}</label>
-                  <input type="text" value={userEmail} disabled className="w-full p-3 bg-gray-100 dark:bg-gray-700 border-none rounded text-gray-500 font-mono text-sm" />
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('profile.emailAddress')}</label>
+                  <input type="text" value={userEmail} disabled className="w-full p-3 bg-gray-100 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded text-gray-400 font-mono text-sm cursor-not-allowed" />
+                  <p className="text-[10px] text-gray-400 mt-1 italic">Email tidak dapat diubah.</p>
                 </div>
-                <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded text-xs text-yellow-700 dark:text-yellow-400">
-                  {t('profile.contactSupport')}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Nama Depan</label>
+                    <input 
+                      type="text" 
+                      value={firstName} 
+                      onChange={e => setFirstName(e.target.value)} 
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                      placeholder="Nama Depan"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Nama Belakang</label>
+                    <input 
+                      type="text" 
+                      value={lastName} 
+                      onChange={e => setLastName(e.target.value)} 
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                      placeholder="Nama Belakang"
+                    />
+                  </div>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Nomor Telepon</label>
+                  <input 
+                    type="text" 
+                    value={phone} 
+                    onChange={e => setPhone(e.target.value)} 
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                    placeholder="Contoh: 08123456789"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('register.birthday')}</label>
+                  <input 
+                    type="text" 
+                    value={profile?.birth_date || "-"} 
+                    disabled 
+                    className="w-full p-3 bg-gray-100 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded text-gray-400 font-mono text-sm cursor-not-allowed" 
+                  />
+                </div>
+
+                {profileToast && (
+                  <div className={`p-3 rounded text-xs font-bold ${profileToast.includes('Gagal') ? 'bg-red-50 text-red-700 dark:bg-red-900/10' : 'bg-green-50 text-green-700 dark:bg-green-900/10'}`}>
+                    {profileToast}
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  disabled={profileSaving}
+                  className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold uppercase text-xs tracking-widest hover:opacity-80 transition disabled:opacity-50"
+                >
+                  {profileSaving ? 'Menyimpan...' : 'Perbarui Profil'}
+                </button>
+              </form>
+
+              {/* Password Change Section */}
+              <div className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-bold uppercase tracking-wide mb-1 text-black dark:text-white flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Ubah Password
+                </h3>
+                <p className="text-xs text-gray-400 mb-6">Setel atau ubah password untuk login manual menggunakan email dan password.</p>
+
+                <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password Saat Ini <span className="font-normal text-gray-400">(opsional jika via Google)</span></label>
+                    <div className="relative">
+                      <input 
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword} 
+                        onChange={e => setCurrentPassword(e.target.value)} 
+                        className="w-full p-3 pr-12 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                        placeholder="Kosongkan jika akun dari Google"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                      >
+                        {showCurrentPassword ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password Baru <span className="text-red-400">*</span></label>
+                    <div className="relative">
+                      <input 
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword} 
+                        onChange={e => setNewPassword(e.target.value)} 
+                        className="w-full p-3 pr-12 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                        placeholder="Minimal 6 karakter"
+                        required
+                        minLength={6}
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                      >
+                        {showNewPassword ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        )}
+                      </button>
+                    </div>
+                    {newPassword && newPassword.length < 6 && (
+                      <p className="text-[10px] text-red-400 mt-1">Minimal 6 karakter</p>
+                    )}
+                    {newPassword && newPassword.length >= 6 && (
+                      <p className="text-[10px] text-green-500 mt-1">✓ Panjang password cukup</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Konfirmasi Password Baru <span className="text-red-400">*</span></label>
+                    <input 
+                      type="password" 
+                      value={confirmPassword} 
+                      onChange={e => setConfirmPassword(e.target.value)} 
+                      className={`w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border rounded text-sm focus:ring-1 focus:ring-black ${
+                        confirmPassword && confirmPassword !== newPassword 
+                          ? 'border-red-400 dark:border-red-500' 
+                          : confirmPassword && confirmPassword === newPassword 
+                            ? 'border-green-400 dark:border-green-500'
+                            : 'border-gray-200 dark:border-gray-700'
+                      }`}
+                      placeholder="Ulangi password baru"
+                      required
+                    />
+                    {confirmPassword && confirmPassword !== newPassword && (
+                      <p className="text-[10px] text-red-400 mt-1">Password tidak cocok</p>
+                    )}
+                    {confirmPassword && confirmPassword === newPassword && (
+                      <p className="text-[10px] text-green-500 mt-1">✓ Password cocok</p>
+                    )}
+                  </div>
+
+                  {passwordToast && (
+                    <div className={`p-3 rounded text-xs font-bold flex items-center gap-2 ${
+                      passwordToast.startsWith('err:') 
+                        ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' 
+                        : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                    }`}>
+                      {passwordToast.startsWith('err:') ? '⚠️' : '✅'} {passwordToast.replace(/^(err:|ok:)/, '')}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit" 
+                    disabled={passwordSaving || !newPassword || newPassword !== confirmPassword}
+                    className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold uppercase text-xs tracking-widest hover:opacity-80 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {passwordSaving ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Menyimpan...
+                      </span>
+                    ) : 'Ubah Password'}
+                  </button>
+                </form>
               </div>
             </div>
           )}
 
           {activeTab === "address" && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
-              <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">{t('profile.savedAddresses')}</h2>
+              <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">
+                {t('profile.savedAddresses')}
+              </h2>
               
-              {savedAddress ? (
-                <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded border border-gray-200 dark:border-gray-600">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="bg-black dark:bg-white text-white dark:text-black px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-sm">{t('profile.defaultAddress')}</span>
-                    <button onClick={() => { localStorage.removeItem(`savedAddress_${userEmail}`); setSavedAddress(null); }} className="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-wider">{t('profile.deleteAddress')}</button>
+              <form onSubmit={handleUpdateProfile} className="max-w-xl space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Provinsi</label>
+                    <select
+                      value={selectedProvince}
+                      onChange={e => setSelectedProvince(e.target.value)}
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                      required
+                    >
+                      <option value="">Pilih Provinsi</option>
+                      {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
                   </div>
-                  <h3 className="font-bold text-lg mb-1">{savedAddress.firstName} {savedAddress.lastName}</h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-1">{savedAddress.phone}</p>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">{savedAddress.address}</p>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">{savedAddress.city}, {savedAddress.postalCode}</p>
-                  <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
-                    <p className="text-xs text-gray-500 italic">{t('profile.addressAutoFill')}</p>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Kota / Kabupaten</label>
+                    <select
+                      value={selectedCity}
+                      onChange={e => setSelectedCity(e.target.value)}
+                      disabled={!selectedProvince}
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black disabled:opacity-50"
+                      required
+                    >
+                      <option value="">Pilih Kota/Kabupaten</option>
+                      {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-                  <p className="text-sm text-gray-500 italic mb-4">{t('profile.noSavedAddress')}</p>
-                  <Link to="/shop" className="px-6 py-2 bg-black dark:bg-white text-white dark:text-black font-bold uppercase text-xs tracking-widest hover:opacity-80 transition-opacity">
-                    {t('profile.shopNow')}
-                  </Link>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Kecamatan</label>
+                    <select
+                      value={selectedDistrict}
+                      onChange={e => setSelectedDistrict(e.target.value)}
+                      disabled={!selectedCity}
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black disabled:opacity-50"
+                      required
+                    >
+                      <option value="">Pilih Kecamatan</option>
+                      {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Desa / Kelurahan</label>
+                    <select
+                      value={selectedVillage}
+                      onChange={e => setSelectedVillage(e.target.value)}
+                      disabled={!selectedDistrict}
+                      className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black disabled:opacity-50"
+                      required
+                    >
+                      <option value="">Pilih Desa/Kelurahan</option>
+                      {villages.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-              )}
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Detail Alamat (Jalan, No. Rumah, RT/RW)</label>
+                  <textarea
+                    value={streetAddress}
+                    onChange={e => setStreetAddress(e.target.value)}
+                    rows="3"
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                    placeholder="Masukkan detail alamat lengkap"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Kode Pos</label>
+                  <input
+                    type="text"
+                    value={postalCode}
+                    onChange={e => setPostalCode(e.target.value)}
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
+                    placeholder="Kode Pos"
+                    required
+                  />
+                </div>
+
+                {profileToast && (
+                  <div className={`p-3 rounded text-xs font-bold ${profileToast.includes('Gagal') ? 'bg-red-50 text-red-700 dark:bg-red-900/10' : 'bg-green-50 text-green-700 dark:bg-green-900/10'}`}>
+                    {profileToast}
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  disabled={profileSaving}
+                  className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold uppercase text-xs tracking-widest hover:opacity-80 transition disabled:opacity-50"
+                >
+                  {profileSaving ? 'Menyimpan...' : 'Perbarui Alamat'}
+                </button>
+              </form>
             </div>
           )}
         </div>

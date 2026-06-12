@@ -157,10 +157,17 @@ const HomePage = () => {
                       <span className="text-red-600 font-bold">Rp{Number(p.flash_sale_price).toLocaleString('id-ID')}</span>
                       <span className="text-[10px] text-gray-400 line-through">Rp{Number(p.price).toLocaleString('id-ID')}</span>
                     </div>
-                    <div className="mt-3 w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-red-600 h-full rounded-full" style={{ width: '75%' }}></div>
-                    </div>
-                    <span className="text-[8px] font-bold text-red-500 mt-1 block uppercase">Terjual 75%</span>
+                    {(() => {
+                      const soldPercent = Math.min(95, Math.max(15, (p.id * 17 + 23) % 70 + 15));
+                      return (
+                        <>
+                          <div className="mt-3 w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-red-600 h-full rounded-full" style={{ width: `${soldPercent}%` }}></div>
+                          </div>
+                          <span className="text-[8px] font-bold text-red-500 mt-1 block uppercase">Terjual {soldPercent}%</span>
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -227,7 +234,7 @@ const HomePage = () => {
                   <div className="text-center w-full mt-auto">
                     <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider line-clamp-2">{product.name}</div>
                     <div className="flex flex-col items-center gap-1">
-                      {product.is_flash_sale ? (
+                      {product.is_flash_sale && (!product.flash_sale_end || new Date(product.flash_sale_end) > new Date()) ? (
                         <>
                           <div className="flex items-center gap-2">
                             <span className="text-sm md:text-base text-red-600 font-bold">{convertPrice(product.flash_sale_price)}</span>

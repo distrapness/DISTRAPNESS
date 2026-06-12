@@ -5,10 +5,12 @@ import config from '../config.js';
 import { useAuth } from "../contexts/AuthContext";
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { useCart } from "../components/CartContext.jsx";
 
 const PaymentDashboard = () => {
   const navigate = useNavigate();
-  const { userEmail } = useAuth();
+  const { userEmail, logout } = useAuth();
+  const { clearCart } = useCart();
   const { t, language } = useCurrency();
   const isId = language !== 'EN';
   const [methods, setMethods] = useState([]);
@@ -56,9 +58,60 @@ const PaymentDashboard = () => {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem(`savedAddress_${userEmail || 'guest'}`);
-    if (saved) {
-      try { setAddress(JSON.parse(saved)); } catch(e){}
+    if (userEmail) {
+      const token = localStorage.getItem("token");
+      fetch(`${config.API_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => {
+        if (res.status === 401) {
+          logout();
+          navigate("/login");
+          throw new Error("Session expired");
+        }
+        return res.json();
+      })
+      .then(profile => {
+        if (profile) {
+          setAddress(prev => ({
+            ...prev,
+            firstName: profile.first_name || prev.firstName,
+            lastName: profile.last_name || prev.lastName,
+            phone: profile.phone || prev.phone,
+            address: profile.address || prev.address,
+            postalCode: profile.postal_code || prev.postalCode,
+          }));
+          
+          if (profile.province_id) {
+            setSelectedProvince(profile.province_id);
+            localStorage.setItem('sel_prov', profile.province_id);
+          }
+          if (profile.city_id) {
+            setSelectedCity(profile.city_id);
+            localStorage.setItem('sel_city', profile.city_id);
+          }
+          if (profile.district_id) {
+            setSelectedDistrict(profile.district_id);
+            localStorage.setItem('sel_dist', profile.district_id);
+          }
+          if (profile.area_id) {
+            setSelectedVillage(profile.area_id);
+            localStorage.setItem('sel_vill', profile.area_id);
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching checkout profile:", err);
+        const saved = localStorage.getItem(`savedAddress_${userEmail}`);
+        if (saved) {
+          try { setAddress(JSON.parse(saved)); } catch(e){}
+        }
+      });
+    } else {
+      const saved = localStorage.getItem(`savedAddress_guest`);
+      if (saved) {
+        try { setAddress(JSON.parse(saved)); } catch(e){}
+      }
     }
   }, [userEmail]);
   const [shippingMethod, setShippingMethod] = useState("standard");
@@ -68,17 +121,23 @@ const PaymentDashboard = () => {
     localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
   }, [selectedPaymentMethod]);
 
+  useEffect(() => {
+    if (address && (address.firstName || address.lastName || address.address || address.postalCode || address.phone)) {
+      localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
+    }
+  }, [address, userEmail]);
+
   // Coupon State
   const [couponCode, setCouponCode] = useState(localStorage.getItem('appliedCoupon') || "");
   const [discountAmount, setDiscountAmount] = useState(Number(localStorage.getItem('discountAmount')) || 0);
   const [appliedCoupon, setAppliedCoupon] = useState(localStorage.getItem('appliedCoupon') || null);
-  const [referralCode, setReferralCode] = useState(localStorage.getItem('referral_code') || "");
+  const [referralCode, setReferralCode] = useState("");
   const [referralDiscount, setReferralDiscount] = useState(0);
 
   // Manual methods (always available)
   const staticMethods = [
     { label: "Midtrans (QRIS, VA, E-Wallet)", value: "midtrans" },
-    { label: "COD (Bayar di Tempat)", value: "cod" }
+    { label: language === 'EN' ? "COD (Cash on Delivery)" : "COD (Bayar di Tempat)", value: "cod" }
   ];
 
   useEffect(() => {
@@ -104,20 +163,6 @@ const PaymentDashboard = () => {
     setCart(c);
     const st = c.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
     setSubtotal(st);
-
-    // Auto-apply referral discount if exists
-    if (referralCode) {
-      fetch(`${config.API_URL}/api/referral/verify/${referralCode}`)
-        .then(res => res.json())
-        .then(data => {
-           if (data.valid) {
-             // 5% Referral Discount for any user who uses a ref link
-             const refDisc = Math.floor(st * 0.05);
-             setReferralDiscount(refDisc);
-           }
-        })
-        .catch(err => console.log("Referral verification failed"));
-    }
   }, []);
 
   const handleApplyCoupon = async () => {
@@ -134,16 +179,16 @@ const PaymentDashboard = () => {
         setAppliedCoupon(data.couponCode); // Use returned code (formatted)
         localStorage.setItem('appliedCoupon', data.couponCode);
         localStorage.setItem('discountAmount', String(data.discountAmount));
-        alert(`Kupon ${data.couponCode} berhasil! Hemat Rp${data.discountAmount.toLocaleString('id-ID')}`);
+        alert(language === 'EN' ? `Coupon ${data.couponCode} applied successfully! Saved Rp${data.discountAmount.toLocaleString('id-ID')}` : `Kupon ${data.couponCode} berhasil! Hemat Rp${data.discountAmount.toLocaleString('id-ID')}`);
       } else {
         setDiscountAmount(0);
         setAppliedCoupon(null);
         localStorage.removeItem('appliedCoupon');
         localStorage.removeItem('discountAmount');
-        alert(data.error || "Kupon tidak valid");
+        alert(data.error || (language === 'EN' ? "Invalid coupon" : "Kupon tidak valid"));
       }
     } catch (e) {
-      alert("Gagal memverifikasi kupon");
+      alert(language === 'EN' ? "Failed to verify coupon" : "Gagal memverifikasi kupon");
     }
   };
 
@@ -378,19 +423,19 @@ const PaymentDashboard = () => {
     if (creating) return;
 
     if (!selectedPaymentMethod) {
-      alert("Pilih metode pembayaran terlebih dahulu.");
+      alert(language === 'EN' ? "Please select a payment method first." : "Pilih metode pembayaran terlebih dahulu.");
       return;
     }
     if (!selectedVillage || !selectedService) {
-      alert("Pilih alamat pengiriman lengkap (sampai kelurahan) dan layanan kurir.");
+      alert(language === 'EN' ? "Please select a complete shipping address (up to village level) and courier service." : "Pilih alamat pengiriman lengkap (sampai kelurahan) dan layanan kurir.");
       return;
     }
     if (!address.firstName || !address.phone) {
-      alert("Nama depan dan nomor telepon wajib diisi.");
+      alert(language === 'EN' ? "First name and phone number are required." : "Nama depan dan nomor telepon wajib diisi.");
       return;
     }
     if (!address.address) {
-      alert("Detail alamat (nama jalan/nomor rumah) wajib diisi.");
+      alert(language === 'EN' ? "Detailed address (street name/house number) is required." : "Detail alamat (nama jalan/nomor rumah) wajib diisi.");
       return;
     }
 
@@ -400,14 +445,44 @@ const PaymentDashboard = () => {
     const finalTotal = discountedAmount + shippingCost + taxes;
     const items = cart;
 
-    // For COD, we bypass creating the order in the database and clearing the cart on checkout page.
-    // Instead, we save the details temporarily to localStorage and let the confirmation page trigger the write.
-    if (selectedPaymentMethod === 'cod') {
+    // Sync address back to user profile in database
+    if (userEmail) {
+      const token = localStorage.getItem("token");
+      const provinceName = provinces.find(p => p.id === selectedProvince)?.name || "";
+      const cityName = cities.find(c => c.id === selectedCity)?.name || "";
+      const districtName = districts.find(d => d.id === selectedDistrict)?.name || "";
+      const villageName = villages.find(v => v.id === selectedVillage)?.name || "";
+
+      fetch(`${config.API_URL}/api/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          firstName: address.firstName,
+          lastName: address.lastName,
+          phone: address.phone,
+          address: address.address,
+          province: provinceName,
+          city: cityName,
+          district: districtName,
+          area: villageName,
+          postalCode: address.postalCode,
+          provinceId: selectedProvince,
+          cityId: selectedCity,
+          districtId: selectedDistrict,
+          areaId: selectedVillage
+        })
+      }).catch(err => console.error("Failed to sync profile address on checkout:", err));
+    }
+
+    if (selectedPaymentMethod === 'cod' || selectedPaymentMethod === 'midtrans') {
       const tempOrder = {
         id: "temp",
         items,
         total: finalTotal > 0 ? finalTotal : 0,
-        paymentMethod: 'cod',
+        paymentMethod: selectedPaymentMethod,
         status: 'pending',
         shippingAddress: {
           ...address,
@@ -418,13 +493,14 @@ const PaymentDashboard = () => {
           courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
         },
         couponCode: appliedCoupon,
-        discountAmount: discountAmount + referralDiscount,
-        referralCode: referralCode,
-        email: userEmail || "guest@mail.com"
+        discountAmount: discountAmount,
+        referralCode: null,
+        email: userEmail || "guest@mail.com",
+        createdAt: new Date().toISOString()
       };
 
-      localStorage.setItem('tempCodOrder', JSON.stringify(tempOrder));
-      localStorage.setItem('selectedPaymentMethod', 'cod');
+      localStorage.setItem('tempCheckoutOrder', JSON.stringify(tempOrder));
+      localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
       localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
       
       navigate(`/payment/confirm?temp=true`);
@@ -432,58 +508,57 @@ const PaymentDashboard = () => {
     }
 
     setCreating(true);
+    const orderPayload = {
+      userId: userEmail || "guest",
+      email: userEmail || "guest@mail.com",
+      items,
+      total: finalTotal > 0 ? finalTotal : 0,
+      paymentMethod: selectedPaymentMethod,
+      status: 'pending',
+      shippingAddress: {
+        ...address,
+        province: provinces.find(p => p.id === selectedProvince)?.name || "",
+        city: cities.find(c => c.id === selectedCity)?.name || "",
+        district: districts.find(d => d.id === selectedDistrict)?.name || "",
+        area: villages.find(v => v.id === selectedVillage)?.name || "",
+        courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
+      },
+      couponCode: appliedCoupon,
+      discountAmount: discountAmount,
+      referralCode: null
+    };
 
-    try {
-      const res = await fetch(`${config.API_URL}/api/orders`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userEmail || "guest",
-          email: userEmail || "guest@mail.com",
-          items,
-          total: finalTotal > 0 ? finalTotal : 0,
-          paymentMethod: selectedPaymentMethod,
-          status: 'pending',
-          shippingAddress: {
-            ...address,
-            province: provinces.find(p => p.id === selectedProvince)?.name || "",
-            city: cities.find(c => c.id === selectedCity)?.name || "",
-            district: districts.find(d => d.id === selectedDistrict)?.name || "",
-            area: villages.find(v => v.id === selectedVillage)?.name || "",
-            courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
-          },
-          couponCode: appliedCoupon,
-          discountAmount: discountAmount + referralDiscount,
-          referralCode: referralCode
-        })
+    fetch(`${config.API_URL}/api/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderPayload)
+    })
+      .then(res => res.json().then(data => {
+        if (!res.ok) throw new Error(data.error || "Gagal membuat pesanan");
+        return data;
+      }))
+      .then(data => {
+        const realOrderId = data.orderId;
+        localStorage.setItem('lastOrderId', realOrderId);
+        localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
+        localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
+
+        // Clear cart and checkout coupons
+        clearCart();
+        localStorage.removeItem('cart');
+        localStorage.removeItem('appliedCoupon');
+        localStorage.removeItem('discountAmount');
+        localStorage.removeItem('referral_code');
+
+        navigate(`/payment/confirm?orderId=${realOrderId}`);
+      })
+      .catch(err => {
+        console.error("Order creation failed:", err);
+        alert(err.message || (language === 'EN' ? "An error occurred while processing your order" : "Terjadi kesalahan saat memproses pesanan Anda"));
+      })
+      .finally(() => {
+        setCreating(false);
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal membuat pesanan");
-
-      localStorage.setItem('lastOrderId', data.orderId);
-      localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
-      localStorage.setItem('cartTotal', finalTotal);
-      localStorage.setItem('lastOrderItems', JSON.stringify(items));
-      localStorage.setItem('lastOrderEmail', userEmail || "guest@mail.com");
-      localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
-      
-      // ✅ FIX: Clear cart after successful order creation
-      localStorage.removeItem('cart');
-      
-      // Clean up referral after use
-      localStorage.removeItem('referral_code');
-      localStorage.removeItem('appliedCoupon');
-      localStorage.removeItem('discountAmount');
-
-      // Redirect to Order Confirmation page (Halaman Confirm Order / Status)
-      navigate(`/payment/confirm?orderId=${data.orderId}`);
-
-    } catch (e) {
-      alert(e.message || "Gagal memproses pesanan");
-    } finally {
-      setCreating(false);
-    }
   };
 
   return (
@@ -716,16 +791,16 @@ const PaymentDashboard = () => {
               <div className="flex gap-2 mb-8">
                 <input
                   type="text"
-                  placeholder="Kode Promo"
+                  placeholder={language === 'EN' ? "Promo Code" : "Kode Promo"}
                   className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-transparent dark:text-white"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   disabled={appliedCoupon}
                 />
                 {appliedCoupon ? (
-                  <button onClick={() => { setAppliedCoupon(null); setDiscountAmount(0); setCouponCode(""); localStorage.removeItem('appliedCoupon'); localStorage.removeItem('discountAmount'); }} className="bg-red-500 text-white px-4 py-2 text-sm font-bold rounded">Cancel</button>
+                  <button onClick={() => { setAppliedCoupon(null); setDiscountAmount(0); setCouponCode(""); localStorage.removeItem('appliedCoupon'); localStorage.removeItem('discountAmount'); }} className="bg-red-500 text-white px-4 py-2 text-sm font-bold rounded">{language === 'EN' ? 'Cancel' : 'Batal'}</button>
                 ) : (
-                  <button onClick={handleApplyCoupon} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 text-sm font-bold rounded">Apply</button>
+                  <button onClick={handleApplyCoupon} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 text-sm font-bold rounded">{language === 'EN' ? 'Apply' : 'Gunakan'}</button>
                 )}
               </div>
 
@@ -743,19 +818,13 @@ const PaymentDashboard = () => {
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-green-600 dark:text-green-400">
-                    <span>Discount ({appliedCoupon})</span>
+                    <span>{language === 'EN' ? 'Discount' : 'Diskon'} ({appliedCoupon})</span>
                     <span className="font-bold">- Rp {discountAmount.toLocaleString('id-ID')}</span>
-                  </div>
-                )}
-                {referralDiscount > 0 && (
-                  <div className="flex justify-between text-red-600 dark:text-red-400">
-                    <span className="flex items-center gap-1">Referral Reward (5%) <span className="text-[10px] bg-red-100 dark:bg-red-900/30 px-1 rounded">REF:{referralCode}</span></span>
-                    <span className="font-bold">- Rp {referralDiscount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span>PPN (11%)</span>
-                  <span className="font-bold text-gray-900 dark:text-white">Rp {Math.round((subtotal - discountAmount - referralDiscount) * 0.11).toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Rp {Math.round((subtotal - discountAmount) * 0.11).toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
@@ -765,7 +834,7 @@ const PaymentDashboard = () => {
                 <div className="text-right">
                   <span className="text-xs text-gray-400 block mb-1">IDR</span>
                   <span className="text-3xl font-[900] tracking-tight text-red-600 dark:text-red-500">
-                    Rp{Math.max(0, Math.round((subtotal - discountAmount - referralDiscount) * 1.11) + shippingCost).toLocaleString('id-ID')}
+                    Rp{Math.max(0, Math.round((subtotal - discountAmount) * 1.11) + shippingCost).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>

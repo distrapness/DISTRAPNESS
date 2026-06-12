@@ -276,10 +276,181 @@ const sendAdminNotification = async (orderData) => {
   }
 };
 
+const sendShippingReceiptEmail = async (orderData) => {
+  if (!emailUser || !emailPass) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+
+  const { email, orderId, trackingNumber, courier, cart, total, shippingAddress } = orderData;
+
+  const itemsHtml = cart.map(item => `
+    <tr>
+      <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: left;">
+        <span style="font-weight: bold; color: #000; font-size: 14px;">${item.name}</span>
+        ${item.selectedSize ? `<br/><span style="font-size: 11px; color: #888; text-transform: uppercase;">Ukuran: ${item.selectedSize}</span>` : ''}
+      </td>
+      <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 13px;">x${item.qty}</td>
+      <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #000; font-size: 14px;">${formatCurrency(item.price * item.qty)}</td>
+    </tr>
+  `).join('');
+
+  // Generate tracking link based on courier
+  let trackingUrl = `https://online-shop-beige-one.vercel.app/order-tracking?orderId=${orderId}`;
+  const courierLower = String(courier).toLowerCase();
+  if (courierLower.includes('jne')) {
+    trackingUrl = `https://www.jne.co.id/id/tracking/trace`;
+  } else if (courierLower.includes('pos')) {
+    trackingUrl = `https://www.posindonesia.co.id/id/tracking`;
+  } else if (courierLower.includes('tiki')) {
+    trackingUrl = `https://www.tiki.id/id/tracking`;
+  }
+
+  const mailOptions = {
+    from: `"Distrapness Shipping" <${emailUser}>`,
+    to: email,
+    subject: `📦 Pesanan #${orderId} Sedang Dikirim - Resi Pengiriman`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #efefef; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <!-- Header -->
+        <div style="background-color: #000; color: #fff; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 26px; letter-spacing: 4px; font-weight: 900;">DISTRAPNESS</h1>
+          <p style="margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #888;">Order Shipped & Tracking Info</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 30px; color: #333; line-height: 1.6;">
+          <h2 style="color: #000; font-size: 20px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">Pesanan Anda Sedang Menuju ke Alamat Tujuan!</h2>
+          <p style="font-size: 14px;">Halo,</p>
+          <p style="font-size: 14px; color: #555;">Kabar baik! Paket Anda dari Distrapness telah kami serahkan ke kurir dan sedang dalam proses pengiriman. Berikut adalah informasi pelacakan untuk kiriman Anda:</p>
+          
+          <!-- Tracking Info Box -->
+          <div style="background-color: #f9f9f9; border-left: 4px solid #000; padding: 20px; border-radius: 6px; margin: 25px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 4px 0; font-size: 13px; color: #666; width: 130px;"><strong>ID Pesanan:</strong></td>
+                <td style="padding: 4px 0; font-size: 13px; color: #000;">#${orderId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; font-size: 13px; color: #666;"><strong>Ekspedisi / Kurir:</strong></td>
+                <td style="padding: 4px 0; font-size: 13px; color: #000; text-transform: uppercase;"><strong>${courier}</strong></td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; font-size: 13px; color: #666;"><strong>Nomor Resi:</strong></td>
+                <td style="padding: 4px 0; font-size: 14px; color: #d9534f; font-weight: bold; letter-spacing: 1px;">${trackingNumber || '-'}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Lacak Button -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${trackingUrl}" target="_blank" style="display: inline-block; background-color: #000; color: #fff; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">Lacak Paket Anda</a>
+          </div>
+
+          <!-- Shipping Address -->
+          <h3 style="color: #000; font-size: 15px; margin-top: 30px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Alamat Pengiriman</h3>
+          <div style="font-size: 13px; color: #555; background-color: #fcfcfc; padding: 15px; border: 1px solid #f0f0f0; border-radius: 6px;">
+            <p style="margin: 0 0 5px 0; font-weight: bold; color: #000;">${shippingAddress?.fullName || shippingAddress?.name || '-'}</p>
+            <p style="margin: 0 0 5px 0;">${shippingAddress?.phone || '-'}</p>
+            <p style="margin: 0; line-height: 1.4; font-style: italic;">
+              ${shippingAddress?.address || '-'}, ${shippingAddress?.area || shippingAddress?.district || '-'}, ${shippingAddress?.city || '-'}, ${shippingAddress?.province || '-'}, ${shippingAddress?.postalCode || shippingAddress?.postal_code || '-'}
+            </p>
+          </div>
+
+          <!-- Item Details -->
+          <h3 style="color: #000; font-size: 15px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">Rincian Barang</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background-color: #f5f5f5;">
+                <th style="padding: 10px 8px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">Produk</th>
+                <th style="padding: 10px 8px; text-align: center; font-size: 12px; color: #666; text-transform: uppercase;">Jumlah</th>
+                <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #666; text-transform: uppercase;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="padding: 15px 8px 5px 8px; font-weight: bold; text-align: right; font-size: 14px; color: #666;">TOTAL PEMBAYARAN</td>
+                <td style="padding: 15px 8px 5px 8px; font-weight: bold; text-align: right; font-size: 16px; color: #000;">${formatCurrency(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <p style="font-size: 13px; color: #777; margin-top: 40px; text-align: center; border-top: 1px solid #eee; pt: 20px;">
+            Jika Anda memiliki pertanyaan tentang kiriman ini, silakan hubungi tim support kami.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f4f4f4; padding: 25px 20px; text-align: center; color: #888; font-size: 12px; border-top: 1px solid #eee;">
+          <p style="margin: 0 0 5px 0;">&copy; 2026 Distrapness. All Rights Reserved.</p>
+          <p style="margin: 0; font-size: 10px; color: #aaa;">Jalan Pakaian Minimalis No. 1, Indonesia</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Shipping receipt email sent to ${email} for order #${orderId}: ` + info.response);
+    return true;
+  } catch (error) {
+    console.error('Error sending shipping receipt email:', error);
+    return false;
+  }
+};
+
+const sendPasswordResetOTP = async (userEmail, otpCode) => {
+  if (!emailUser || !emailPass) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+
+  const mailOptions = {
+    from: `"Distrapness Support" <${emailUser}>`,
+    to: userEmail,
+    subject: `Kode Verifikasi Lupa Sandi - ${otpCode}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #efefef; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <div style="background-color: #000; color: #fff; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px; font-weight: 900;">DISTRAPNESS</h1>
+          <p style="margin: 5px 0 0 0; font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px;">Security Verification</p>
+        </div>
+        <div style="padding: 40px 30px; text-align: center; color: #333;">
+          <h2 style="color: #000; margin-top: 0; font-size: 18px;">Verifikasi Reset Sandi</h2>
+          <p style="font-size: 14px; color: #666; line-height: 1.5;">Gunakan kode OTP di bawah ini untuk memverifikasi permintaan reset kata sandi akun Anda. Kode ini berlaku selama 10 menit.</p>
+          
+          <div style="margin: 30px 0; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px dashed #ddd; display: inline-block;">
+            <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #000;">${otpCode}</span>
+          </div>
+
+          <p style="font-size: 11px; color: #999; margin-top: 20px;">Jika Anda tidak merasa mengajukan permintaan ini, silakan abaikan email ini secara aman.</p>
+        </div>
+        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 11px;">
+          <p>&copy; 2026 Distrapness. All Rights Reserved.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('OTP email sent: ' + info.response);
+    return true;
+  } catch (error) {
+    console.error('Error sending OTP email:', error);
+    return false;
+  }
+};
+
 module.exports = {
   sendOrderConfirmation,
   sendAdminNotification,
   sendStatusUpdateEmail,
   sendRegistrationWelcome,
-  sendContactNotification
+  sendContactNotification,
+  sendShippingReceiptEmail,
+  sendPasswordResetOTP
 };

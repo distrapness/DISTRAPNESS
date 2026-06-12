@@ -1,6 +1,9 @@
 const axios = require('axios');
 const pool = require('../db');
 
+let cachedProvinces = null;
+let cachedCities = null;
+
 const getRajaOngkirConfig = async () => {
     try {
         const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('rajaongkir_api_key', 'rajaongkir_origin')");
@@ -22,20 +25,28 @@ const getRajaOngkirConfig = async () => {
 
 const rajaOngkirService = {
     getProvinces: async () => {
+        if (cachedProvinces) return cachedProvinces;
         const config = await getRajaOngkirConfig();
         const res = await axios.get('https://api.rajaongkir.com/starter/province', {
             headers: { key: config.apiKey },
             timeout: 5000
         });
-        return res.data.rajaongkir.results;
+        cachedProvinces = res.data.rajaongkir.results;
+        return cachedProvinces;
     },
 
     getCities: async (provinceId) => {
+        if (!provinceId && cachedCities) {
+            return cachedCities;
+        }
         const config = await getRajaOngkirConfig();
         const res = await axios.get(`https://api.rajaongkir.com/starter/city?province=${provinceId}`, {
             headers: { key: config.apiKey },
             timeout: 5000
         });
+        if (!provinceId) {
+            cachedCities = res.data.rajaongkir.results;
+        }
         return res.data.rajaongkir.results;
     },
 

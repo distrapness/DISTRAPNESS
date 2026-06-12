@@ -29,5 +29,11 @@
             "src": "/(.*)",
             "dest": "/online-shop-frontend/index.html"
         }
+    ],
+    "crons": [
+        {
+            "path": "/api/orders/auto-cancel",
+            "schedule": "0 0 * * *"
+        }
     ]
 }

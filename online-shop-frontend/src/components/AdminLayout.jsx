@@ -16,33 +16,33 @@ const AdminLayout = ({ children }) => {
 
     const menuGroups = [
         {
-            title: 'Ringkasan',
+            title: t('admin.menuGroups.summary') || 'Ringkasan',
             items: [
-                { path: '/admin', label: 'Dashboard', icon: <FaHome /> },
-                { path: '/admin/orders', label: 'Daftar Pesanan', icon: <FaShoppingCart /> },
+                { path: '/admin', label: t('admin.dashboard') || 'Dashboard', icon: <FaHome /> },
+                { path: '/admin/orders', label: t('admin.orders') || 'Daftar Pesanan', icon: <FaShoppingCart /> },
             ]
         },
         {
-            title: 'Katalog',
+            title: t('admin.menuGroups.catalog') || 'Katalog',
             items: [
-                { path: '/product-admin', label: 'Produk Toko', icon: <FaBoxOpen /> },
-                { path: '/admin/categories', label: 'Kategori Produk', icon: <FaTags /> },
+                { path: '/product-admin', label: t('admin.manageProducts') || 'Produk Toko', icon: <FaBoxOpen /> },
+                { path: '/admin/categories', label: t('admin.categories') || 'Kategori Produk', icon: <FaTags /> },
             ]
         },
         {
-            title: 'Promosi & Brand',
+            title: t('admin.menuGroups.promoBrand') || 'Promosi & Brand',
             items: [
-                { path: '/banner-admin', label: 'Banner Utama', icon: <FaImage /> },
-                { path: '/brand-admin', label: 'Identitas Toko', icon: <FaStar /> },
-                { path: '/admin/discounts', label: 'Kupon Diskon', icon: <FaTags /> },
+                { path: '/banner-admin', label: t('admin.banners') || 'Banner Utama', icon: <FaImage /> },
+                { path: '/brand-admin', label: t('admin.brands') || 'Identitas Toko', icon: <FaStar /> },
+                { path: '/admin/discounts', label: t('admin.discounts') || 'Kupon Diskon', icon: <FaTags /> },
             ]
         },
         {
-            title: 'Sistem & Feedback',
+            title: t('admin.menuGroups.systemFeedback') || 'Sistem & Feedback',
             items: [
-                { path: '/admin/shipping', label: 'Ongkir Manual', icon: <FaBoxOpen /> },
-                { path: '/admin/reviews', label: 'Ulasan Pelanggan', icon: <FaStar /> },
-                { path: '/admin/settings', label: 'Pengaturan Web', icon: <FaCog /> },
+                { path: '/admin/shipping', label: t('admin.shippingManual') || 'Ongkir Manual', icon: <FaBoxOpen /> },
+                { path: '/admin/reviews', label: t('admin.reviews') || 'Ulasan Pelanggan', icon: <FaStar /> },
+                { path: '/admin/settings', label: t('admin.settings') || 'Pengaturan Web', icon: <FaCog /> },
             ]
         }
     ];

@@ -24,7 +24,7 @@ const ShopPage = () => {
   const [sortBy, setSortBy] = useState("newest");
   const [priceRange, setPriceRange] = useState([0, 5000000]);
   const [stockFilter, setStockFilter] = useState("all"); // all | in_stock | out_of_stock
-  const { currency, t } = useCurrency();
+  const { currency, t, language } = useCurrency();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
@@ -119,7 +119,7 @@ const ShopPage = () => {
               <div className="relative group">
                 <input
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 text-sm transition-all shadow-sm"
-                  placeholder="Cari produk..."
+                  placeholder={language === 'EN' ? "Search Products..." : "Cari produk..."}
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 />
@@ -131,10 +131,10 @@ const ShopPage = () => {
                 value={sortBy}
                 onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
               >
-                <option value="newest">🕐 Terbaru</option>
-                <option value="price_asc">💰 Harga: Rendah → Tinggi</option>
-                <option value="price_desc">💎 Harga: Tinggi → Rendah</option>
-                <option value="name_asc">🔤 Nama A-Z</option>
+                <option value="newest">{language === 'EN' ? "🕐 Newest" : "🕐 Terbaru"}</option>
+                <option value="price_asc">{language === 'EN' ? "💰 Price: Low → High" : "💰 Harga: Rendah → Tinggi"}</option>
+                <option value="price_desc">{language === 'EN' ? "💎 Price: High → Low" : "💎 Harga: Tinggi → Rendah"}</option>
+                <option value="name_asc">{language === 'EN' ? "🔤 Name A-Z" : "🔤 Nama A-Z"}</option>
               </select>
             </div>
 
@@ -147,7 +147,7 @@ const ShopPage = () => {
                 onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
               >
                 {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat === "Semua" ? "Semua Kategori" : cat}</option>
+                  <option key={cat} value={cat}>{cat === "Semua" ? (language === 'EN' ? "All Categories" : "Semua Kategori") : cat}</option>
                 ))}
               </select>
 
@@ -157,14 +157,14 @@ const ShopPage = () => {
                 value={stockFilter}
                 onChange={(e) => { setStockFilter(e.target.value); setPage(1); }}
               >
-                <option value="all">Semua Stok</option>
-                <option value="in_stock">✅ Ada Stok</option>
-                <option value="out_of_stock">❌ Habis</option>
+                <option value="all">{language === 'EN' ? "All Stock" : "Semua Stok"}</option>
+                <option value="in_stock">{language === 'EN' ? "✅ In Stock" : "✅ Ada Stok"}</option>
+                <option value="out_of_stock">{language === 'EN' ? "❌ Out of Stock" : "❌ Habis"}</option>
               </select>
 
               {/* Price Range */}
               <div className="col-span-2 flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Harga:</span>
+                <span className="text-xs text-gray-500 whitespace-nowrap">{language === 'EN' ? 'Price:' : 'Harga:'}</span>
                 <input
                   type="range"
                   min={0}
@@ -175,7 +175,7 @@ const ShopPage = () => {
                   className="flex-1 accent-black dark:accent-white"
                 />
                 <span className="text-xs font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap min-w-[80px] text-right">
-                  s/d Rp{Number(priceRange[1]).toLocaleString('id-ID')}
+                  {language === 'EN' ? 'up to ' : 's/d '}{convertPrice(priceRange[1])}
                 </span>
               </div>
             </div>
@@ -183,15 +183,15 @@ const ShopPage = () => {
             {/* Active Filter Summary */}
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">
-                Menampilkan <span className="font-bold text-black dark:text-white">{filtered.length}</span> produk
-                {activeFiltersCount > 0 && <span className="ml-2 bg-black dark:bg-white text-white dark:text-black px-2 py-0.5 rounded-full text-[10px] font-bold">{activeFiltersCount} filter aktif</span>}
+                {language === 'EN' ? 'Showing' : 'Menampilkan'} <span className="font-bold text-black dark:text-white">{filtered.length}</span> {language === 'EN' ? 'products' : 'produk'}
+                {activeFiltersCount > 0 && <span className="ml-2 bg-black dark:bg-white text-white dark:text-black px-2 py-0.5 rounded-full text-[10px] font-bold">{activeFiltersCount} {language === 'EN' ? 'active filters' : 'filter aktif'}</span>}
               </p>
               {activeFiltersCount > 0 && (
                 <button
                   onClick={() => { setSelectedCategory('Semua'); setStockFilter('all'); setPriceRange([0, maxProductPrice]); setSearch(''); setPage(1); }}
                   className="text-xs text-red-500 hover:text-red-700 font-bold underline"
                 >
-                  Reset Filter
+                  {language === 'EN' ? 'Reset Filters' : 'Reset Filter'}
                 </button>
               )}
             </div>
@@ -210,13 +210,13 @@ const ShopPage = () => {
                 <div className="w-24 h-24 mb-6 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
                   <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                <h3 className="text-xl font-black uppercase tracking-tighter text-black dark:text-white mb-2 italic">Product Not Found</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest max-w-[200px]">Coba ubah filter atau kata kunci pencarian Anda.</p>
+                <h3 className="text-xl font-black uppercase tracking-tighter text-black dark:text-white mb-2 italic">{language === 'EN' ? 'Product Not Found' : 'Produk Tidak Ditemukan'}</h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest max-w-[200px]">{language === 'EN' ? 'Try changing your filters or search keywords.' : 'Coba ubah filter atau kata kunci pencarian Anda.'}</p>
                 <button 
                   onClick={() => { setSelectedCategory('Semua'); setStockFilter('all'); setPriceRange([0, maxProductPrice]); setSearch(''); setPage(1); }}
                   className="mt-8 px-8 py-3 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl hover:scale-105 active:scale-95 transition-all"
                 >
-                  RESET FILTERS
+                  {language === 'EN' ? 'RESET FILTERS' : 'RESET FILTER'}
                 </button>
               </div>
             ) : (
@@ -236,7 +236,7 @@ const ShopPage = () => {
                   {/* Badge: Out of Stock */}
                   {product.stock <= 0 && (
                     <div className="absolute top-4 left-4 z-10 bg-red-600 text-white text-[10px] font-[900] px-2 py-1 uppercase tracking-wider rounded-sm shadow-md ring-1 ring-white/20">
-                      HABIS
+                      {language === 'EN' ? 'SOLD OUT' : 'HABIS'}
                     </div>
                   )}
 
@@ -270,7 +270,7 @@ const ShopPage = () => {
                         {product.name}
                       </div>
                       <div className="flex flex-col items-center gap-0.5">
-                        {product.is_flash_sale ? (
+                        {product.is_flash_sale && (!product.flash_sale_end || new Date(product.flash_sale_end) > new Date()) ? (
                           <>
                             <div className="flex items-center gap-1.5 md:gap-2">
                               <span className="text-xs md:text-base text-red-600 font-bold">{convertPrice(product.flash_sale_price)}</span>
@@ -299,7 +299,7 @@ const ShopPage = () => {
                 disabled={page === 1}
                 onClick={() => { setPage(page - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
-                &larr; Prev
+                &larr; {language === 'EN' ? 'Prev' : 'Sebelumnya'}
               </button>
               <div className="flex gap-2">
                 {Array.from({ length: totalPages }).map((_, i) => (
@@ -317,7 +317,7 @@ const ShopPage = () => {
                 disabled={page === totalPages}
                 onClick={() => { setPage(page + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
-                Next &rarr;
+                {language === 'EN' ? 'Next' : 'Berikutnya'} &rarr;
               </button>
               <select
                 className="ml-6 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
@@ -325,7 +325,7 @@ const ShopPage = () => {
                 onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
               >
                 {[8, 12, 16, 20, 24].map(size => (
-                  <option key={size} value={size}>{size} / page</option>
+                  <option key={size} value={size}>{size} {language === 'EN' ? '/ page' : '/ halaman'}</option>
                 ))}
               </select>
             </div>

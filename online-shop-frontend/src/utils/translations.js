@@ -16,6 +16,7 @@ export const translations = {
         login: {
             title: "Login Account",
             email: "Email",
+            identity: "Email or Phone Number",
             password: "Password",
             showPassword: "Show password",
             hidePassword: "Hide password",
@@ -25,11 +26,35 @@ export const translations = {
             register: "Register",
             backHome: "← Back to Home",
             success: "Login successful!",
-            error: "Invalid email or password"
+            error: "Invalid email or password",
+            forgotPasswordLink: "Forgot password?"
+        },
+        forgotPassword: {
+            title: "Reset Password",
+            identity: "Email or Phone Number",
+            sendOtp: "Send Reset Code",
+            otpLabel: "Enter 6-Digit Reset Code",
+            verify: "Verify Code",
+            newPassword: "New Password",
+            confirmNewPassword: "Confirm New Password",
+            submit: "Update Password",
+            success: "Password updated successfully! Redirecting...",
+            info: "For simulated phone numbers, the OTP code is exposed in the simulation box below for local testing.",
+            identityPlaceholder: "your@email.com / 08xxxxxxxxxx",
+            otpPlaceholder: "6-digit OTP code",
+            passwordPlaceholder: "••••••••",
+            confirmPasswordPlaceholder: "••••••••",
+            backToLogin: "← Back to Login"
         },
         register: {
             title: "Create Account",
+            fullName: "Full Name",
             email: "Email",
+            phone: "Phone Number",
+            birthday: "Birthday",
+            day: "Day",
+            month: "Month",
+            year: "Year",
             password: "Password",
             confirmPassword: "Confirm Password",
             showPassword: "Show password",
@@ -41,6 +66,11 @@ export const translations = {
             success: "Registration & login successful!",
             errorMatch: "Password and confirm password do not match",
             errorFailed: "Registration failed, please try again."
+        },
+        captcha: {
+            label: "Security Verification (Captcha)",
+            placeholder: "Result...",
+            error: "Invalid or expired captcha!"
         },
         profile: {
             title: "My Account",
@@ -256,6 +286,14 @@ export const translations = {
             howToOrder: "How to Order",
             backToSite: "Back to Website",
             logout: "Logout",
+            panel: "Admin Panel",
+            shippingManual: "Manual Shipping",
+            menuGroups: {
+                summary: "Summary",
+                catalog: "Catalog",
+                promoBrand: "Promotions & Brand",
+                systemFeedback: "System & Feedback"
+            },
             status: {
                 pending: "Waiting for Payment",
                 paid: "Paid (Ready to Ship)",
@@ -431,7 +469,16 @@ export const translations = {
             send: "Send",
             sending: "Sending...",
             success: "Message sent successfully!",
-            error: "Please fill the form correctly!"
+            error: "Please fill the form correctly!",
+            subtitle: "Get In Touch With Distrapness",
+            emailSupport: "Email Support",
+            directMessage: "Direct Message",
+            headquarters: "Headquarters",
+            fullName: "Full Name",
+            namePlaceholder: "Enter your name",
+            emailPlaceholder: "name@company.com",
+            messagePlaceholder: "How can we help you?",
+            submitButton: "Submit Inquiry →"
         },
         store: {
             title: "Our Store",
@@ -442,6 +489,53 @@ export const translations = {
             hoursValue1: "Monday - Saturday: 09.00 - 18.00 WIB",
             hoursValue2: "Sunday & Public Holidays: Closed",
             phone: "Phone"
+        },
+        faq: {
+            title: "Help Center",
+            subtitle: "Everything you need to know about our products and billing.",
+            stillQuestions: "Still have questions?",
+            stillQuestionsDesc: "Can't find the answer you're looking for? Reach out to our dedicated support team.",
+            chatWa: "Chat on WhatsApp →",
+            items: [
+                { q: "How do I place an order?", a: "Simply browse our shop, add items to your cart, and proceed to checkout. You can pay via Bank Transfer, QRIS, or COD." },
+                { q: "What are the shipping costs?", a: "Shipping is calculated based on your location. We offer free shipping for orders over Rp 300.000." },
+                { q: "Can I return a product?", a: "Yes, we accept returns within 7 days if the product is unused and has original tags. Please contact support via WhatsApp to initiate a return." },
+                { q: "Is my payment secure?", a: "Absolutely. We use Midtrans, a trusted payment gateway in Indonesia, ensuring your data is encrypted and safe." },
+                { q: "How do I track my order?", a: "You can track your order in the 'My Account' section under 'Order History'. You will also receive email updates." },
+                { q: "Do you ship internationally?", a: "Currently, we only ship within Indonesia." }
+            ]
+        },
+        privacy: {
+            title: "Privacy Policy",
+            intro: "Welcome to **Distrapness**. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website.",
+            sec1Title: "1. Information We Collect",
+            sec1Desc: "We may collect information about you in a variety of ways. The information we may collect on the Site includes:",
+            sec1Item1: "<strong>Personal Data:</strong> Personally identifiable information, such as your name, shipping address, email address, and telephone number, that you voluntarily give to us when you register with the Site or when you choose to participate in various activities related to the Site.",
+            sec1Item2: "<strong>Derivative Data:</strong> Information our servers automatically collect when you access the Site, such as your IP address, your browser type, your operating system, your access times, and the pages you have viewed directly before and after accessing the Site.",
+            sec2Title: "2. Use of Your Information",
+            sec2Desc: "Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you via the Site to:",
+            sec2Item1: "Create and manage your account.",
+            sec2Item2: "Process your payments and refunds.",
+            sec2Item3: "Send you an email regarding your order or account.",
+            sec2Item4: "Fulfill and manage purchases, orders, payments, and other transactions related to the Site.",
+            sec3Title: "3. Contact Us",
+            sec3Desc: "If you have questions or comments about this Privacy Policy, please contact us at:",
+            email: "Email",
+            phone: "Phone"
+        },
+        terms: {
+            title: "Terms and Conditions",
+            intro: "Welcome to **Distrapness** (the \"Site\"). We maintain this Site as a service to our visitors, subject to the following terms and conditions concerning the use of the Site (\"Terms of Use\").",
+            sec1Title: "1. Use of Content on the Site",
+            sec1Desc: "You may view, download, and print contents from the Site subject to the following conditions: (a) the content may be used solely for information purposes; and (b) the content may not be modified or altered in any way.",
+            sec2Title: "2. Shipping & Delivery",
+            sec2Desc: "We aim to process and ship orders within 1-2 business days. Delivery times may vary depending on your location. We are not responsible for delays caused by the shipping carrier.",
+            sec3Title: "3. Returns & Refunds",
+            sec3Desc: "We accept returns within 7 days of purchase if the item is unused and in original packaging. Refunds will be processed to the original method of payment.",
+            sec4Title: "4. User Account",
+            sec4Desc: "If you use this site, you are responsible for maintaining the confidentiality of your account and password and for restricting access to your computer.",
+            sec5Title: "5. Governing Law",
+            sec5Desc: "These Terms shall be governed and construed in accordance with the laws of Indonesia, without regard to its conflict of law provisions."
         }
     },
     ID: {
@@ -461,6 +555,7 @@ export const translations = {
         login: {
             title: "Login Akun",
             email: "Email",
+            identity: "Email atau Nomor Telepon",
             password: "Password",
             showPassword: "Tampilkan password",
             hidePassword: "Sembunyikan password",
@@ -470,11 +565,35 @@ export const translations = {
             register: "Daftar",
             backHome: "← Kembali ke Beranda",
             success: "Login berhasil!",
-            error: "Email atau password salah"
+            error: "Email atau password salah",
+            forgotPasswordLink: "Lupa kata sandi?"
+        },
+        forgotPassword: {
+            title: "Reset Password",
+            identity: "Email atau Nomor Telepon",
+            sendOtp: "Kirim Kode Verifikasi",
+            otpLabel: "Masukkan 6-Digit Kode Verifikasi",
+            verify: "Verifikasi Kode",
+            newPassword: "Password Baru",
+            confirmNewPassword: "Konfirmasi Password Baru",
+            submit: "Simpan Password Baru",
+            success: "Password Anda berhasil direset! Mengalihkan...",
+            info: "Untuk nomor telepon, gunakan kode OTP simulasi di bawah untuk pengetesan lokal.",
+            identityPlaceholder: "email@anda.com / 08xxxxxxxxxx",
+            otpPlaceholder: "6-digit kode OTP",
+            passwordPlaceholder: "••••••••",
+            confirmPasswordPlaceholder: "••••••••",
+            backToLogin: "← Kembali ke Login"
         },
         register: {
             title: "Buat Akun",
+            fullName: "Nama Lengkap",
             email: "Email",
+            phone: "Nomor Telepon",
+            birthday: "Tanggal Lahir",
+            day: "Hari",
+            month: "Bulan",
+            year: "Tahun",
             password: "Password",
             confirmPassword: "Konfirmasi Password",
             showPassword: "Tampilkan password",
@@ -486,6 +605,11 @@ export const translations = {
             success: "Registrasi & login berhasil!",
             errorMatch: "Password dan konfirmasi password tidak sama",
             errorFailed: "Registrasi gagal, coba lagi."
+        },
+        captcha: {
+            label: "Verifikasi Keamanan (Captcha)",
+            placeholder: "Hasil hitungan...",
+            error: "Jawaban captcha salah atau kedaluwarsa!"
         },
         profile: {
             title: "Akun Saya",
@@ -629,7 +753,16 @@ export const translations = {
             send: "Kirim",
             sending: "Mengirim...",
             success: "Pesan berhasil dikirim!",
-            error: "Mohon isi data dengan benar!"
+            error: "Mohon isi data dengan benar!",
+            subtitle: "Hubungi Distrapness",
+            emailSupport: "Dukungan Email",
+            directMessage: "Pesan Langsung",
+            headquarters: "Kantor Pusat",
+            fullName: "Nama Lengkap",
+            namePlaceholder: "Masukkan nama Anda",
+            emailPlaceholder: "nama@perusahaan.com",
+            messagePlaceholder: "Bagaimana kami bisa membantu Anda?",
+            submitButton: "Kirim Pertanyaan →"
         },
         store: {
             title: "Toko Kami",
@@ -808,6 +941,14 @@ export const translations = {
             howToOrder: "Cara Order",
             backToSite: "Ke Website",
             logout: "Logout",
+            panel: "Panel Admin",
+            shippingManual: "Ongkir Manual",
+            menuGroups: {
+                summary: "Ringkasan",
+                catalog: "Katalog",
+                promoBrand: "Promosi & Brand",
+                systemFeedback: "Sistem & Feedback"
+            },
             status: {
                 pending: "Menunggu Pembayaran",
                 paid: "Lunas (Siap Kirim)",
@@ -906,6 +1047,53 @@ export const translations = {
             adminName: "Dukungan",
             ariaOpen: "Buka chat",
             ariaClose: "Tutup chat"
+        },
+        faq: {
+            title: "Pusat Bantuan",
+            subtitle: "Semua hal yang perlu Anda ketahui tentang produk dan tagihan kami.",
+            stillQuestions: "Masih memiliki pertanyaan?",
+            stillQuestionsDesc: "Tidak menemukan jawaban yang Anda cari? Hubungi tim dukungan kami.",
+            chatWa: "Chat di WhatsApp →",
+            items: [
+                { q: "Bagaimana cara melakukan pemesanan?", a: "Cukup telusuri toko kami, tambahkan barang ke keranjang, dan lanjutkan ke checkout. Anda dapat membayar melalui Transfer Bank, QRIS, atau COD." },
+                { q: "Berapa biaya pengirimannya?", a: "Biaya pengiriman dihitung berdasarkan lokasi Anda. Kami menawarkan gratis ongkos kirim untuk pesanan di atas Rp 300.000." },
+                { q: "Apakah saya bisa mengembalikan produk?", a: "Ya, kami menerima pengembalian dalam waktu 7 hari jika produk belum digunakan dan memiliki tag asli. Silakan hubungi dukungan via WhatsApp untuk memulai pengembalian." },
+                { q: "Apakah pembayaran saya aman?", a: "Tentu saja. Kami menggunakan Midtrans, payment gateway terpercaya di Indonesia, memastikan data Anda terenkripsi dengan aman." },
+                { q: "Bagaimana cara melacak pesanan saya?", a: "Anda dapat melacak pesanan di bagian 'Akun Saya' di bawah 'Riwayat Pesanan'. Anda juga akan menerima pembaruan email." },
+                { q: "Apakah Anda mengirim secara internasional?", a: "Saat ini, kami hanya melayani pengiriman di dalam wilayah Indonesia." }
+            ]
+        },
+        privacy: {
+            title: "Kebijakan Privasi",
+            intro: "Selamat datang di **Distrapness**. Kebijakan Privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan, mengungkapkan, dan melindungi informasi Anda saat Anda mengunjungi situs web kami.",
+            sec1Title: "1. Informasi yang Kami Kumpulkan",
+            sec1Desc: "Kami dapat mengumpulkan informasi tentang Anda dengan berbagai cara. Informasi yang dapat kami kumpulkan di Situs meliputi:",
+            sec1Item1: "<strong>Data Pribadi:</strong> Informasi identitas pribadi, seperti nama, alamat pengiriman, alamat email, dan nomor telepon Anda, yang Anda berikan secara sukarela kepada kami saat mendaftar di Situs atau ketika Anda memilih untuk berpartisipasi dalam berbagai aktivitas terkait Situs.",
+            sec1Item2: "<strong>Data Derivatif:</strong> Informasi yang dikumpulkan server kami secara otomatis saat Anda mengakses Situs, seperti alamat IP Anda, jenis browser Anda, sistem operasi Anda, waktu akses Anda, dan halaman yang telah Anda lihat langsung sebelum dan sesudah mengakses Situs.",
+            sec2Title: "2. Penggunaan Informasi Anda",
+            sec2Desc: "Memiliki informasi yang akurat tentang Anda memungkinkan kami untuk memberikan Anda pengalaman yang lancar, efisien, dan disesuaikan. Secara khusus, kami dapat menggunakan informasi yang dikumpulkan tentang Anda melalui Situs untuk:",
+            sec2Item1: "Membuat dan mengelola akun Anda.",
+            sec2Item2: "Memproses pembayaran dan pengembalian uang Anda.",
+            sec2Item3: "Mengirimkan email mengenai pesanan atau akun Anda.",
+            sec2Item4: "Memenuhi dan mengelola pembelian, pesanan, pembayaran, dan transaksi lainnya yang terkait dengan Situs.",
+            sec3Title: "3. Hubungi Kami",
+            sec3Desc: "Jika Anda memiliki pertanyaan atau komentar tentang Kebijakan Privasi ini, silakan hubungi kami di:",
+            email: "Email",
+            phone: "Telepon"
+        },
+        terms: {
+            title: "Syarat dan Ketentuan",
+            intro: "Selamat datang di **Distrapness** (\"Situs\"). Kami mengelola Situs ini sebagai layanan bagi pengunjung kami, tunduk pada syarat dan ketentuan berikut mengenai penggunaan Situs (\"Syarat Penggunaan\").",
+            sec1Title: "1. Penggunaan Konten di Situs",
+            sec1Desc: "Anda dapat melihat, mengunduh, dan mencetak konten dari Situs dengan tunduk pada ketentuan berikut: (a) konten hanya boleh digunakan untuk tujuan informasi; dan (b) konten tidak boleh dimodifikasi atau diubah dengan cara apa pun.",
+            sec2Title: "2. Pengiriman & Pengantaran",
+            sec2Desc: "Kami bertujuan untuk memproses dan mengirimkan pesanan dalam 1-2 hari kerja. Waktu pengiriman dapat bervariasi tergantung pada lokasi Anda. Kami tidak bertanggung jawab atas keterlambatan yang disebabkan oleh kurir pengiriman.",
+            sec3Title: "3. Pengembalian & Pengembalian Uang",
+            sec3Desc: "Kami menerima pengembalian dalam waktu 7 hari sejak pembelian jika barang belum digunakan dan dalam kemasan asli. Pengembalian uang akan diproses ke metode pembayaran asli.",
+            sec4Title: "4. Akun Pengguna",
+            sec4Desc: "Jika Anda menggunakan situs ini, Anda bertanggung jawab untuk menjaga kerahasiaan akun dan kata sandi Anda dan untuk membatasi akses ke komputer Anda.",
+            sec5Title: "5. Governing Law",
+            sec5Desc: "Syarat-syarat ini harus diatur dan ditafsirkan sesuai dengan hukum Indonesia, tanpa memperhatikan pertentangan ketentuan hukumnya."
         }
     }
 };

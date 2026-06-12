@@ -13,9 +13,39 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123'; // Fallback se
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Auto-migrate database: ensure birth_date column exists in users table
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20)", (err) => {
+  if (err) console.error("[DATABASE] Error adding birth_date column:", err.message);
+  else console.log("[DATABASE] birth_date column checked/added.");
+});
+
 const app = express();
 const server = http.createServer(app);
-setupSocket(server); // Enabled for local stability
+setupSocket(server, app); // Enabled for local stability
+
+// ====== GOOGLE RECAPTCHA CONFIG ======
+const RECAPTCHA_SECRET = '6LcmfhstAAAAAHSygpkMox2_5evMdlA31ClpAxPG';
+
+const verifyGoogleRecaptcha = async (token) => {
+  if (!token) return false;
+  try {
+    const axios = require('axios');
+    const response = await axios.post(
+      'https://www.google.com/recaptcha/api/siteverify',
+      null,
+      {
+        params: {
+          secret: RECAPTCHA_SECRET,
+          response: token
+        }
+      }
+    );
+    return response.data.success;
+  } catch (error) {
+    console.error('[RECAPTCHA] Verification failed:', error.message);
+    return false;
+  }
+};
 
 // ====== CORS untuk seluruh route, termasuk static file ======
 app.use(cors());
@@ -253,46 +283,95 @@ app.get('/api/setup-admin', async (req, res) => {
   }
 });
 
-const { sendRegistrationWelcome, sendContactNotification } = require('./services/emailService');
+const { sendRegistrationWelcome, sendContactNotification, sendPasswordResetOTP } = require('./services/emailService');
 
 // REGISTER ENDPOINT
 app.post('/api/register', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ message: 'Email dan password wajib diisi' });
+  const { email, phone, password, fullName, birthDate, recaptchaToken } = req.body;
+  if (!email || !phone || !password || !fullName || !birthDate || !recaptchaToken) {
+    return res.status(400).json({ message: 'Semua kolom pendaftaran wajib diisi termasuk Captcha' });
+  }
 
-  pool.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
-    if (err) return res.status(500).json({ message: 'Database error' });
+  // Verify Google reCAPTCHA
+  const isRecaptchaValid = await verifyGoogleRecaptcha(recaptchaToken);
+  if (!isRecaptchaValid) {
+    return res.status(400).json({ message: 'Verifikasi Captcha gagal atau kedaluwarsa, silakan coba lagi' });
+  }
+
+  if (password.length < 6) return res.status(400).json({ message: 'Password minimal 6 karakter' });
+
+  const cleanEmail = (email || '').toString().trim().toLowerCase();
+  const cleanPhone = (phone || '').toString().trim();
+
+  // Check if email or phone is already registered
+  pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ? OR phone = ?', [cleanEmail, cleanPhone], async (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
     if (results.length > 0) {
-      return res.status(400).json({ message: 'Email sudah terdaftar' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    pool.query('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword], (err2, result) => {
-      if (err2) return res.status(500).json({ message: 'Gagal menyimpan user' });
-      
-      // Send Welcome Email (Safe, non-blocking)
-      try {
-        sendRegistrationWelcome(email);
-      } catch (e) {
-        console.warn("Welcome email failed:", e.message);
+      const existing = results[0];
+      if (existing.email.toLowerCase() === cleanEmail) {
+        return res.status(400).json({ message: 'Email sudah terdaftar' });
+      } else {
+        return res.status(400).json({ message: 'Nomor telepon sudah terdaftar' });
       }
+    }
 
-      res.json({ message: 'Registrasi berhasil' });
-    });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    pool.query(
+      'INSERT INTO users (email, phone, password, first_name, birth_date) VALUES (?, ?, ?, ?, ?)',
+      [cleanEmail, cleanPhone, hashedPassword, fullName, birthDate],
+      (err2, result) => {
+        if (err2) return res.status(500).json({ message: 'Gagal menyimpan user', detail: err2.message });
+        
+        // Send Welcome Email (Safe, non-blocking)
+        try {
+          sendRegistrationWelcome(cleanEmail);
+        } catch (e) {
+          console.warn("Welcome email failed:", e.message);
+        }
+
+        const userId = result.insertId;
+        const finalRole = 'customer';
+        const token = jwt.sign(
+          { id: userId, email: cleanEmail, role: finalRole },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        res.json({ 
+          message: 'Registrasi berhasil',
+          token,
+          email: cleanEmail,
+          role: finalRole
+        });
+      }
+    );
   });
 });
 
 // LOGIN ENDPOINT
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
-  const cleanEmail = (email || "").toString().trim().toLowerCase();
+app.post('/api/login', async (req, res) => {
+  const { email, password, recaptchaToken } = req.body;
+  if (!email || !password || !recaptchaToken) {
+    return res.status(400).json({ message: 'Kolom login dan Captcha wajib diisi' });
+  }
+
+  // Verify Google reCAPTCHA
+  const isRecaptchaValid = await verifyGoogleRecaptcha(recaptchaToken);
+  if (!isRecaptchaValid) {
+    return res.status(400).json({ message: 'Verifikasi Captcha gagal atau kedaluwarsa, silakan coba lagi' });
+  }
+
+  const cleanInput = (email || "").toString().trim();
+  const cleanEmail = cleanInput.toLowerCase();
   
-  pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail], async (err, results) => {
+  // Search by either email or phone
+  pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ? OR phone = ?', [cleanEmail, cleanInput], async (err, results) => {
     if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
     
     if (!results.length) {
       return res.status(401).json({ 
-        message: `Email tidak terdaftar: [${cleanEmail}]`,
-        suggestion: 'Pastikan email sudah benar atau daftar akun baru.'
+        message: `Akun tidak terdaftar dengan email atau nomor telepon: [${cleanInput}]`,
+        suggestion: 'Pastikan data sudah benar atau daftar akun baru.'
       });
     }
     
@@ -302,7 +381,7 @@ app.post('/api/login', (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ 
         message: 'Password salah!',
-        detail: `Input pass length: ${password.length}, DB pass hash prefix: ${user.password.substring(0, 7)}...`
+        detail: `Kata sandi yang Anda masukkan tidak sesuai.`
       });
     }
 
@@ -328,11 +407,74 @@ app.post('/api/login', (req, res) => {
 // PROFILE ENDPOINT
 app.get('/api/profile', verifyToken, (req, res) => {
   const userId = req.user.id;
-  pool.query('SELECT email, role, referral_code, referrals_count, points, balance FROM users WHERE id = ?', [userId], (err, results) => {
+  pool.query('SELECT email, role, referral_code, referrals_count, points, balance, first_name, last_name, phone, birth_date, address, province, city, district, area, postal_code, province_id, city_id, district_id, area_id FROM users WHERE id = ?', [userId], async (err, results) => {
     if (err) return res.status(500).json({ message: 'Database error' });
     if (!results.length) return res.status(404).json({ message: 'User tidak ditemukan' });
-    res.json(results[0]);
+    
+    let user = results[0];
+    if (!user.referral_code) {
+      const emailPrefix = (user.email || 'REF').split('@')[0].toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const code = emailPrefix + Math.floor(1000 + Math.random() * 9000);
+      try {
+        await pool.promise().query('UPDATE users SET referral_code = ? WHERE id = ?', [code, userId]);
+        user.referral_code = code;
+      } catch (updErr) {
+        console.error("Failed to generate referral code on-the-fly:", updErr.message);
+      }
+    }
+    res.json(user);
   });
+});
+
+// UPDATE PROFILE ENDPOINT
+app.put('/api/profile', verifyToken, (req, res) => {
+  const userId = req.user.id;
+  const { firstName, lastName, phone, address, province, city, district, area, postalCode, provinceId, cityId, districtId, areaId } = req.body;
+
+  pool.query(
+    'UPDATE users SET first_name = ?, last_name = ?, phone = ?, address = ?, province = ?, city = ?, district = ?, area = ?, postal_code = ?, province_id = ?, city_id = ?, district_id = ?, area_id = ? WHERE id = ?',
+    [firstName || null, lastName || null, phone || null, address || null, province || null, city || null, district || null, area || null, postalCode || null, provinceId || null, cityId || null, districtId || null, areaId || null, userId],
+    (err, results) => {
+      if (err) {
+        console.error("Profile update error:", err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ success: true, message: 'Profil berhasil diperbarui' });
+    }
+  );
+});
+
+// CHANGE PASSWORD ENDPOINT
+app.put('/api/profile/change-password', verifyToken, async (req, res) => {
+  const userId = req.user.id;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password baru minimal 6 karakter' });
+  }
+
+  try {
+    const [users] = await pool.promise().query('SELECT password FROM users WHERE id = ?', [userId]);
+    if (!users.length) return res.status(404).json({ message: 'User tidak ditemukan' });
+
+    const user = users[0];
+
+    // If user has a real password (not random from Google), verify old password
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Password lama salah' });
+      }
+    }
+
+    const hashedNew = await bcrypt.hash(newPassword, 10);
+    await pool.promise().query('UPDATE users SET password = ? WHERE id = ?', [hashedNew, userId]);
+
+    res.json({ success: true, message: 'Password berhasil diperbarui' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // VERIFY REFERRAL
@@ -351,21 +493,34 @@ app.get('/api/referral/verify/:code', async (req, res) => {
 app.post('/api/google-login', async (req, res) => {
   const { token } = req.body;
   try {
-    const ticket = await googleClient.verifyIdToken({
+    let clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      const [rows] = await pool.promise().query("SELECT setting_value FROM settings WHERE setting_key = 'google_client_id'");
+      if (rows.length > 0 && rows[0].setting_value) {
+        clientId = rows[0].setting_value;
+      }
+    }
+    if (!clientId) {
+      clientId = '67311538354-3kkrjm976iaptm7k40qgr5rrgefgu2i7.apps.googleusercontent.com';
+    }
+
+    const activeClient = clientId === process.env.GOOGLE_CLIENT_ID ? googleClient : new OAuth2Client(clientId);
+    const ticket = await activeClient.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: clientId,
     });
     const { email, name, picture } = ticket.getPayload();
+    const cleanEmail = (email || '').toString().trim().toLowerCase();
 
-    pool.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+    pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail], async (err, results) => {
       if (err) return res.status(500).json({ message: 'Database error' });
 
       let user;
       if (results.length === 0) {
         // Create new user if doesn't exist
         const randomPassword = await bcrypt.hash(Math.random().toString(36), 10);
-        await pool.promise().query('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [email, randomPassword, 'customer']);
-        const [newUsers] = await pool.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+        await pool.promise().query('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [cleanEmail, randomPassword, 'customer']);
+        const [newUsers] = await pool.promise().query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail]);
         user = newUsers[0];
       } else {
         user = results[0];
@@ -391,6 +546,122 @@ app.post('/api/google-login', async (req, res) => {
   }
 });
 
+// ====== FORGOT PASSWORD ENDPOINTS ======
+
+// 1. FORGOT PASSWORD - REQUEST OTP
+app.post('/api/forgot-password', async (req, res) => {
+  const { identity } = req.body;
+  if (!identity) {
+    return res.status(400).json({ message: 'Email atau nomor telepon wajib diisi' });
+  }
+
+  const cleanIdentity = identity.trim();
+  const lowerIdentity = cleanIdentity.toLowerCase();
+
+  pool.query(
+    'SELECT * FROM users WHERE TRIM(LOWER(email)) = ? OR phone = ?',
+    [lowerIdentity, cleanIdentity],
+    async (err, results) => {
+      if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Identitas tidak terdaftar. Silakan periksa kembali atau buat akun baru.' });
+      }
+
+      const user = results[0];
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Sign the OTP with a 10-minute expiry
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, otpCode },
+        JWT_SECRET,
+        { expiresIn: '10m' }
+      );
+
+      // Determine verification method (simple check for email format)
+      const isEmail = cleanIdentity.includes('@');
+      let method = 'phone';
+
+      if (isEmail) {
+        method = 'email';
+        await sendPasswordResetOTP(user.email, otpCode);
+      } else {
+        // Log OTP to server console for local testing
+        console.log(`[SMS OTP SIMULATION] Reset code for phone ${user.phone}: ${otpCode}`);
+      }
+
+      res.json({
+        message: isEmail 
+          ? 'Kode verifikasi telah dikirim ke email Anda.' 
+          : 'Kode verifikasi telah disimulasikan ke nomor telepon Anda.',
+        token,
+        method,
+        // Expose simulated OTP only for non-email (phone) for simulation/testing convenience
+        otp_simulated: isEmail ? null : otpCode
+      });
+    }
+  );
+});
+
+// 2. FORGOT PASSWORD - VERIFY OTP
+app.post('/api/verify-otp', (req, res) => {
+  const { token, code } = req.body;
+  if (!token || !code) {
+    return res.status(400).json({ message: 'Token dan kode verifikasi wajib diisi' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.otpCode !== code.trim()) {
+      return res.status(400).json({ message: 'Kode verifikasi salah!' });
+    }
+
+    // Generate a secure reset authorization token with a 5-minute expiry
+    const resetToken = jwt.sign(
+      { userId: decoded.userId, authorized: true },
+      JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+
+    res.json({
+      message: 'Verifikasi berhasil.',
+      resetToken
+    });
+  } catch (err) {
+    return res.status(400).json({ message: 'Kode verifikasi kedaluwarsa atau tidak valid, silakan coba lagi' });
+  }
+});
+
+// 3. FORGOT PASSWORD - RESET PASSWORD
+app.post('/api/reset-password', async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+  if (!resetToken || !newPassword) {
+    return res.status(400).json({ message: 'Token otorisasi dan password baru wajib diisi' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password minimal 6 karakter' });
+  }
+
+  try {
+    const decoded = jwt.verify(resetToken, JWT_SECRET);
+    if (!decoded.authorized) {
+      return res.status(403).json({ message: 'Akses ditolak / Token tidak sah' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    pool.query(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, decoded.userId],
+      (err, result) => {
+        if (err) return res.status(500).json({ message: 'Gagal memperbarui password', detail: err.message });
+        res.json({ success: true, message: 'Password berhasil diubah. Silakan login kembali.' });
+      }
+    );
+  } catch (err) {
+    return res.status(400).json({ message: 'Token otorisasi kedaluwarsa atau tidak valid, silakan ulangi proses lupa sandi.' });
+  }
+});
+
 // ====== ADMIN ROUTES (PHASE 1 & 2) ======
 
 // Helper for safe JSON parsing
@@ -407,14 +678,14 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
   console.log(`[ADMIN API] Accessing stats: ${req.user.email}`);
   try {
     const [orders] = await pool.promise().query('SELECT COUNT(*) as count FROM orders');
-    const [revenue] = await pool.promise().query('SELECT SUM(total) as total FROM orders WHERE status = "paid"');
+    const [revenue] = await pool.promise().query("SELECT SUM(total) as total FROM orders WHERE status IN ('paid', 'processing', 'completed', 'shipped')");
     const [products] = await pool.promise().query('SELECT COUNT(*) as count FROM products');
 
     // Low Stock ( < 10 )
     const [lowStock] = await pool.promise().query('SELECT id, name, stock, images FROM products WHERE stock < 10 LIMIT 3');
 
     // Chart Data (Real Revenue Last 7 Days)
-    const [allOrders] = await pool.promise().query('SELECT total, createdAt, items FROM orders WHERE status != "cancelled" AND status != "failed"');
+    const [allOrders] = await pool.promise().query('SELECT total, "createdAt", items, status, "paymentMethod" FROM orders');
     
     // Process real chart data
     const chartData = [0, 0, 0, 0, 0, 0, 0]; // Day -6 to Day 0 (Today)
@@ -423,15 +694,45 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
     
     // Process real best sellers
     const productSales = {};
+    
+    // Status counts
+    const statusCounts = {
+      success: 0, // paid, processing, completed, shipped
+      pending: 0, // pending, waiting_payment, waiting_verification
+      failed: 0   // cancelled, expired, failed
+    };
+
+    // Payment method stats
+    const paymentMethodStats = {};
 
     allOrders.forEach(o => {
-      // Calculate Chart Data
-      const orderDate = new Date(o.createdAt);
-      const diffTime = Math.abs(today - orderDate);
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays >= 0 && diffDays < 7) {
-        chartData[6 - diffDays] += Number(o.total) || 0;
+      // Calculate Chart Data (only for non-dead orders)
+      const isDead = o.status === 'cancelled' || o.status === 'expired' || o.status === 'failed';
+      if (!isDead) {
+        const orderDate = new Date(o.createdAt);
+        const diffTime = Math.abs(today - orderDate);
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays >= 0 && diffDays < 7) {
+          chartData[6 - diffDays] += Number(o.total) || 0;
+        }
+      }
+
+      // Group by status
+      if (['paid', 'processing', 'completed', 'shipped'].includes(o.status)) {
+        statusCounts.success += 1;
+        
+        // Group by payment method for success orders
+        const method = o.paymentMethod || 'other';
+        if (!paymentMethodStats[method]) {
+          paymentMethodStats[method] = { count: 0, total: 0 };
+        }
+        paymentMethodStats[method].count += 1;
+        paymentMethodStats[method].total += Number(o.total) || 0;
+      } else if (['cancelled', 'expired', 'failed'].includes(o.status)) {
+        statusCounts.failed += 1;
+      } else {
+        statusCounts.pending += 1;
       }
 
       // Calculate Best Sellers
@@ -451,8 +752,12 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
       .slice(0, 4)
       .map(p => ({
         ...p,
-        growth: Math.floor(Math.random() * 5) + 1 // Genuine growth logic usually requires history, mock slight growth
+        growth: Math.floor(Math.random() * 5) + 1 // mock slight growth
       }));
+
+    // Monthly revenues
+    const [monthlyThis] = await pool.promise().query("SELECT SUM(total) as total FROM orders WHERE status IN ('paid', 'processing', 'completed', 'shipped') AND \"createdAt\" >= DATE_TRUNC('month', NOW())");
+    const [monthlyLast] = await pool.promise().query("SELECT SUM(total) as total FROM orders WHERE status IN ('paid', 'processing', 'completed', 'shipped') AND \"createdAt\" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month') AND \"createdAt\" < DATE_TRUNC('month', NOW())");
 
     res.json({
       totalOrders: orders[0].count,
@@ -463,7 +768,11 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
         images: safeJsonParse(p.images)
       })),
       bestSellers: realBestSellers,
-      chartData
+      chartData,
+      statusCounts,
+      paymentMethodStats,
+      thisMonthRevenue: monthlyThis[0].total || 0,
+      lastMonthRevenue: monthlyLast[0].total || 0
     });
   } catch (err) {
     console.error("Stats API Error:", err);
@@ -619,7 +928,7 @@ app.post('/api/newsletter', async (req, res) => {
     await pool.promise().query('INSERT INTO subscribers (email) VALUES (?)', [email]);
     res.json({ success: true, message: 'Subscribed successfully!' });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.json({ success: true, message: 'Already subscribed!' });
+    if (err.code === 'ER_DUP_ENTRY' || err.code === '23505') return res.json({ success: true, message: 'Already subscribed!' });
     res.status(500).json({ error: err.message });
   }
 });
@@ -653,12 +962,35 @@ app.use('/api/shipping-manual', shippingManualRoutes);
 const couponRoutes = require('./routes/couponRoutes');
 app.use('/api/coupons', couponRoutes);
 
-const affiliateRoutes = require('./routes/affiliateRoutes');
-app.use('/api/affiliate', affiliateRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 if (require.main === module) {
-  server.listen(PORT, () => console.log(`Server running on port ${PORT} (with Socket.io)`));
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} (with Socket.io)`);
+    // Run initial check after 5 seconds of startup, then hourly
+    setTimeout(async () => {
+      try {
+        const axios = require('axios');
+        await axios.post(`http://localhost:${PORT}/api/orders/auto-cancel`);
+        console.log("[STARTUP] Initial stale orders check done.");
+      } catch (err) {
+        console.error("[STARTUP] Initial stale orders check failed:", err.message);
+      }
+    }, 5000);
+  });
 }
+
+// Background Interval Task for Auto-Cancellation (runs every 1 hour)
+setInterval(async () => {
+  try {
+    const axios = require('axios');
+    const port = process.env.PORT || 5000;
+    await axios.post(`http://localhost:${port}/api/orders/auto-cancel`);
+    console.log("[CRON] Stale orders auto-cancellation successfully triggered.");
+  } catch (err) {
+    console.error("[CRON] Failed to auto-cancel stale orders:", err.message);
+  }
+}, 1000 * 60 * 60); // 1 hour
 
 module.exports = app;

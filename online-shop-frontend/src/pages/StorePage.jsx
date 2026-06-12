@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import config from "../config";
 
 const StorePage = () => {
   const { t } = useCurrency();
+  const [brand, setBrand] = useState({ phone: "6285888159265" });
+
+  useEffect(() => {
+    fetch(`${config.API_URL}/api/brand`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.phone) setBrand(data);
+      })
+      .catch(err => console.error("Error fetching brand contact:", err));
+  }, []);
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col justify-start items-center px-4 pt-4 pb-12 w-full">
       <div className="w-full max-w-5xl mx-auto">
@@ -17,7 +29,7 @@ const StorePage = () => {
           <div>{t('store.hoursValue2')}</div>
         </div>
         <div className="mb-4 text-center w-full">
-          <strong>{t('store.phone')}:</strong> <a href="tel:02112345678" className="text-black hover:underline">021-12345678</a>
+          <strong>{t('store.phone')}:</strong> <a href={`tel:${brand.phone.replace(/[^0-9]/g, '')}`} className="text-black hover:underline">{brand.phone}</a>
         </div>
         <iframe
           title="Lokasi Toko"

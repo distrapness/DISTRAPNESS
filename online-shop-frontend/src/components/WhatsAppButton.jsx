@@ -7,7 +7,7 @@ const WhatsAppButton = () => {
     const location = useLocation();
 
     // Don't show on admin pages
-    if (location.pathname.startsWith('/admin') || location.pathname.startsWith('/product-admin')) {
+    if (location.pathname.includes('admin') || location.pathname.startsWith('/admin')) {
         return null;
     }
 

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { sendOrderConfirmation, sendAdminNotification, sendStatusUpdateEmail } = require('../services/emailService');
+const { sendOrderConfirmation, sendAdminNotification, sendStatusUpdateEmail, sendShippingReceiptEmail } = require('../services/emailService');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const midtransClient = require('midtrans-client');
 
@@ -52,8 +53,8 @@ const upload = multer({
 });
 
 // GET USER ORDERS (By Email in Shipping Address)
-router.get('/user', (req, res) => {
-  const { email } = req.query;
+router.get('/user', verifyToken, (req, res) => {
+  const email = req.user?.email;
   if (!email) return res.json([]);
 
   // Use LIKE to find email in JSON string (Compatible with most MySQL versions)
@@ -72,6 +73,8 @@ router.get('/user', (req, res) => {
 });
 
 // CREATE ORDER (With Stock Management)
+// Note: Midtrans payments now use POST /api/midtrans/prepare instead of this endpoint.
+// This endpoint handles COD, mandiri_tf, and other immediate payment methods.
 router.post('/', async (req, res) => {
   const { userId, items, total, paymentMethod, status, shippingAddress, couponCode, discountAmount, email } = req.body;
 
@@ -116,13 +119,26 @@ router.post('/', async (req, res) => {
     }
 
     // 2. Siapkan Data
-    const dbUserId = (userId && !isNaN(userId)) ? userId : null;
+    let dbUserId = null;
+    if (userId && !isNaN(userId)) {
+      dbUserId = parseInt(userId);
+    } else if (userId && typeof userId === 'string' && userId.includes('@')) {
+      const [uRows] = await connection.query('SELECT id FROM users WHERE email = ?', [userId]);
+      if (uRows.length > 0) {
+        dbUserId = uRows[0].id;
+      }
+    } else if (email && typeof email === 'string' && email.includes('@')) {
+      const [uRows] = await connection.query('SELECT id FROM users WHERE email = ?', [email]);
+      if (uRows.length > 0) {
+        dbUserId = uRows[0].id;
+      }
+    }
     const targetEmail = email || (userId && typeof userId === 'string' && userId.includes('@') ? userId : '') || 'customer@mail.com';
     const finalShipping = {
       ...(shippingAddress || {}),
       email: targetEmail
     };
-    const refCode = req.body.referralCode || null;
+    const refCode = null;
 
     // 3. Simpan Order
     const [result] = await connection.query(
@@ -161,7 +177,7 @@ router.post('/', async (req, res) => {
 
     await connection.commit();
 
-    // 5. Kirim Email ke Customer ditunda sampai pesanan dibayar (untuk Midtrans) atau dikonfirmasi (untuk COD)
+      // 5. Kirim Email ke Customer ditunda sampai pesanan dibayar (untuk Midtrans) atau dikonfirmasi (untuk COD)
 
     // 6. Kirim Email Notifikasi ke Admin (safe)
     try {
@@ -188,6 +204,10 @@ router.post('/', async (req, res) => {
           },
           credit_card: {
             secure: true
+          },
+          expiry: {
+            unit: "hours",
+            duration: 24
           },
           customer_details: {
             email: targetEmail || "customer@mail.com"
@@ -298,6 +318,89 @@ router.put('/:orderId/confirm-cod', async (req, res) => {
 });
 
 
+// UPDATE ORDER STATUS BY CUSTOMER (For Midtrans flow)
+router.put('/:orderId/customer-status', async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body; // 'pending', 'waiting_payment', 'cancelled', 'paid'
+  
+  if (!['pending', 'waiting_payment', 'cancelled', 'paid'].includes(status)) {
+    return res.status(400).json({ error: 'Status tidak valid' });
+  }
+
+  try {
+    const [rows] = await pool.promise().query('SELECT status, "paymentMethod", items FROM orders WHERE id = ?', [orderId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    
+    const oldStatus = rows[0].status;
+    const paymentMethod = rows[0].paymentMethod;
+    const items = JSON.parse(rows[0].items || '[]');
+
+    if (paymentMethod !== 'midtrans') {
+      return res.status(400).json({ error: 'Hanya pesanan Midtrans yang dapat diupdate melalui endpoint ini' });
+    }
+
+    // If cancelling, restore stock
+    if (status === 'cancelled' && oldStatus !== 'cancelled') {
+      const connection = await pool.promise().getConnection();
+      try {
+        await connection.beginTransaction();
+        for (const item of items) {
+          await connection.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
+          
+          // Restore variant stock
+          const [pRows] = await connection.query('SELECT sizes FROM products WHERE id = ?', [item.id]);
+          if (pRows.length > 0 && pRows[0].sizes) {
+            let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
+            if (item.selectedSize && sizes && sizes[item.selectedSize] !== undefined) {
+              sizes[item.selectedSize] += item.qty;
+              await connection.query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
+            }
+          }
+        }
+        await connection.query('UPDATE orders SET status = ? WHERE id = ?', ['cancelled', orderId]);
+        await connection.commit();
+      } catch (err) {
+        await connection.rollback();
+        throw err;
+      } finally {
+        connection.release();
+      }
+    } else {
+      await pool.promise().query('UPDATE orders SET status = ? WHERE id = ?', [status, orderId]);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE ORDER SHIPPING ADDRESS BY CUSTOMER (Before payment/processing)
+router.put('/:orderId/shipping-address', async (req, res) => {
+  const { orderId } = req.params;
+  const { shippingAddress } = req.body;
+
+  if (!shippingAddress) {
+    return res.status(400).json({ error: 'Alamat pengiriman kosong' });
+  }
+
+  try {
+    const [rows] = await pool.promise().query('SELECT status FROM orders WHERE id = ?', [orderId]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    
+    const status = rows[0].status;
+    if (!['pending', 'waiting_payment'].includes(status)) {
+      return res.status(400).json({ error: 'Alamat pesanan yang sudah dibayar atau diproses tidak dapat diubah' });
+    }
+
+    await pool.promise().query('UPDATE orders SET shipping_address = ? WHERE id = ?', [JSON.stringify(shippingAddress), orderId]);
+    res.json({ success: true, message: 'Alamat pengiriman berhasil diperbarui' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // UPDATE ORDER STATUS (Admin)
 router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
   const { orderId } = req.params;
@@ -369,37 +472,37 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
 
     await connection.query(query, params);
 
-    // AFFILIATE COMMISSION LOGIC (Triggered when marked as PAID)
-    if (status === 'paid' && oldStatus !== 'paid') {
-      const [orderRows] = await connection.query('SELECT referral_code, total FROM orders WHERE id = ?', [orderId]);
-      const refCode = orderRows[0]?.referral_code;
-      const totalAmount = orderRows[0]?.total || 0;
 
-      if (refCode) {
-        // Give 10% commission + 1000 points
-        const commission = parseFloat(totalAmount) * 0.10;
-        await connection.query(
-          'UPDATE users SET balance = balance + ?, points = points + 1000, referrals_count = referrals_count + 1 WHERE referral_code = ?',
-          [commission, refCode]
-        );
-        console.log(`Manual Reward: Affiliate commission (${commission}) & 1000pts given to code: ${refCode}`);
-      }
-    }
 
     await connection.commit();
 
     // Fetch order details for notification
-    const [results] = await pool.promise().query('SELECT shipping_address FROM orders WHERE id = ?', [orderId]);
+    const [results] = await pool.promise().query('SELECT shipping_address, items, total, "paymentMethod" FROM orders WHERE id = ?', [orderId]);
     if (results.length > 0) {
       try {
-        const addr = JSON.parse(results[0].shipping_address);
+        const addr = JSON.parse(results[0].shipping_address || '{}');
+        const items = JSON.parse(results[0].items || '[]');
+        const total = results[0].total || 0;
+        
         if (addr && addr.email) {
-          sendStatusUpdateEmail({
-            email: addr.email,
-            orderId,
-            status,
-            trackingNumber
-          });
+          if (status === 'shipped') {
+            sendShippingReceiptEmail({
+              email: addr.email,
+              orderId,
+              trackingNumber,
+              courier: addr.courierInfo || 'Standard Delivery',
+              cart: items,
+              total,
+              shippingAddress: addr
+            }).catch(e => console.error("Resi email fail:", e.message));
+          } else {
+            sendStatusUpdateEmail({
+              email: addr.email,
+              orderId,
+              status,
+              trackingNumber
+            });
+          }
         }
       } catch (e) {
         console.error("Failed to send status email:", e.message);
@@ -459,13 +562,13 @@ router.get('/stats/chart', verifyAdmin, async (req, res) => {
   try {
     const [rows] = await pool.promise().query(`
       SELECT 
-        DATE("createdAt") as date,
+        "createdAt"::date as date,
         COUNT(*) as orders,
         SUM(total) as revenue
       FROM orders
-      WHERE "createdAt" >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        AND status NOT IN ('cancelled', 'pending')
-      GROUP BY DATE("createdAt")
+      WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+        AND status NOT IN ('cancelled', 'pending', 'expired', 'failed')
+      GROUP BY "createdAt"::date
       ORDER BY date ASC
     `);
 
@@ -485,6 +588,77 @@ router.get('/stats/chart', verifyAdmin, async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// AUTO-CANCEL EXPIRED ORDERS (older than 24 hours)
+router.all('/auto-cancel', async (req, res) => {
+  console.log("[AUTO-CANCEL] Checking for expired pending orders...");
+  const connection = await pool.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Select pending/waiting_payment orders older than 24 hours in PostgreSQL
+    const [staleOrders] = await connection.query(
+      `SELECT id, items, status, shipping_address FROM orders 
+       WHERE status IN ('pending', 'waiting_payment') 
+       AND "createdAt" < NOW() - INTERVAL '24 hours'`
+    );
+
+    console.log(`[AUTO-CANCEL] Found ${staleOrders.length} stale pending orders to cancel.`);
+    const cancelledIds = [];
+
+    for (const order of staleOrders) {
+      const items = JSON.parse(order.items || '[]');
+
+      // Revert product global and size stocks
+      for (const item of items) {
+        // Restore global stock
+        await connection.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
+
+        // Restore size stock
+        const [pRows] = await connection.query('SELECT sizes FROM products WHERE id = ?', [item.id]);
+        if (pRows.length > 0 && pRows[0].sizes) {
+          try {
+            let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
+            if (item.selectedSize && sizes && sizes[item.selectedSize] !== undefined) {
+              sizes[item.selectedSize] += item.qty;
+              await connection.query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
+            }
+          } catch (e) {
+            console.error(`[AUTO-CANCEL] Error restoring size stock for order #${order.id}:`, e.message);
+          }
+        }
+      }
+
+      // Update status to expired
+      await connection.query("UPDATE orders SET status = 'expired' WHERE id = ?", [order.id]);
+
+      // Try sending a status update email
+      try {
+        const addr = JSON.parse(order.shipping_address || '{}');
+        if (addr && addr.email) {
+          sendStatusUpdateEmail({
+            email: addr.email,
+            orderId: order.id,
+            status: 'expired'
+          });
+        }
+      } catch (e) {
+        console.error(`[AUTO-CANCEL] Failed to send email for order #${order.id}:`, e.message);
+      }
+
+      cancelledIds.push(order.id);
+    }
+
+    await connection.commit();
+    res.json({ success: true, cancelledCount: cancelledIds.length, cancelledIds });
+  } catch (err) {
+    await connection.rollback();
+    console.error("[AUTO-CANCEL] Rollback error:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
   }
 });
 

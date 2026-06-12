@@ -34,28 +34,31 @@ router.post('/withdraw', verifyToken, async (req, res) => {
         return res.status(400).json({ error: 'Minimal penarikan adalah Rp 50.000' });
     }
 
+    const connection = await pool.promise().getConnection();
     try {
-        const [user] = await pool.promise().query('SELECT balance FROM users WHERE id = ?', [userId]);
-        if (user[0].balance < amount) {
+        const [user] = await connection.query('SELECT balance FROM users WHERE id = ?', [userId]);
+        if (!user.length || parseFloat(user[0].balance) < parseFloat(amount)) {
             return res.status(400).json({ error: 'Saldo tidak mencukupi' });
         }
 
-        await pool.promise().query('START TRANSACTION');
+        await connection.beginTransaction();
         
         // Deduct balance
-        await pool.promise().query('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
+        await connection.query('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
         
         // Create withdrawal record
-        await pool.promise().query(
+        await connection.query(
             'INSERT INTO withdrawals (user_id, amount, bank_account, status) VALUES (?, ?, ?, ?)',
             [userId, amount, bank_account, 'pending']
         );
 
-        await pool.promise().query('COMMIT');
+        await connection.commit();
         res.json({ success: true, message: 'Permintaan penarikan berhasil dikirim' });
     } catch (err) {
-        await pool.promise().query('ROLLBACK');
+        await connection.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        connection.release();
     }
 });
 
@@ -79,19 +82,26 @@ router.put('/admin/withdrawals/:id', verifyToken, verifyAdmin, async (req, res) 
     const { id } = req.params;
     const { status } = req.body; // approved or rejected
 
+    const connection = await pool.promise().getConnection();
     try {
+        await connection.beginTransaction();
+
         if (status === 'rejected') {
             // Refund balance
-            const [w] = await pool.promise().query('SELECT * FROM withdrawals WHERE id = ?', [id]);
+            const [w] = await connection.query('SELECT * FROM withdrawals WHERE id = ? FOR UPDATE', [id]);
             if (w[0] && w[0].status === 'pending') {
-                await pool.promise().query('UPDATE users SET balance = balance + ? WHERE id = ?', [w[0].amount, w[0].user_id]);
+                await connection.query('UPDATE users SET balance = balance + ? WHERE id = ?', [w[0].amount, w[0].user_id]);
             }
         }
         
-        await pool.promise().query('UPDATE withdrawals SET status = ? WHERE id = ?', [status, id]);
+        await connection.query('UPDATE withdrawals SET status = ? WHERE id = ?', [status, id]);
+        await connection.commit();
         res.json({ success: true });
     } catch (err) {
+        await connection.rollback();
         res.status(500).json({ error: err.message });
+    } finally {
+        connection.release();
     }
 });
 

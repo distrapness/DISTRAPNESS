@@ -29,7 +29,7 @@ const HowToOrder = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-[100px] transition-colors duration-500">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-955 pt-4 md:pt-6 transition-colors duration-500">
             <div className="max-w-5xl mx-auto px-6 pb-24">
                 <header className="text-center mb-20">
                     <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Guide</span>

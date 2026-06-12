@@ -163,7 +163,7 @@ const ProductDetail = () => {
     <div className="bg-white dark:bg-gray-900 min-h-screen text-black dark:text-white transition-colors duration-300">
 
       {/* Main Content: Split Layout */}
-      <div className="pt-[80px] md:pt-[90px] pb-24 max-w-7xl mx-auto px-4 md:px-8">
+      <div className="pt-4 md:pt-8 pb-24 max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex flex-col lg:flex-row gap-8 md:gap-12 items-start justify-center">
 
           {/* Left: Images (Main Image + Horizontal Thumbnails) */}
@@ -380,21 +380,6 @@ const ProductDetail = () => {
                   </div>
                 </div>
 
-                {/* Affiliate Bonus Preview */}
-                {isLoggedIn && userProfile?.referral_code && (
-                  <div className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-3 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">💰</span>
-                      <div>
-                        <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest leading-none">Affiliate Bonus</div>
-                        <div className="text-[9px] text-gray-500 dark:text-gray-400">Dapatkan komisi untuk setiap penjualan</div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-black text-blue-600 dark:text-blue-400">
-                      + {convertPrice(product.price * 0.10)}
-                    </div>
-                  </div>
-                )}
 
               </div>
 
@@ -442,9 +427,7 @@ const ProductDetail = () => {
                 </button>
                 <button
                   onClick={async () => {
-                    const refCode = userProfile?.referral_code;
-                    const shareUrl = refCode ? `${window.location.origin}${window.location.pathname}?ref=${refCode}` : window.location.href;
-                    
+                    const shareUrl = window.location.href;
                     const shareData = {
                       title: product.name,
                       text: `Cek produk keren ini di Distrapness: ${product.name}`,
@@ -458,9 +441,9 @@ const ProductDetail = () => {
                       setTimeout(() => setShareToast(false), 2000);
                     }
                   }}
-                  className={`${userProfile?.referral_code ? 'text-blue-600 dark:text-blue-400' : 'hover:text-black dark:hover:text-white'} transition-colors flex items-center gap-1 relative font-black`}
+                  className="hover:text-black dark:hover:text-white transition-colors flex items-center gap-1 relative font-black"
                 >
-                  {userProfile?.referral_code ? '🔗 Share & Earn' : '📤 Share'}
+                  📤 Share
                   {shareToast && (
                     <span className="absolute -top-8 right-0 bg-black text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">Link disalin! ✓</span>
                   )}
