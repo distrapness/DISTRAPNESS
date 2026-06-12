@@ -87,6 +87,23 @@ router.post('/', async (req, res) => {
   try {
     await connection.beginTransaction();
 
+    // 0. Check if tempId already exists in database to prevent duplicates
+    if (shippingAddress && shippingAddress.tempId) {
+      const tempId = shippingAddress.tempId;
+      const [existing] = await connection.query(
+        'SELECT id, status FROM orders WHERE shipping_address LIKE ?',
+        [`%${tempId}%`]
+      );
+      if (existing.length > 0) {
+        if (status === 'paid' && existing[0].status !== 'paid') {
+          await connection.query('UPDATE orders SET status = ? WHERE id = ?', ['paid', existing[0].id]);
+        }
+        await connection.commit();
+        connection.release();
+        return res.json({ success: true, orderId: existing[0].id });
+      }
+    }
+
     // 1. Cek Stok (Locking with FOR UPDATE)
     for (const item of items) {
       const [rows] = await connection.query('SELECT stock, name, sizes FROM products WHERE id = ? FOR UPDATE', [item.id]);

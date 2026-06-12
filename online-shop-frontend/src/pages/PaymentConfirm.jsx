@@ -559,6 +559,32 @@ const PaymentConfirm = () => {
     }
   };
 
+  const handleCreateDatabaseOrder = async (orderStatus) => {
+    const email = (paymentData.shippingAddress && paymentData.shippingAddress.email) || paymentData.email || "customer@mail.com";
+    const createRes = await fetch(`${config.API_URL}/api/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: paymentData.userId || "guest",
+        email: email,
+        items: paymentData.items,
+        total: paymentData.total,
+        paymentMethod: "midtrans",
+        status: orderStatus,
+        shippingAddress: {
+          ...(paymentData.shippingAddress || {}),
+          tempId: tempOrderId
+        },
+        couponCode: paymentData.couponCode,
+        discountAmount: paymentData.discountAmount,
+        referralCode: paymentData.referralCode
+      })
+    });
+    const createData = await createRes.json();
+    if (!createRes.ok) throw new Error(createData.error || "Gagal membuat pesanan");
+    return createData.orderId;
+  };
+
   const [processing, setProcessing] = useState(false);
   const method = paymentData?.paymentMethod;
 
@@ -639,43 +665,6 @@ const PaymentConfirm = () => {
       let activeSnapToken = snapToken;
       let activeOrderId = paymentData.id;
 
-      if (isTemp) {
-        // 1. Create order in database immediately with status 'pending'
-        const createRes = await fetch(`${config.API_URL}/api/orders`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: paymentData.userId || "guest",
-            email: paymentData.email || "guest@mail.com",
-            items: paymentData.items,
-            total: paymentData.total,
-            paymentMethod: "midtrans",
-            status: "pending",
-            shippingAddress: paymentData.shippingAddress,
-            couponCode: paymentData.couponCode,
-            discountAmount: paymentData.discountAmount,
-            referralCode: paymentData.referralCode
-          })
-        });
-        const createData = await createRes.json();
-        if (!createRes.ok) throw new Error(createData.error || "Gagal membuat pesanan");
-
-        activeOrderId = createData.orderId;
-        activeSnapToken = createData.snapToken;
-
-        // Update local state and lastOrderId
-        setPaymentData(prev => ({
-          ...prev,
-          id: activeOrderId,
-          status: 'pending'
-        }));
-        localStorage.setItem('lastOrderId', activeOrderId);
-
-        // Clear cart
-        clearCart();
-        localStorage.removeItem('cart');
-      }
-
       if (!activeSnapToken) {
         if (tokenError) throw new Error(tokenError);
         throw new Error(language === 'EN' ? "Payment token is not ready. Please try again." : "Token pembayaran belum siap. Silakan coba kembali.");
@@ -683,8 +672,20 @@ const PaymentConfirm = () => {
 
       window.snap.pay(activeSnapToken, {
         onSuccess: async () => {
+          let finalOrderId = activeOrderId;
+          if (isTemp) {
+            try {
+              finalOrderId = await handleCreateDatabaseOrder('paid');
+            } catch (err) {
+              alert(err.message || "Gagal menyimpan data pesanan Anda.");
+              return;
+            }
+          } else {
+            await updateCustomerStatus(activeOrderId, 'paid');
+          }
+
           // Save success metadata for Success page
-          localStorage.setItem('lastOrderId', activeOrderId);
+          localStorage.setItem('lastOrderId', finalOrderId);
           localStorage.setItem('cartTotal', paymentData.total);
           localStorage.setItem('lastOrderItems', JSON.stringify(paymentData.items));
           localStorage.setItem('lastOrderEmail', paymentData.email || "guest@mail.com");
@@ -696,24 +697,78 @@ const PaymentConfirm = () => {
           localStorage.removeItem('appliedCoupon');
           localStorage.removeItem('discountAmount');
 
-          await updateCustomerStatus(activeOrderId, 'paid');
+          // Clear cart
+          clearCart();
+          localStorage.removeItem('cart');
+
           navigate("/payment-success");
         },
         onPending: async () => {
+          let finalOrderId = activeOrderId;
+          if (isTemp) {
+            try {
+              finalOrderId = await handleCreateDatabaseOrder('waiting_payment');
+            } catch (err) {
+              alert(err.message || "Gagal menyimpan data pesanan Anda.");
+              return;
+            }
+          } else {
+            await updateCustomerStatus(activeOrderId, 'waiting_payment');
+          }
+
           localStorage.removeItem('tempCodOrder');
           localStorage.removeItem('tempCheckoutOrder');
 
-          await updateCustomerStatus(activeOrderId, 'waiting_payment');
+          // Clear cart
+          clearCart();
+          localStorage.removeItem('cart');
+
           alert(language === 'EN' ? "Waiting for payment..." : "Menunggu pembayaran...");
           navigate("/profile");
         },
         onError: async () => {
-          await updateCustomerStatus(activeOrderId, 'pending');
+          let finalOrderId = activeOrderId;
+          if (isTemp) {
+            try {
+              finalOrderId = await handleCreateDatabaseOrder('pending');
+            } catch (err) {
+              alert(err.message || "Gagal menyimpan data pesanan Anda.");
+              return;
+            }
+          } else {
+            await updateCustomerStatus(activeOrderId, 'pending');
+          }
+
+          localStorage.removeItem('tempCodOrder');
+          localStorage.removeItem('tempCheckoutOrder');
+
+          // Clear cart
+          clearCart();
+          localStorage.removeItem('cart');
+
           alert(language === 'EN' ? "Payment failed or pending. You can pay later from your profile menu." : "Pembayaran gagal atau ditunda. Anda dapat membayarnya nanti dari menu profil.");
           navigate("/profile");
         },
         onClose: async () => {
-          await updateCustomerStatus(activeOrderId, 'pending');
+          let finalOrderId = activeOrderId;
+          if (isTemp) {
+            try {
+              finalOrderId = await handleCreateDatabaseOrder('pending');
+            } catch (err) {
+              alert(err.message || "Gagal menyimpan data pesanan Anda.");
+              return;
+            }
+          } else {
+            await updateCustomerStatus(activeOrderId, 'pending');
+          }
+
+          localStorage.removeItem('tempCodOrder');
+          localStorage.removeItem('tempCheckoutOrder');
+
+          // Clear cart
+          clearCart();
+          localStorage.removeItem('cart');
+
           alert(language === 'EN' ? "Payment pending or closed. You can pay later from your profile menu." : "Pembayaran ditunda atau ditutup. Anda dapat membayarnya nanti dari menu profil.");
           navigate("/profile");
         }
