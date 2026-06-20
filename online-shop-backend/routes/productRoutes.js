@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const cacheService = require('../services/cacheService');
 
 // Safer version strictly for this file
 const parseImages = (str) => {
@@ -17,6 +18,10 @@ const parseSizes = (str) => {
 router.get('/', (req, res) => {
   const limit = parseInt(req.query.limit) || 1000;
   const offset = parseInt(req.query.offset) || 0;
+
+  const cacheKey = `products_list_${limit}_${offset}`;
+  const cached = cacheService.get(cacheKey);
+  if (cached) return res.json(cached);
 
   pool.query('SELECT * FROM products LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -41,6 +46,7 @@ router.get('/', (req, res) => {
         sizes: parsedSizes
       };
     });
+    cacheService.set(cacheKey, products);
     res.json(products);
   });
 });
@@ -48,6 +54,10 @@ router.get('/', (req, res) => {
 // GET /api/products/:id
 router.get('/:id', (req, res) => {
   const { id } = req.params;
+  const cacheKey = `product_detail_${id}`;
+  const cached = cacheService.get(cacheKey);
+  if (cached) return res.json(cached);
+
   pool.query('SELECT * FROM products WHERE id=?', [id], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!results || results.length === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
@@ -61,6 +71,7 @@ router.get('/:id', (req, res) => {
       rest.stock = Object.values(rest.sizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
     }
     
+    cacheService.set(cacheKey, rest);
     res.json(rest);
   });
 });
@@ -88,6 +99,8 @@ router.post('/', verifyToken, verifyAdmin, (req, res) => {
       [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category || 'Uncategorized', weight || 1000, req.body.is_flash_sale || false, req.body.flash_sale_price || null, req.body.flash_sale_end || null],
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
+        cacheService.clearPattern('products_list');
+        cacheService.clearPattern('categories_list');
         res.json({ id: result.insertId, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });
       }
     );
@@ -117,6 +130,9 @@ router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
         [name, price, JSON.stringify(imagesToSave), description, totalStock, sizesToSave ? JSON.stringify(sizesToSave) : null, category, weight, req.body.is_flash_sale || false, req.body.flash_sale_price || null, req.body.flash_sale_end || null, id],
         (err, result) => {
           if (err) return res.status(500).json({ error: err.message });
+          cacheService.clearPattern('products_list');
+          cacheService.del(`product_detail_${id}`);
+          cacheService.clearPattern('categories_list');
           res.json({ id, name, price, images: imagesToSave, description, stock: totalStock, sizes: sizesToSave, category, weight });
         }
       );
@@ -140,6 +156,9 @@ router.delete('/:id', verifyToken, verifyAdmin, (req, res) => {
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Produk tidak ditemukan' });
+        cacheService.clearPattern('products_list');
+        cacheService.del(`product_detail_${id}`);
+        cacheService.clearPattern('categories_list');
         res.json({ success: true });
       }
     );
@@ -238,6 +257,23 @@ router.delete('/reviews/:reviewId', verifyToken, verifyAdmin, (req, res) => {
   });
 });
 
+// REPLY TO REVIEW (Admin only)
+router.put('/reviews/:reviewId/reply', verifyToken, verifyAdmin, async (req, res) => {
+  const { reviewId } = req.params;
+  const { admin_reply } = req.body;
+
+  try {
+    await pool.promise().query(
+      'UPDATE reviews SET admin_reply = ? WHERE id = ?',
+      [admin_reply || null, reviewId]
+    );
+    res.json({ success: true, message: 'Balasan berhasil disimpan', admin_reply });
+  } catch (err) {
+    console.error("Reply review error:", err);
+    res.status(500).json({ error: 'Gagal membalas ulasan' });
+  }
+});
+
 // BULK UPDATE STOCK (Admin only)
 router.post('/bulk-stock', verifyToken, verifyAdmin, async (req, res) => {
   const { updates } = req.body; // Array of { id, stock, sizes }
@@ -256,9 +292,12 @@ router.post('/bulk-stock', verifyToken, verifyAdmin, async (req, res) => {
         'UPDATE products SET stock = ?, sizes = ? WHERE id = ?',
         [stock, JSON.stringify(sizes), id]
       );
+      cacheService.del(`product_detail_${id}`);
     }
     
     await connection.commit();
+    cacheService.clearPattern('products_list');
+    cacheService.clearPattern('categories_list');
     res.json({ success: true, message: `${updates.length} produk berhasil diperbarui` });
   } catch (err) {
     await connection.rollback();

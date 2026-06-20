@@ -1,22 +1,12 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import config from '../config';
 import { useCurrency } from './CurrencyContext.jsx';
 
 const ChatWidget = () => {
-  const { dark, t } = useCurrency();
+  const { dark, t, brand } = useCurrency();
   const location = useLocation();
 
-  const [phone, setPhone] = React.useState("6285888159265");
-  
-  React.useEffect(() => {
-    fetch(`${config.API_URL}/api/brand`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.phone) setPhone(data.phone.replace(/[^0-9]/g, ''));
-      })
-      .catch(err => console.error("Error fetching chat number:", err));
-  }, []);
+  const phone = brand.phone ? brand.phone.replace(/[^0-9]/g, '') : "6285888159265";
 
   let message = "Halo, saya tertarik dengan produk di Distrapness.";
   if (location.pathname.startsWith('/shop/')) {

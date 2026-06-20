@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const pool = require('../db');
 
 const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.replace(/\\n/g, '').trim() : '';
 const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\\n/g, '').trim() : '';
@@ -13,6 +14,19 @@ const transporter = nodemailer.createTransport({
   socketTimeout: 5000,
   greetingTimeout: 5000
 });
+
+// Guard sendMail to prevent "Missing credentials for PLAIN" when EMAIL_USER or EMAIL_PASS are not configured
+const originalSendMail = transporter.sendMail.bind(transporter);
+transporter.sendMail = async function (mailOptions, callback) {
+  if (!emailUser || !emailPass || emailUser === 'your-email@gmail.com' || emailPass === 'your-app-password') {
+    console.log(`[EMAIL SERVICE] Email sending bypassed (credentials not configured). Subject: "${mailOptions.subject}"`);
+    if (callback) {
+      callback(null, { messageId: 'bypassed' });
+    }
+    return { messageId: 'bypassed' };
+  }
+  return originalSendMail(mailOptions, callback);
+};
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
@@ -445,6 +459,83 @@ const sendPasswordResetOTP = async (userEmail, otpCode) => {
   }
 };
 
+const sendLowStockNotification = async (product) => {
+  if (!emailUser || !emailPass) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+  
+  const mailOptions = {
+    from: `"Distrapness Inventory" <${emailUser}>`,
+    to: emailUser,
+    subject: `⚠️ PERINGATAN STOK MENIPIS: ${product.name}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #efefef; border-radius: 10px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <div style="background-color: #000; color: #fff; padding: 20px; text-align: center; border-radius: 5px 5px 0 0;">
+          <h2 style="margin: 0; font-size: 20px; color: #ff4d4d; letter-spacing: 2px;">⚠️ PERINGATAN INVENTARIS</h2>
+        </div>
+        <div style="padding: 20px; border: 1px solid #eee; border-top: none; border-radius: 0 0 5px 5px;">
+          <p>Halo Admin,</p>
+          <p>Produk berikut telah mencapai batas minimum stok (di bawah 5 item):</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd; width: 180px;">Nama Produk</th>
+              <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>${product.name}</strong></td>
+            </tr>
+            <tr>
+              <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Sisa Stok Global</th>
+              <td style="padding: 10px; border-bottom: 1px solid #ddd; color: #ff4d4d; font-weight: bold; font-size: 16px;">${product.stock}</td>
+            </tr>
+            ${product.sizesInfo ? `
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Detail per Ukuran</th>
+              <td style="padding: 10px; border-bottom: 1px solid #ddd; font-family: monospace;">${product.sizesInfo}</td>
+            </tr>
+            ` : ''}
+          </table>
+          <p style="margin-top: 25px;">Mohon segera melakukan pengisian ulang stok agar tidak kehilangan potensi penjualan.</p>
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="https://online-shop-beige-one.vercel.app/product-admin" style="display: inline-block; background-color: #000; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Kelola Produk</a>
+          </div>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Low stock notification email sent for product ${product.name} (stock: ${product.stock})`);
+    return true;
+  } catch (error) {
+    console.error('Error sending low stock notification email:', error);
+    return false;
+  }
+};
+
+const checkAndNotifyLowStock = async (productId) => {
+  try {
+    const [rows] = await pool.promise().query('SELECT name, stock, sizes FROM products WHERE id = ?', [productId]);
+    if (rows.length === 0) return;
+    const product = rows[0];
+    if (product.stock < 5) {
+      let sizesInfo = "";
+      if (product.sizes) {
+        try {
+          const sizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+          sizesInfo = Object.entries(sizes).map(([sz, qty]) => `${sz.toUpperCase()}: ${qty}`).join(', ');
+        } catch(e){}
+      }
+      await sendLowStockNotification({
+        name: product.name,
+        stock: product.stock,
+        sizesInfo
+      });
+    }
+  } catch (err) {
+    console.error("Error in checkAndNotifyLowStock:", err.message);
+  }
+};
+
 module.exports = {
   sendOrderConfirmation,
   sendAdminNotification,
@@ -452,5 +543,6 @@ module.exports = {
   sendRegistrationWelcome,
   sendContactNotification,
   sendShippingReceiptEmail,
-  sendPasswordResetOTP
+  sendPasswordResetOTP,
+  checkAndNotifyLowStock
 };

@@ -7,12 +7,13 @@ import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import {
   FaBoxOpen, FaShoppingCart, FaMoneyBillWave, FaArrowRight,
-  FaTags, FaCog, FaUserFriends, FaExclamationTriangle, FaChartLine
+  FaTags, FaCog, FaUserFriends, FaExclamationTriangle, FaChartLine, FaWallet
 } from "react-icons/fa";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalRevenue: 0, totalOrders: 0, totalProducts: 0,
+    adminBalance: 0,
     lowStock: [], bestSellers: [], chartData: [],
     thisMonthRevenue: 0, lastMonthRevenue: 0,
     statusCounts: { success: 0, pending: 0, failed: 0 },
@@ -134,7 +135,15 @@ const AdminDashboard = () => {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatCard
+              title="Saldo Akun Admin"
+              value={formatCurrency(stats.adminBalance || 0)}
+              trend="Dana Masuk Selesai"
+              trendColor="text-indigo-500"
+              icon={<FaWallet className="text-indigo-600 text-xl" />}
+              color="indigo"
+            />
             <StatCard
               title="Total Pendapatan"
               value={formatCurrency(stats.totalRevenue)}
@@ -435,13 +444,21 @@ const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) =
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{title}</p>
         <h3 className="text-3xl font-black text-gray-900 dark:text-white mt-1">{value}</h3>
       </div>
-      <div className={`p-4 rounded-2xl ${color === 'green' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'} dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
+      <div className={`p-4 rounded-2xl ${
+        color === 'green' ? 'bg-green-50 text-green-600' :
+        color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
+        'bg-blue-50 text-blue-600'
+      } dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
         {icon}
       </div>
     </div>
 
     <div className="flex items-center gap-2 mb-6 relative z-10">
-      <span className={`text-[10px] font-black uppercase ${trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'} dark:bg-opacity-10 px-2 py-1 rounded-lg`}>
+      <span className={`text-[10px] font-black uppercase ${
+        trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' :
+        trendColor === 'text-indigo-500' ? 'text-indigo-600 bg-indigo-50' :
+        'text-blue-600 bg-blue-50'
+      } dark:bg-opacity-10 px-2 py-1 rounded-lg`}>
         {trend}
       </span>
     </div>

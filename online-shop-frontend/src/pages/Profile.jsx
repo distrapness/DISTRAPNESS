@@ -18,6 +18,14 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [reorderToast, setReorderToast] = useState('');
   const [copyStatus, setCopyStatus] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
+
+  useEffect(() => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('debug_autosave_logs') || '[]');
+      setDebugLogs(logs);
+    } catch(e){}
+  }, []);
 
   // Profile Form States
   const [firstName, setFirstName] = useState("");
@@ -64,60 +72,100 @@ export default function Profile() {
       if (addr) {
         try { setSavedAddress(JSON.parse(addr)); } catch (e) { }
       }
-      setLoading(true);
-      
-      // Fetch Profile (Referral Info & Address)
-      fetch(`${config.API_URL}/api/profile`, { headers })
-        .then(res => {
-          if (res.status === 401) {
-            logout();
-            navigate('/login');
-            throw new Error("Session expired");
-          }
-          return res.json();
-        })
-        .then(data => {
-          setProfile(data);
-          
-          // Fallback to local storage if database fields are empty
-          const savedLocal = localStorage.getItem(`savedAddress_${userEmail}`);
-          let localAddr = {};
-          if (savedLocal) {
-            try { localAddr = JSON.parse(savedLocal); } catch (e) {}
-          }
+      const isPaymentAttempted = localStorage.getItem('paymentAttempted') === 'true';
 
-          setFirstName(data.first_name || localAddr.firstName || '');
-          setLastName(data.last_name || localAddr.lastName || '');
-          setPhone(data.phone || localAddr.phone || '');
-          setStreetAddress(data.address || localAddr.address || '');
-          setPostalCode(data.postal_code || localAddr.postalCode || '');
+      const fetchProfileAndOrders = () => {
+        setLoading(true);
+        // Fetch Profile (Referral Info & Address)
+        fetch(`${config.API_URL}/api/profile`, { headers })
+          .then(res => {
+            if (res.status === 401) {
+              logout();
+              navigate('/login');
+              throw new Error("Session expired");
+            }
+            return res.json();
+          })
+          .then(data => {
+            setProfile(data);
+            
+            // Fallback to local storage if database fields are empty
+            const savedLocal = localStorage.getItem(`savedAddress_${userEmail}`);
+            let localAddr = {};
+            if (savedLocal) {
+              try { localAddr = JSON.parse(savedLocal); } catch (e) {}
+            }
 
-          const provId = data.province_id || localStorage.getItem('sel_prov') || '';
-          const cityId = data.city_id || localStorage.getItem('sel_city') || '';
-          const distId = data.district_id || localStorage.getItem('sel_dist') || '';
-          const villId = data.area_id || localStorage.getItem('sel_vill') || '';
+            setFirstName(data.first_name || localAddr.firstName || '');
+            setLastName(data.last_name || localAddr.lastName || '');
+            setPhone(data.phone || localAddr.phone || '');
+            setStreetAddress(data.address || localAddr.address || '');
+            setPostalCode(data.postal_code || localAddr.postalCode || '');
 
-          if (provId) setSelectedProvince(provId);
-          if (cityId) setSelectedCity(cityId);
-          if (distId) setSelectedDistrict(distId);
-          if (villId) setSelectedVillage(villId);
-        })
-        .catch(err => console.error("Profile fetch error:", err));
+            const provId = data.province_id || localStorage.getItem('sel_prov') || '';
+            const cityId = data.city_id || localStorage.getItem('sel_city') || '';
+            const distId = data.district_id || localStorage.getItem('sel_dist') || '';
+            const villId = data.area_id || localStorage.getItem('sel_vill') || '';
 
-      fetch(`${config.API_URL}/api/orders/user?email=${encodeURIComponent(userEmail)}`, { headers })
-        .then((res) => {
-          if (res.status === 401) {
-            logout();
-            navigate('/login');
-            throw new Error("Session expired");
-          }
-          return res.json();
-        })
-        .then((data) => {
-          setOrders(Array.isArray(data) ? data : []);
-        })
-        .catch((err) => console.error(err))
-        .finally(() => setLoading(false));
+            if (provId) setSelectedProvince(provId);
+            if (cityId) setSelectedCity(cityId);
+            if (distId) setSelectedDistrict(distId);
+            if (villId) setSelectedVillage(villId);
+          })
+          .catch(err => console.error("Profile fetch error:", err));
+
+        fetch(`${config.API_URL}/api/orders/user?email=${encodeURIComponent(userEmail)}`, { headers })
+          .then((res) => {
+            if (res.status === 401) {
+              logout();
+              navigate('/login');
+              throw new Error("Session expired");
+            }
+            return res.json();
+          })
+          .then((data) => {
+            let fetchedOrders = Array.isArray(data) ? data : [];
+            const tempPendingStr = localStorage.getItem('tempPendingOrder');
+            if (tempPendingStr) {
+              try {
+                const tempPending = JSON.parse(tempPendingStr);
+                const tempPendingTempId = tempPending.shippingAddress?.tempId;
+
+                // Check if any database order already has this tempId (only if tempPendingTempId is valid/not empty)
+                const isAlreadyInDB = tempPendingTempId ? fetchedOrders.some(order => {
+                  let sa = order.shipping_address || order.shippingAddress;
+                  if (typeof sa === 'string') {
+                    try { sa = JSON.parse(sa); } catch (e) {}
+                  }
+                  return sa && sa.tempId === tempPendingTempId;
+                }) : false;
+
+                if (isAlreadyInDB) {
+                  localStorage.removeItem('tempPendingOrder');
+                } else if (tempPending.email === userEmail) {
+                  fetchedOrders = [tempPending, ...fetchedOrders];
+                }
+              } catch (e) {
+                console.error("Error parsing tempPendingOrder:", e);
+              }
+            }
+            setOrders(fetchedOrders);
+            if (isPaymentAttempted) {
+              localStorage.removeItem('paymentAttempted');
+            }
+          })
+          .catch((err) => console.error(err))
+          .finally(() => setLoading(false));
+      };
+
+      if (isPaymentAttempted) {
+        const timer = setTimeout(() => {
+          fetchProfileAndOrders();
+        }, 1000);
+        return () => clearTimeout(timer);
+      } else {
+        fetchProfileAndOrders();
+      }
 
 
     } else {
@@ -325,6 +373,35 @@ export default function Profile() {
     }
   };
 
+  const handleConfirmDelivery = async (orderId) => {
+    if (!window.confirm("Apakah Anda yakin telah menerima pesanan ini? Status pesanan akan diubah menjadi Selesai.")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${config.API_URL}/api/orders/${orderId}/confirm-delivery`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert("Terima kasih! Pesanan telah dikonfirmasi selesai.");
+        // Reload orders
+        const headers = { Authorization: `Bearer ${token}` };
+        fetch(`${config.API_URL}/api/orders/user?email=${encodeURIComponent(userEmail)}`, { headers })
+          .then(r => r.json())
+          .then(d => {
+            if (Array.isArray(d)) setOrders(d);
+          });
+      } else {
+        alert(data.error || "Gagal mengonfirmasi penerimaan pesanan");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan koneksi");
+    }
+  };
+
   const handleReorder = (order) => {
     if (!order.items || order.items.length === 0) return;
     order.items.forEach(item => {
@@ -481,7 +558,14 @@ export default function Profile() {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                          {["pending", "waiting_payment"].includes(order.status) ? (
+                          {order.status === 'shipped' ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleConfirmDelivery(order.id); }}
+                              className="text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 hover:opacity-95 transition-all flex items-center gap-1.5 rounded-lg shadow-sm"
+                            >
+                              ✓ Konfirmasi Diterima
+                            </button>
+                          ) : ["pending", "waiting_payment"].includes(order.status) ? (
                             <button
                               onClick={() => navigate(`/payment/confirm?orderId=${order.id}`)}
                               className="text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white px-4 py-2 hover:opacity-95 transition-all flex items-center gap-1 animate-pulse rounded"
@@ -808,6 +892,20 @@ export default function Profile() {
           )}
         </div>
       </div>
+      {debugLogs.length > 0 && (
+        <div className="mt-12 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-xs font-mono max-w-full overflow-x-auto text-black dark:text-white">
+          <h3 className="font-bold text-sm mb-4 uppercase tracking-wide">Developer Tools: Debug Auto-Save Logs</h3>
+          <div className="space-y-1 bg-gray-50 dark:bg-gray-950 p-4 rounded max-h-60 overflow-y-auto border border-gray-200/50">
+            {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
+          </div>
+          <button 
+            onClick={() => { localStorage.removeItem('debug_autosave_logs'); setDebugLogs([]); }} 
+            className="mt-4 text-xs font-bold bg-red-600 hover:bg-red-700 text-white px-4 py-2 uppercase tracking-wider transition-colors rounded"
+          >
+            Clear Debug Logs
+          </button>
+        </div>
+      )}
     </div>
   );
 }

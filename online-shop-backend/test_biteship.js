@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Ambil config dari environment atau hardcode untuk test
-const API_KEY = 'biteship_test.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiZGlzdHJhcG5lc3MiLCJ1c2VySWQiOiI2OWU3OWUwYTIyMTIwNWI4YjliYmUwOTkiLCJpYXQiOjE3NzY5NzY5NzZ9.FYCY7ZQkPsX1pv_FekkRd0-GlVyjP_SXinfIX9snZRM';
+const API_KEY = 'biteship_test.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiZGlzdHJhcG5lc3MiLCJ1c2VySWQiOiI2OWU3OWUwYTIyMTIwNWI4YjliYmUwOTkiLCJpYXQiOjE3ODE4NDc2OTR9.w_YCt_S5FRrvTVuxlgSDYQ74jUCfSK-RE10z5L7o0Tw';
 const ORIGIN = 'IDNP9IDNC74IDND6757IDZ16371'; // Tapos 2, Tenjolaya
 
 async function testBiteship() {

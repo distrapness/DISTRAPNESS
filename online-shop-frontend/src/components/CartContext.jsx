@@ -1,25 +1,41 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 const CartContext = createContext();
 
-function getInitialCart() {
-  try {
-    const stored = localStorage.getItem('cart');
-    if (stored) return JSON.parse(stored);
-    return [];
-  } catch {
-    return [];
-  }
-}
-
 export function CartProvider({ children }) {
-  // Gunakan initial value dari localStorage!
-  const [cart, setCart] = useState(getInitialCart());
+  const { userEmail } = useAuth();
+  
+  const [currentEmail, setCurrentEmail] = useState(userEmail);
+  const [cart, setCart] = useState(() => {
+    const key = userEmail ? `cart_${userEmail.toLowerCase().trim()}` : 'cart_guest';
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  // Simpan cart ke localStorage setiap kali berubah
+  // Load correct cart from localStorage when userEmail changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-  }, [cart]);
+    if (userEmail !== currentEmail) {
+      const key = userEmail ? `cart_${userEmail.toLowerCase().trim()}` : 'cart_guest';
+      let newCart = [];
+      try {
+        const stored = localStorage.getItem(key);
+        newCart = stored ? JSON.parse(stored) : [];
+      } catch {}
+      setCart(newCart);
+      setCurrentEmail(userEmail);
+    }
+  }, [userEmail, currentEmail]);
+
+  // Save cart to localStorage under the correct key
+  useEffect(() => {
+    const key = currentEmail ? `cart_${currentEmail.toLowerCase().trim()}` : 'cart_guest';
+    localStorage.setItem(key, JSON.stringify(cart));
+  }, [cart, currentEmail]);
 
   const addToCart = (product, qty = 1) => {
     // Determine active price: Use flash sale price if active and not expired
@@ -37,7 +53,7 @@ export function CartProvider({ children }) {
       const targetSize = product.selectedSize || 'M';
 
       const foundIndex = prev.findIndex((item) =>
-        item.id === product.id && (item.selectedSize || 'M') === targetSize
+        String(item.id) === String(product.id) && (item.selectedSize || 'M') === targetSize
       );
 
       if (foundIndex !== -1) {
@@ -58,14 +74,14 @@ export function CartProvider({ children }) {
 
   const removeFromCart = (id, size) => {
     setCart((prev) => prev.filter((item) =>
-      !(item.id === id && (item.selectedSize || 'M') === (size || 'M'))
+      !(String(item.id) === String(id) && (item.selectedSize || 'M') === (size || 'M'))
     ));
   };
 
   const updateQty = (id, size, qty) => {
     setCart((prev) =>
       prev.map((item) =>
-        (item.id === id && (item.selectedSize || 'M') === (size || 'M'))
+        (String(item.id) === String(id) && (item.selectedSize || 'M') === (size || 'M'))
           ? { ...item, qty }
           : item
       )

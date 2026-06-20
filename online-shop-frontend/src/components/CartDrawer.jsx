@@ -3,13 +3,70 @@ import { useCart } from "./CartContext";
 import { useNavigate } from "react-router-dom";
 import { getImageUrl } from "../utils/imageHelper";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import config from "../config.js";
 
 const CartDrawer = ({ open, onClose }) => {
   const { cart, removeFromCart, updateQty } = useCart();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  const [couponCode, setCouponCode] = useState(localStorage.getItem('appliedCoupon') || "");
+  const [discountAmount, setDiscountAmount] = useState(Number(localStorage.getItem('discountAmount')) || 0);
+  const [appliedCoupon, setAppliedCoupon] = useState(localStorage.getItem('appliedCoupon') || null);
+  const [couponError, setCouponError] = useState("");
+  const [verifyingCoupon, setVerifyingCoupon] = useState(false);
+  const [showCouponInput, setShowCouponInput] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setCouponCode(localStorage.getItem('appliedCoupon') || "");
+      setDiscountAmount(Number(localStorage.getItem('discountAmount')) || 0);
+      setAppliedCoupon(localStorage.getItem('appliedCoupon') || null);
+      setCouponError("");
+    }
+  }, [open]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode) return;
+    setVerifyingCoupon(true);
+    setCouponError("");
+    try {
+      const res = await fetch(`${config.API_URL}/api/coupons/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, cartTotal: subtotal })
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setDiscountAmount(data.discountAmount);
+        setAppliedCoupon(data.couponCode);
+        localStorage.setItem('appliedCoupon', data.couponCode);
+        localStorage.setItem('discountAmount', String(data.discountAmount));
+      } else {
+        setDiscountAmount(0);
+        setAppliedCoupon(null);
+        localStorage.removeItem('appliedCoupon');
+        localStorage.removeItem('discountAmount');
+        setCouponError(data.error || "Kupon tidak valid");
+      }
+    } catch (e) {
+      setCouponError("Gagal memverifikasi kupon");
+    } finally {
+      setVerifyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setDiscountAmount(0);
+    setAppliedCoupon(null);
+    setCouponCode("");
+    localStorage.removeItem('appliedCoupon');
+    localStorage.removeItem('discountAmount');
+  };
+
+  const total = Math.max(0, subtotal - discountAmount);
 
   // Close on Escape key
   useEffect(() => {
@@ -94,11 +151,11 @@ const CartDrawer = ({ open, onClose }) => {
               cart.map((item) => (
                 <div key={item.id} className="flex gap-4">
                   {/* Image */}
-                  <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-700">
+                  <div className="w-20 h-20 bg-gray-50 dark:bg-gray-100 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-700">
                     <img
                       src={getImageUrl(item?.image || (item?.images && item?.images?.[0]))}
                       alt={item.name}
-                      className="w-full h-full object-contain p-1"
+                      className="w-full h-full object-contain p-1 mix-blend-multiply"
                       onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/200x200?text=No+Image"; }}
                     />
                   </div>
@@ -146,8 +203,72 @@ const CartDrawer = ({ open, onClose }) => {
           {/* Footer */}
           {cart.length > 0 && (
             <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Subtotal</span>
+              {/* Coupon Code in Cart Drawer */}
+              <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-green-50 dark:bg-green-955/10 border border-green-150 dark:border-green-900/30 p-2.5 rounded-xl">
+                    <div className="min-w-0">
+                      <span className="text-[9px] font-black text-green-700 dark:text-green-400 block uppercase tracking-wider">
+                        🎉 Kupon Aktif
+                      </span>
+                      <span className="text-[10px] font-bold text-green-600 dark:text-green-500 font-mono uppercase truncate block">
+                        {appliedCoupon} (-Rp{discountAmount.toLocaleString()})
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="text-xs font-bold text-red-500 hover:text-red-700 underline shrink-0 ml-2"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => setShowCouponInput(!showCouponInput)}
+                      className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black dark:hover:text-white transition-colors outline-none"
+                    >
+                      {showCouponInput ? '✕ Batalkan Voucher' : '🎟️ Gunakan Kode Voucher / Kupon'}
+                    </button>
+                    {showCouponInput && (
+                      <div className="flex gap-2 animate-in fade-in duration-200">
+                        <input
+                          type="text"
+                          placeholder="Contoh: WELCOME10"
+                          value={couponCode}
+                          onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                          className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-mono uppercase tracking-wider dark:text-white outline-none focus:ring-1 focus:ring-black"
+                        />
+                        <button
+                          onClick={handleApplyCoupon}
+                          disabled={verifyingCoupon}
+                          className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-widest rounded-lg hover:opacity-85 disabled:opacity-50"
+                        >
+                          {verifyingCoupon ? '...' : 'Gunakan'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {couponError && (
+                  <p className="text-[10px] text-red-500 font-bold mt-2">
+                    ⚠️ {couponError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Subtotal</span>
+                <span className="text-sm font-semibold">Rp{Number(subtotal).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center mb-2 text-red-500 font-medium">
+                  <span className="text-xs">Potongan Kupon</span>
+                  <span className="text-sm">-Rp{Number(discountAmount).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center mb-2 border-t pt-2 dark:border-gray-800">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</span>
                 <span className="text-lg font-bold">Rp{Number(total).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
               </div>
               <p className="text-[10px] text-gray-500 text-center mb-6">

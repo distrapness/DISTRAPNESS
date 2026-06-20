@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCart } from "../components/CartContext";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
@@ -8,6 +8,7 @@ import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import { useWishlist } from "../components/WishlistContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import ProductItemCard from "../components/ProductItemCard.jsx";
 
 const API_URL = `${config.API_URL}/api/products`;
 
@@ -34,7 +35,6 @@ const ProductDetail = () => {
   // Accordion state
   const [openMaterial, setOpenMaterial] = useState(false);
   const [openShipping, setOpenShipping] = useState(false);
-  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   // Reviews state
   const { isLoggedIn, userEmail } = useAuth();
@@ -49,7 +49,7 @@ const ProductDetail = () => {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_URL}/${id}?t=${Date.now()}`)
+    fetch(`${API_URL}/${id}`)
       .then((res) => res.json())
       .then(data => {
         setProduct(data);
@@ -67,7 +67,7 @@ const ProductDetail = () => {
           if (firstAvailable) setSelectedSize(firstAvailable);
         }
         // Fetch related products same category
-        fetch(`${API_URL}?t=${Date.now()}`)
+        fetch(API_URL)
           .then(r => r.json())
           .then(all => {
             const related = Array.isArray(all)
@@ -177,7 +177,7 @@ const ProductDetail = () => {
                   {images.map((img, idx) => (
                     <div
                       key={idx}
-                      className="relative flex-shrink-0 w-full px-4 snap-center bg-gray-50 dark:bg-gray-800 overflow-hidden"
+                      className="relative flex-shrink-0 w-full px-4 snap-center bg-gray-50 dark:bg-gray-100 overflow-hidden"
                       onClick={(e) => {
                         e.stopPropagation(); // Prevent parent click
                         setGalleryIndex(idx);
@@ -188,7 +188,7 @@ const ProductDetail = () => {
                         <img
                           src={getImageUrl(img)}
                           alt={`${product.name} ${idx}`}
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-contain mix-blend-multiply"
                           onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
                         />
                         <div className="absolute bottom-3 right-3 bg-black/50 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm font-black">
@@ -200,11 +200,11 @@ const ProductDetail = () => {
                 </div>
 
                 {/* Desktop Main Image - Constrained Aspect Ratio */}
-                <div className="hidden md:flex w-full aspect-[3/4] bg-[#f9f9f9] dark:bg-gray-800 cursor-zoom-in relative items-center justify-center overflow-hidden rounded-md border border-gray-100 dark:border-gray-700">
+                <div className="hidden md:flex w-full aspect-[3/4] bg-[#f9f9f9] dark:bg-gray-100 cursor-zoom-in relative items-center justify-center overflow-hidden rounded-md border border-gray-100 dark:border-gray-700">
                   <img
                     src={getImageUrl(images[selectedImageIndex])}
                     alt={product.name}
-                    className="h-full w-full object-contain p-4"
+                    className="h-full w-full object-contain p-4 mix-blend-multiply"
                     onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x1000/e2e8f0/1e293b?text=" + product.name; }}
                   />
                 </div>
@@ -221,7 +221,7 @@ const ProductDetail = () => {
                     <img
                       src={getImageUrl(img)}
                       alt={`Thumbnail ${idx}`}
-                      className="w-full h-full object-contain p-1 rounded-sm bg-gray-50 dark:bg-gray-800"
+                      className="w-full h-full object-contain p-1 rounded-sm bg-gray-50 dark:bg-gray-100 mix-blend-multiply"
                       onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x133/e2e8f0/1e293b?text=" + idx; }}
                     />
                   </div>
@@ -238,16 +238,12 @@ const ProductDetail = () => {
               {/* Header Section (Name & Price) */}
               <div className="mb-6 text-right">
                 <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-wider mb-2 font-sans">{product.name}</h1>
-                <div className="flex justify-end gap-2 items-center mb-2">
-                  {reviews.length > 0 ? (
-                    <>
-                      <span className="text-yellow-400">{'★'.repeat(Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length)) + '☆'.repeat(5 - Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length))}</span>
-                      <span className="text-sm text-gray-500">({reviews.length} {t('productDetail.ulasan')})</span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-500 italic">{t('reviews.noReviews')}</span>
-                  )}
-                </div>
+                {reviews.length > 0 && (
+                  <div className="flex justify-end gap-2 items-center mb-2">
+                    <span className="text-yellow-400">{'★'.repeat(Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length)) + '☆'.repeat(5 - Math.round(reviews.reduce((a, b) => a + b.rating, 0) / reviews.length))}</span>
+                    <span className="text-sm text-gray-500">({reviews.length} {t('productDetail.ulasan')})</span>
+                  </div>
+                )}
 
                 {product.is_flash_sale && new Date(product.flash_sale_end) > new Date() ? (
                   <div className="space-y-1">
@@ -277,10 +273,6 @@ const ProductDetail = () => {
                 <h3 className="font-bold text-sm uppercase tracking-wider mb-4 text-right">Product Description</h3>
                 <div className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-light text-right">
                   <p>{product.description}</p>
-                  <p className="mt-4 text-xs text-gray-400">
-                    {product.category} collection. Designed for modern lifestyle.
-                    Double needle sleeve and bottom hem.
-                  </p>
                 </div>
               </div>
 
@@ -306,9 +298,6 @@ const ProductDetail = () => {
                       <div className="w-full max-w-[300px] flex flex-col items-end">
                         <div className="flex justify-between w-full mb-2">
                           <div className="flex gap-3">
-                            {(Object.keys(sizesObj).includes('M') || Object.keys(sizesObj).includes('L')) && (
-                              <button onClick={() => setSizeGuideOpen(true)} className="text-xs text-gray-500 underline hover:text-black dark:hover:text-white">Size Guide</button>
-                            )}
                             <button 
                               onClick={() => setSizeRecOpen(true)}
                               className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors flex items-center gap-1"
@@ -351,7 +340,7 @@ const ProductDetail = () => {
                         {product.stock > 0 ? (
                           <div className="text-green-600 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-sm ring-1 ring-green-500/50">IN STOCK ({product.stock} units)</div>
                         ) : (
-                          <div className="text-red-600 text-xs font-[900] bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-sm ring-1 ring-red-500/50">STOK HABIS</div>
+                          <div className="text-red-600 text-xs font-[900] bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-sm ring-1 ring-red-500/50">OUT OF STOCK</div>
                         )}
                       </div>
                     );
@@ -456,20 +445,20 @@ const ProductDetail = () => {
         </div>
 
         {/* Reviews Section */}
-        <div className="mt-16 pt-12 border-t border-gray-100 dark:border-gray-800 w-full">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-            <div>
-              <h3 className="font-[900] text-xl uppercase tracking-tighter mb-1">{t('reviews.title')}</h3>
-              <div className="flex items-center gap-3">
-                <div className="flex text-yellow-400 text-sm">
-                  {'★'.repeat(Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)))}{'☆'.repeat(5 - Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)))}
+        {reviews.length > 0 && (
+          <div className="mt-16 pt-12 border-t border-gray-100 dark:border-gray-800 w-full animate-fadeIn">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+              <div>
+                <h3 className="font-[900] text-xl uppercase tracking-tighter mb-1">{t('reviews.title')}</h3>
+                <div className="flex items-center gap-3">
+                  <div className="flex text-yellow-400 text-sm">
+                    {'★'.repeat(Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)))}{'☆'.repeat(5 - Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)))}
+                  </div>
+                  <span className="text-sm text-gray-500 font-medium">({reviews.length} {t('reviews.count') || 'Reviews'})</span>
                 </div>
-                <span className="text-sm text-gray-500 font-medium">({reviews.length} {t('reviews.count') || 'Reviews'})</span>
               </div>
             </div>
-          </div>
-          
-          {reviews.length > 0 ? (
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
               {reviews.map(rev => (
                 <div key={rev.id} className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
@@ -493,17 +482,21 @@ const ProductDetail = () => {
                   <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300 font-light italic">
                     "{rev.comment || "..."}"
                   </p>
+                  {rev.admin_reply && (
+                    <div className="mt-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 animate-fadeIn">
+                      <div className="flex items-center gap-2 mb-2 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                        <span>💬 Balasan Admin</span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 font-light leading-relaxed">
+                        {rev.admin_reply}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/20 rounded-2xl mb-12 border-2 border-dashed border-gray-100 dark:border-gray-700">
-              <p className="text-sm text-gray-400 italic">{t('reviews.beFirst')}</p>
-            </div>
-          )}
-
-          {/* Review form removed: moved to Order History */}
-        </div>
+          </div>
+        )}
 
 
 
@@ -528,8 +521,7 @@ const ProductDetail = () => {
         />
       )}
 
-      {/* Size Guide Modal */}
-      {sizeGuideOpen && <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />}
+
 
       {/* AI Size Recommender Modal */}
       {sizeRecOpen && (
@@ -645,39 +637,20 @@ const SizeRecommenderModal = ({ product, onClose, onApply }) => {
   );
 };
 
-const SizeGuideModal = ({ onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-    <div className="bg-white dark:bg-gray-800 p-8 max-w-lg w-full relative z-10 shadow-2xl rounded-sm">
-      <button onClick={onClose} className="absolute top-4 right-4 text-2xl font-bold">&times;</button>
-      <h3 className="text-xl font-bold uppercase tracking-widest mb-6 border-b pb-4">Size Guide</h3>
-      <table className="w-full text-sm text-left">
-        <thead>
-          <tr className="border-b dark:border-gray-700">
-            <th className="py-2">Size</th>
-            <th className="py-2">Chest (cm)</th>
-            <th className="py-2">Length (cm)</th>
-            <th className="py-2">Sleeve (cm)</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y dark:divide-gray-700">
-          <tr><td className="py-3 font-bold">S</td><td>92</td><td>68</td><td>20</td></tr>
-          <tr><td className="py-3 font-bold">M</td><td>98</td><td>70</td><td>21</td></tr>
-          <tr><td className="py-3 font-bold">L</td><td>104</td><td>72</td><td>22</td></tr>
-          <tr><td className="py-3 font-bold">XL</td><td>110</td><td>74</td><td>23</td></tr>
-        </tbody>
-      </table>
-      <div className="mt-6 text-xs text-gray-500">
-        * Measurements are in centimeters. Fit may vary by style.
-      </div>
-    </div>
-  </div>
-);
+
 
 
 const RelatedProducts = ({ currentProduct }) => {
   const [products, setProducts] = useState([]);
-  const [activeImageIndex, setActiveImageIndex] = useState({});
+  const { currency, language } = useCurrency();
+
+  const convertPrice = useCallback((price) => {
+    if (!price) return "";
+    if (currency.code === "IDR") return currency.symbol + " " + Number(price).toLocaleString(currency.locale, { minimumFractionDigits: 0 });
+    return (
+      currency.symbol + " " + (Number(price) * currency.rate).toLocaleString(currency.locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    );
+  }, [currency]);
 
   useEffect(() => {
     if (!currentProduct) return;
@@ -707,51 +680,12 @@ const RelatedProducts = ({ currentProduct }) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
       {products.map(prod => (
-        <Link
-          to={`/shop/${prod.id}`}
+        <ProductItemCard
           key={prod.id}
-          className="group cursor-pointer flex flex-col items-start"
-        >
-          <div 
-            className="w-full aspect-[3/4] overflow-hidden mb-4 bg-gray-50 dark:bg-gray-800 rounded-sm relative"
-            onMouseEnter={() => {
-              if (Array.isArray(prod.images) && prod.images.length > 1) {
-                setActiveImageIndex(prev => ({ ...prev, [prod.id]: 1 }));
-              }
-            }}
-            onMouseLeave={() => {
-              if (Array.isArray(prod.images) && prod.images.length > 1) {
-                setActiveImageIndex(prev => ({ ...prev, [prod.id]: 0 }));
-              }
-            }}
-          >
-            {/* Badge */}
-            {prod.stock > 0 && prod.stock < 5 && (
-              <div className="absolute top-2 left-2 z-10 bg-black text-white text-[9px] font-bold px-2 py-1 uppercase tracking-wider">
-                Limited
-              </div>
-            )}
-            <img
-              src={Array.isArray(prod.images) && prod.images.length > 0 ? getImageUrl(prod.images[activeImageIndex[prod.id] || 0]) : getImageUrl(prod.image)}
-              alt={prod.name}
-              loading="lazy"
-              className="object-contain w-full h-full p-2 transition-transform duration-700 ease-out group-hover:scale-105"
-              onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + prod.name; }}
-            />
-          </div>
-
-          <div className="w-full flex justify-between items-start">
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 dark:text-white mb-1 group-hover:text-gray-600 transition-colors line-clamp-1">
-                {prod.name}
-              </h3>
-              <p className="text-xs text-gray-500 capitalize">{prod.category || 'Collection'}</p>
-            </div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white">
-              Rp{Number(prod.price).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
-            </div>
-          </div>
-        </Link>
+          product={prod}
+          convertPrice={convertPrice}
+          language={language}
+        />
       ))}
     </div>
   );

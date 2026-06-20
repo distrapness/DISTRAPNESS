@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useCurrency } from "../components/CurrencyContext.jsx";
-
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
+import { getCachedBanners, setCachedBanners } from "../utils/productCache.js";
 
 const API_URL = `${config.API_URL}/api/banners`;
 
@@ -61,21 +61,32 @@ const BannerCarousel = () => {
   };
 
   useEffect(() => {
+    const cached = getCachedBanners();
+    if (cached) {
+      setBanners(cached.data);
+      setLoading(false);
+      if (cached.isFresh) return;
+    } else {
+      setLoading(true);
+    }
+
     fetch(API_URL)
       .then((res) => {
         if (!res.ok) throw new Error("Gagal mengambil banner");
         return res.json();
       })
       .then((data) => {
-        setBanners(
-          data.map(banner => ({
-            ...banner,
-            image: getImageUrl(banner.image)
-          }))
-        );
+        const mapped = data.map(banner => ({
+          ...banner,
+          image: getImageUrl(banner.image)
+        }));
+        setBanners(mapped);
+        setCachedBanners(mapped);
         setError(null);
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        if (!cached) setError(err.message);
+      })
       .finally(() => setLoading(false));
   }, []);
 

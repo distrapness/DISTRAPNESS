@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const midtransClient = require('midtrans-client');
 const pool = require('../db');
-const { sendStatusUpdateEmail, sendOrderConfirmation } = require('../services/emailService');
+const { sendStatusUpdateEmail, sendOrderConfirmation, checkAndNotifyLowStock } = require('../services/emailService');
 
 const getMidtransConfig = async () => {
     try {
@@ -313,6 +313,8 @@ router.post('/webhook', express.json(), async (req, res) => {
               } catch (e) { console.error('Error updating size stock:', e.message); }
             }
           }
+          // Check for low stock notification
+          checkAndNotifyLowStock(item.id).catch(err => console.error("Low stock check failed (Midtrans):", err.message));
         }
 
         // Coupon usage
@@ -348,7 +350,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       if (existingOrder) {
         // Order already created! Update status if status changes.
         if (status === 'paid' && existingOrder.status !== 'paid') {
-          await pool.promise().query('UPDATE orders SET status = ? WHERE id = ?', ['paid', existingOrder.id]);
+          await pool.promise().query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['paid', existingOrder.id]);
           
           // Send invoice confirmation email after payment success
           try {
@@ -370,7 +372,7 @@ router.post('/webhook', express.json(), async (req, res) => {
           }
         } else if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
           // Restore stock if cancelled
-          await pool.promise().query('UPDATE orders SET status = ? WHERE id = ?', ['cancelled', existingOrder.id]);
+          await pool.promise().query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['cancelled', existingOrder.id]);
           
           let orderItems = [];
           try {
@@ -441,8 +443,12 @@ router.post('/webhook', express.json(), async (req, res) => {
       }
 
       if (status === 'pending' && tempPayload) {
-        // Create the order as pending in the DB!
-        await finalizeOrder(tempPayload, 'pending');
+        const payType = (notif.payment_type || '').toLowerCase();
+        const isPayLater = ['bank_transfer', 'echannel', 'cstore'].includes(payType) || payType.includes('va') || payType.includes('transfer') || payType.includes('bill');
+        if (isPayLater) {
+          // Create the order as pending in the DB!
+          await finalizeOrder(tempPayload, 'pending');
+        }
         // Do NOT delete from tempOrderStore/DB yet, since we need it for subsequent updates
         return res.status(200).json({ success: true });
       }
@@ -485,7 +491,7 @@ router.post('/webhook', express.json(), async (req, res) => {
           }
       }
 
-      pool.query('UPDATE orders SET status=? WHERE id=?', [status, orderId], async (err) => {
+      pool.query('UPDATE orders SET status=?, "updatedAt"=NOW() WHERE id=?', [status, orderId], async (err) => {
         if (err) return res.status(500).json({ error: 'DB error' });
         
         // Invoice Email

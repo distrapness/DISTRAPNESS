@@ -30,10 +30,10 @@ export const WishlistProvider = ({ children }) => {
         if (!product) return;
 
         setWishlist((prev) => {
-            const exists = prev.find((item) => item.id === product.id);
+            const exists = prev.find((item) => String(item.id) === String(product.id));
             if (exists) {
                 showToast(`${product.name} removed from wishlist!`);
-                return prev.filter((item) => item.id !== product.id);
+                return prev.filter((item) => String(item.id) !== String(product.id));
             }
             showToast(`${product.name} added to wishlist!`);
             return [...prev, product];
@@ -41,11 +41,11 @@ export const WishlistProvider = ({ children }) => {
     };
 
     const removeFromWishlist = (productId) => {
-        setWishlist((prev) => prev.filter((item) => item.id !== productId));
+        setWishlist((prev) => prev.filter((item) => String(item.id) !== String(productId)));
     };
 
     const isInWishlist = (productId) => {
-        return wishlist.some((item) => item.id === productId);
+        return wishlist.some((item) => String(item.id) === String(productId));
     };
 
     const showToast = (msg) => {

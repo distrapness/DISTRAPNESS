@@ -32,6 +32,34 @@ const OrderTracking = () => {
     .finally(() => setLoading(false));
   }, [orderIdFromParams]);
 
+  const handleConfirmDelivery = async () => {
+    if (!window.confirm("Apakah Anda yakin telah menerima pesanan ini? Status pesanan akan diubah menjadi Selesai.")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${config.API_URL}/api/orders/${orderIdFromParams}/confirm-delivery`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert("Terima kasih! Pesanan telah dikonfirmasi selesai.");
+        // Fetch order details again
+        const res2 = await fetch(`${config.API_URL}/api/orders/${orderIdFromParams}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data2 = await res2.json();
+        if (!data2.error) setOrder(data2);
+      } else {
+        alert(data.error || "Gagal mengonfirmasi penerimaan pesanan");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan koneksi");
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-black dark:border-white"></div>
@@ -103,8 +131,20 @@ const OrderTracking = () => {
     }
   };
 
-  const items = order ? (JSON.parse(order.items || "[]")) : [];
-  const address = order ? (JSON.parse(order.shipping_address || "{}")) : {};
+  const getParsedData = (data, defaultVal) => {
+    if (!data) return defaultVal;
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (e) {
+        return defaultVal;
+      }
+    }
+    return data;
+  };
+
+  const items = order ? getParsedData(order.items, []) : [];
+  const address = order ? getParsedData(order.shipping_address, {}) : {};
 
   const maskPhone = (phone) => {
     if (!phone) return "—";
@@ -497,6 +537,15 @@ const OrderTracking = () => {
                     </span>
                   </div>
                 </div>
+
+                {order.status === 'shipped' && (
+                  <button
+                    onClick={handleConfirmDelivery}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-[0.25em] py-5 rounded-2xl shadow-xl transition-all hover:scale-[0.98] active:scale-95 flex items-center justify-center gap-2 mb-4"
+                  >
+                    ✓ Konfirmasi Pesanan Diterima
+                  </button>
+                )}
 
                 <button className="w-full bg-black dark:bg-white text-white dark:text-black font-black uppercase text-[10px] tracking-[0.3em] py-5 rounded-2xl shadow-xl transition-all hover:scale-[0.98] active:scale-95 flex items-center justify-center gap-3">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>

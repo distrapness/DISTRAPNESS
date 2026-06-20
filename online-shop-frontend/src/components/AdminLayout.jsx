@@ -43,6 +43,7 @@ const AdminLayout = ({ children }) => {
                 { path: '/admin/shipping', label: t('admin.shippingManual') || 'Ongkir Manual', icon: <FaBoxOpen /> },
                 { path: '/admin/reviews', label: t('admin.reviews') || 'Ulasan Pelanggan', icon: <FaStar /> },
                 { path: '/admin/settings', label: t('admin.settings') || 'Pengaturan Web', icon: <FaCog /> },
+                { path: '/admin/withdrawals', label: t('admin.withdrawals') || 'Penarikan Dana', icon: <FaWallet /> },
             ]
         }
     ];

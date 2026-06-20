@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import BannerCarousel from "../components/BannerCarousel.jsx";
 import CategoryGrid from "../components/CategoryGrid.jsx";
 import PhilosophySection from "../components/PhilosophySection.jsx";
@@ -7,9 +7,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import { useCart } from "../components/CartContext";
 import Footer from "../components/Footer.jsx";
-
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
+import { getCachedProducts, setCachedProducts } from "../utils/productCache.js";
+import ProductItemCard from "../components/ProductItemCard.jsx";
 
 const API_URL = `${config.API_URL}/api/products`;
 
@@ -76,44 +77,44 @@ const HomePage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currency, t } = useCurrency();
+  const { currency, t, language } = useCurrency();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
   const flashSaleProducts = (products || []).filter(p => p.is_flash_sale && new Date(p.flash_sale_end) > new Date());
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`${API_URL}?t=${Date.now()}`)
+    const cached = getCachedProducts();
+    if (cached) {
+      setProducts(cached.data);
+      setLoading(false);
+      if (cached.isFresh) return;
+    } else {
+      setLoading(true);
+    }
+
+    fetch(API_URL)
       .then((res) => {
         if (!res.ok) throw new Error("Gagal mengambil produk");
         return res.json();
       })
       .then((data) => {
         setProducts(data);
+        setCachedProducts(data);
         setError(null);
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        if (!cached) setError(err.message);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const convertPrice = (price) => {
+  const convertPrice = useCallback((price) => {
     if (currency.code === "IDR") return currency.symbol + " " + Number(price).toLocaleString(currency.locale, { minimumFractionDigits: 0 });
     return (
       currency.symbol + " " + (Number(price) * currency.rate).toLocaleString(currency.locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
     );
-  };
-
-  // State untuk index gambar aktif pada setiap produk di homepage
-  const [activeImageIndex, setActiveImageIndex] = useState({});
-
-  // Handler hover gambar produk: ganti ke gambar kedua saat mouse masuk, kembali ke gambar pertama saat keluar
-  const handleProductImageHover = (productId, images) => {
-    setActiveImageIndex(prev => ({ ...prev, [productId]: 1 }));
-  };
-  const handleProductImageLeave = (productId, images) => {
-    setActiveImageIndex(prev => ({ ...prev, [productId]: 0 }));
-  };
+  }, [currency]);
 
   return (
     <>
@@ -145,8 +146,8 @@ const HomePage = () => {
                     onClick={() => navigate(`/shop/${p.id}`)}
                     className="flex-none w-48 bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm hover:shadow-xl transition-all cursor-pointer group"
                   >
-                    <div className="aspect-square mb-4 relative overflow-hidden rounded-lg bg-gray-50 dark:bg-gray-700">
-                      <img src={getImageUrl(p.images?.[0] || p.image)} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" alt={p.name} />
+                    <div className="aspect-square mb-4 relative overflow-hidden rounded-lg bg-gray-50 dark:bg-gray-100">
+                      <img src={getImageUrl(p.images?.[0] || p.image)} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 mix-blend-multiply" alt={p.name} />
                       <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded">-{Math.round((1 - p.flash_sale_price / p.price) * 100)}%</div>
                       <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 backdrop-blur-sm text-white text-[10px] py-1 text-center font-bold">
                         <ProductFlashTimer endDate={p.flash_sale_end} />
@@ -191,65 +192,12 @@ const HomePage = () => {
             ) : (
               // Show all products
               products.map((product) => (
-                <div
+                <ProductItemCard
                   key={product.id || product._id}
-                  className="group cursor-pointer border border-gray-200 dark:border-gray-800 rounded-lg p-3 md:p-6 bg-white dark:bg-gray-900 hover:shadow-md transition-all relative flex flex-col items-center hover-lux"
-                  onClick={() => navigate(`/shop/${product.id}`)}
-                >
-                  {/* Badge: Low Stock */}
-                  {product.stock > 0 && product.stock < 5 && (
-                    <div className="absolute top-4 left-4 z-10 bg-gray-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider rounded-sm">
-                      {t('shop.lowStock')}
-                    </div>
-                  )}
-
-                  {/* Badge: Out of Stock */}
-                  {product.stock <= 0 && (
-                    <div className="absolute top-4 left-4 z-10 bg-red-600 text-white text-[10px] font-[900] px-2 py-1 uppercase tracking-wider rounded-sm shadow-sm ring-1 ring-white/20">
-                      STOK HABIS
-                    </div>
-                  )}
-
-                  <div
-                    className="w-full aspect-square flex items-center justify-center overflow-hidden mb-3 md:mb-6 relative rounded bg-gray-50 dark:bg-gray-800"
-                    onMouseEnter={() => {
-                      if (Array.isArray(product.images) && product.images.length > 1) {
-                        handleProductImageHover(product.id, product.images);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      if (Array.isArray(product.images) && product.images.length > 1) {
-                        handleProductImageLeave(product.id, product.images);
-                      }
-                    }}
-                  >
-                    <img
-                      src={Array.isArray(product.images) && product.images.length > 0 ? getImageUrl(product.images[activeImageIndex[product.id] || 0]) : getImageUrl(product.image)}
-                      alt={product.name}
-                      loading="lazy"
-                      className={`object-contain w-full h-full p-4 transition-transform duration-500 ease-in-out ${activeImageIndex[product.id] === 1 ? 'scale-105' : 'scale-100'} ${product.stock <= 0 ? 'grayscale opacity-60' : ''}`}
-                      onError={e => { e.target.onerror = null; e.target.src = "https://placehold.co/600x800/e2e8f0/1e293b?text=" + product.name; }}
-                    />
-                  </div>
-                  <div className="text-center w-full mt-auto">
-                    <div className="text-sm md:text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight font-medium uppercase tracking-wider line-clamp-2">{product.name}</div>
-                    <div className="flex flex-col items-center gap-1">
-                      {product.is_flash_sale && (!product.flash_sale_end || new Date(product.flash_sale_end) > new Date()) ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm md:text-base text-red-600 font-bold">{convertPrice(product.flash_sale_price)}</span>
-                            <span className="text-[10px] text-gray-400 line-through">{convertPrice(product.price)}</span>
-                          </div>
-                          <div className="bg-red-100 dark:bg-red-900/30 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                            Flash Sale -{Math.round((1 - product.flash_sale_price / product.price) * 100)}%
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-sm md:text-base text-gray-500 dark:text-gray-400">{convertPrice(product.price)}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  product={product}
+                  convertPrice={convertPrice}
+                  language={language}
+                />
               ))
             )}
           </div>

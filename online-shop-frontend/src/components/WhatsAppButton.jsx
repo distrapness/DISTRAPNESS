@@ -1,26 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import config from '../config';
+import { useCurrency } from './CurrencyContext.jsx';
 
 const WhatsAppButton = () => {
     const [hover, setHover] = useState(false);
     const location = useLocation();
+    const { brand } = useCurrency();
 
     // Don't show on admin pages
     if (location.pathname.includes('admin') || location.pathname.startsWith('/admin')) {
         return null;
     }
 
-    const [phone, setPhone] = React.useState("6285888159265");
-    
-    React.useEffect(() => {
-        fetch(`${config.API_URL}/api/brand`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.phone) setPhone(data.phone.replace(/[^0-9]/g, ''));
-            })
-            .catch(err => console.error("Error fetching whatsapp number:", err));
-    }, []);
+    const phone = brand.phone ? brand.phone.replace(/[^0-9]/g, '') : "6285888159265";
 
     // Default message based on page
     let message = "Halo, saya tertarik dengan produk di Distrapness.";

@@ -12,6 +12,7 @@ const PaymentSuccess = () => {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [shippingAddress, setShippingAddress] = useState(null);
   const [brand, setBrand] = useState({ phone: "6285888159265" });
+  const [status, setStatus] = useState("pending");
 
   useEffect(() => {
     // Fetch brand contact details
@@ -52,8 +53,13 @@ const PaymentSuccess = () => {
       .then(res => res.json())
       .then(data => {
         if (data && !data.error) {
+          if (data.status) setStatus(data.status);
           if (data.items) {
-            try { setItems(JSON.parse(data.items)); } catch(e){}
+            if (typeof data.items === 'string') {
+              try { setItems(JSON.parse(data.items)); } catch(e){}
+            } else {
+              setItems(data.items);
+            }
           }
           if (data.total) setTotal(Number(data.total));
           if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
@@ -179,7 +185,23 @@ const PaymentSuccess = () => {
                 <div>
                   <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs mb-3">Billing Info</h4>
                   <p className="text-gray-500">Payment Method: <strong className="text-gray-800 dark:text-gray-200 capitalize">{paymentMethod === 'cod' ? 'COD (Bayar di Tempat)' : paymentMethod === 'midtrans' ? 'Midtrans (VA/QRIS)' : paymentMethod}</strong></p>
-                  <p className="text-gray-500 mt-1">Status: <strong className="text-yellow-600 bg-yellow-50 dark:bg-yellow-900/10 px-2 py-0.5 rounded text-xs uppercase font-bold tracking-wider inline-block">Waiting for Payment</strong></p>
+                  <p className="text-gray-500 mt-1">Status: <strong className={`px-2 py-0.5 rounded text-xs uppercase font-bold tracking-wider inline-block ${
+                    status === 'paid' || status === 'completed' ? 'text-green-700 bg-green-50 dark:bg-green-900/10' :
+                    status === 'shipped' ? 'text-blue-700 bg-blue-50 dark:bg-blue-900/10' :
+                    status === 'processing' ? 'text-teal-700 bg-teal-50 dark:bg-teal-900/10' :
+                    status === 'cancelled' || status === 'failed' ? 'text-red-700 bg-red-50 dark:bg-red-900/10' :
+                    status === 'waiting_verification' ? 'text-amber-700 bg-amber-50 dark:bg-amber-900/10' :
+                    'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/10'
+                  }`}>
+                    {status === 'paid' ? 'Paid' :
+                     status === 'processing' ? 'Processing' :
+                     status === 'shipped' ? 'Shipped' :
+                     status === 'completed' ? 'Completed' :
+                     status === 'cancelled' ? 'Cancelled' :
+                     status === 'failed' ? 'Failed' :
+                     status === 'waiting_verification' ? 'Waiting Verification' :
+                     'Waiting for Payment'}
+                  </strong></p>
                 </div>
               </div>
             )}

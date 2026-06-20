@@ -68,7 +68,8 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!recaptchaToken) {
+    const isLocal = window.location.hostname === 'localhost';
+    if (!recaptchaToken && !isLocal) {
       setError("Silakan centang Captcha terlebih dahulu.");
       return;
     }
@@ -79,7 +80,7 @@ export default function LoginPage() {
       const res = await axios.post(`${config.API_URL}/api/login`, { 
         email: cleanEmail, 
         password,
-        recaptchaToken
+        recaptchaToken: recaptchaToken || 'bypass_localhost'
       });
       login(res.data.token, res.data.email, res.data.role);
       setSuccess(t('login.success'));

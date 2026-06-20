@@ -3,6 +3,7 @@ const multer = require('multer');
 const router = express.Router();
 const pool = require('../db');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const cacheService = require('../services/cacheService');
 
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -40,8 +41,13 @@ router.post('/upload', verifyToken, verifyAdmin, upload.single('image'), (req, r
 
 // GET all banners
 router.get('/', async (req, res) => {
+  const cacheKey = 'banners_list';
+  const cached = cacheService.get(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const [rows] = await pool.promise().query('SELECT * FROM banners ORDER BY sort_order ASC, created_at DESC');
+    cacheService.set(cacheKey, rows);
     res.json(rows);
   } catch (err) {
     console.error("GET Banners Error:", err);
@@ -56,6 +62,7 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
   
   try {
     const [result] = await pool.promise().query('INSERT INTO banners (image, original_image) VALUES (?, ?)', [image, original_image || null]);
+    cacheService.clearPattern('banners_list');
     res.json({ id: result.insertId.toString(), image, original_image });
   } catch (err) {
     console.error("POST Banners Error:", err);
@@ -82,6 +89,7 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
 
     const [result] = await pool.promise().query(sql, params);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Banner tidak ditemukan' });
+    cacheService.clearPattern('banners_list');
     res.json({ id, image, original_image });
   } catch (err) {
     console.error("PUT Banners Error:", err);
@@ -96,6 +104,7 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const [result] = await pool.promise().query('DELETE FROM banners WHERE id=?', [id]);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Banner tidak ditemukan' });
+    cacheService.clearPattern('banners_list');
     res.json({ success: true });
   } catch (err) {
     console.error("DELETE Banners Error:", err);
@@ -115,6 +124,7 @@ router.put('/sort', verifyToken, verifyAdmin, async (req, res) => {
         await connection.query('UPDATE banners SET sort_order=? WHERE id=?', [i, ids[i]]);
     }
     await connection.commit();
+    cacheService.clearPattern('banners_list');
     res.json({ success: true });
   } catch (err) {
     await connection.rollback();

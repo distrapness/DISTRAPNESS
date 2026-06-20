@@ -20,13 +20,13 @@ root.render(
         <BrowserRouter>
           <CurrencyProvider>
             <BannerProvider>
-              <CartProvider>
-                <AuthProvider>
+              <AuthProvider>
+                <CartProvider>
                   <WishlistProvider>
                     <App />
                   </WishlistProvider>
-                </AuthProvider>
-              </CartProvider>
+                </CartProvider>
+              </AuthProvider>
             </BannerProvider>
           </CurrencyProvider>
         </BrowserRouter>

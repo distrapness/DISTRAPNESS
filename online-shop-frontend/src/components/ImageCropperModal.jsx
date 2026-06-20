@@ -178,7 +178,7 @@ const ImageCropperModal = ({ imageFile, isOpen, onClose, onSave }) => {
 
         outCanvas.toBlob((blob) => {
             onSave(blob);
-        }, 'image/jpeg', 0.95);
+        }, 'image/jpeg', 0.80);
     };
 
     const handleReset = () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import BackButton from "../components/BackButton.jsx";
 import config from '../config.js';
 import { useAuth } from "../contexts/AuthContext";
@@ -9,6 +9,7 @@ import { useCart } from "../components/CartContext.jsx";
 
 const PaymentDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userEmail, logout } = useAuth();
   const { clearCart } = useCart();
   const { t, language } = useCurrency();
@@ -17,6 +18,19 @@ const PaymentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [hasActiveCoupons, setHasActiveCoupons] = useState(false);
+
+  useEffect(() => {
+    fetch(`${config.API_URL}/api/coupons/active`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setHasActiveCoupons(true);
+        }
+      })
+      .catch(err => console.error("Error fetching active coupons:", err));
+  }, []);
 
   useEffect(() => {
     // Load Midtrans script
@@ -141,29 +155,143 @@ const PaymentDashboard = () => {
   ];
 
   useEffect(() => {
-    // ... existing useEffect ...
-    // Merge static methods with API methods if any (or just use static for stability now)
     setMethods(staticMethods);
     const savedMethod = localStorage.getItem('selectedPaymentMethod');
     setSelectedPaymentMethod(savedMethod || "midtrans");
-    setLoading(false);
 
-    /* 
-    // Jika ingin fetch Midtrans methods:
-    fetch(`${config.API_URL}/api/midtrans/methods`)
-      .then(res => res.json())
-      .then(data => {
-         setMethods([...staticMethods, ...data]);
-      })
-      .catch(err => console.log("Using static methods only"));
-    */
+    const orderId = searchParams.get("orderId");
+    if (!orderId) {
+      setLoading(false);
+      const c = JSON.parse(localStorage.getItem("cart") || "[]");
+      setCart(c);
+      const st = c.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
+      setSubtotal(st);
+    }
+  }, [searchParams]);
 
-    // Load Cart
-    const c = JSON.parse(localStorage.getItem("cart") || "[]");
-    setCart(c);
-    const st = c.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
-    setSubtotal(st);
-  }, []);
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (orderId) {
+      if (orderId.startsWith('temp-')) {
+        const tempPendingStr = localStorage.getItem('tempPendingOrder');
+        if (tempPendingStr) {
+          try {
+            const tempData = JSON.parse(tempPendingStr);
+            let items = tempData.items;
+            let addr = tempData.shippingAddress || tempData.shipping_address;
+
+            // Restore cart in local state
+            setCart(items || []);
+            const st = (items || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
+            setSubtotal(st);
+
+            // Restore address fields
+            if (addr) {
+              setAddress({
+                firstName: addr.firstName || "",
+                lastName: addr.lastName || "",
+                address: addr.address || "",
+                city: addr.city || "",
+                postalCode: addr.postalCode || "",
+                phone: addr.phone || "",
+                note: addr.note || ""
+              });
+
+              if (addr.provinceId) setSelectedProvince(addr.provinceId);
+              if (addr.cityId) setSelectedCity(addr.cityId);
+              if (addr.districtId) setSelectedDistrict(addr.districtId);
+              if (addr.areaId) setSelectedVillage(addr.areaId);
+
+              // Restore courier and selected service if saved
+              if (tempData.selectedCourier) {
+                setCourier(tempData.selectedCourier);
+                localStorage.setItem('selectedCourier', tempData.selectedCourier);
+              }
+              if (tempData.selectedService) {
+                setSelectedService(tempData.selectedService);
+                localStorage.setItem('selectedService', JSON.stringify(tempData.selectedService));
+              }
+            }
+
+            // Restore payment method
+            if (tempData.paymentMethod) {
+              setSelectedPaymentMethod(tempData.paymentMethod);
+              localStorage.setItem('selectedPaymentMethod', tempData.paymentMethod);
+            }
+
+            setLoading(false);
+            return;
+          } catch (e) {
+            console.error("Error restoring tempPendingOrder in checkout:", e);
+          }
+        }
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      fetch(`${config.API_URL}/api/orders/${orderId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+
+          let items = data.items;
+          if (typeof items === 'string') {
+            try { items = JSON.parse(items); } catch (e) { }
+          }
+          let addr = data.shipping_address || data.shippingAddress;
+          if (typeof addr === 'string') {
+            try { addr = JSON.parse(addr); } catch (e) { }
+          }
+
+          setEditingOrder({ ...data, shipping_address: addr, shippingAddress: addr });
+          setCart(items || []);
+          const st = (items || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
+          setSubtotal(st);
+
+          if (addr) {
+            setAddress({
+              firstName: addr.firstName || "",
+              lastName: addr.lastName || "",
+              address: addr.address || "",
+              city: addr.city || "",
+              postalCode: addr.postalCode || "",
+              phone: addr.phone || "",
+              note: addr.note || ""
+            });
+
+            if (addr.provinceId) {
+              setSelectedProvince(addr.provinceId);
+            }
+            if (addr.cityId) {
+              setSelectedCity(addr.cityId);
+            }
+            if (addr.districtId) {
+              setSelectedDistrict(addr.districtId);
+            }
+            if (addr.areaId) {
+              setSelectedVillage(addr.areaId);
+            }
+          }
+
+          if (data.paymentMethod) {
+            setSelectedPaymentMethod(data.paymentMethod);
+          }
+          if (data.coupon_code || data.couponCode) {
+            setAppliedCoupon(data.coupon_code || data.couponCode);
+            setCouponCode(data.coupon_code || data.couponCode);
+          }
+          if (data.discount_amount || data.discountAmount) {
+            setDiscountAmount(Number(data.discount_amount || data.discountAmount) || 0);
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching order for edit:", err);
+          setError("Gagal mengambil data pesanan");
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
@@ -229,11 +357,7 @@ const PaymentDashboard = () => {
   const [shippingError, setShippingError] = useState(null);
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
-  const [courier, setCourier] = useState(localStorage.getItem('selectedCourier') || "jne");
-
-  useEffect(() => {
-    localStorage.setItem('selectedCourier', courier);
-  }, [courier]);
+  const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
 
   // Load Provinces
   useEffect(() => {
@@ -262,14 +386,6 @@ const PaymentDashboard = () => {
     } else {
       setCities([]);
     }
-    // Clear child selections when parent changes
-    setSelectedCity("");
-    setSelectedDistrict("");
-    setSelectedVillage("");
-    localStorage.removeItem('sel_city');
-    localStorage.removeItem('sel_dist');
-    localStorage.removeItem('sel_vill');
-    localStorage.removeItem('selectedService');
   }, [selectedProvince]);
 
   useEffect(() => {
@@ -291,11 +407,6 @@ const PaymentDashboard = () => {
     } else {
       setDistricts([]);
     }
-    setSelectedDistrict("");
-    setSelectedVillage("");
-    localStorage.removeItem('sel_dist');
-    localStorage.removeItem('sel_vill');
-    localStorage.removeItem('selectedService');
   }, [selectedCity]);
 
   useEffect(() => {
@@ -317,9 +428,6 @@ const PaymentDashboard = () => {
     } else {
       setVillages([]);
     }
-    setSelectedVillage("");
-    localStorage.removeItem('sel_vill');
-    localStorage.removeItem('selectedService');
   }, [selectedDistrict]);
 
   useEffect(() => {
@@ -371,28 +479,18 @@ const PaymentDashboard = () => {
         }
         
         if (data.pricing && Array.isArray(data.pricing) && data.pricing.length > 0) {
-          setShippingOptions(data.pricing);
+          // Sort by price ascending to automatically find the cheapest option
+          const sorted = [...data.pricing].sort((a, b) => Number(a.price) - Number(b.price));
+          setShippingOptions(sorted);
           setSelectedAreaId(data.area_id);
           setShippingError(null);
           
-          const savedServiceStr = localStorage.getItem('selectedService');
-          if (savedServiceStr) {
-            try {
-              const savedService = JSON.parse(savedServiceStr);
-              const matched = data.pricing.find(opt => opt.courier_service_code === savedService.courier_service_code && opt.company === savedService.company);
-              if (matched) {
-                setSelectedService(matched);
-                setShippingCost(matched.price);
-                setShippingMethod(`${matched.company.toUpperCase()} - ${matched.courier_service_name}`);
-                return;
-              }
-            } catch(e){}
-          }
-
-          const courierOptions = data.pricing.filter(opt => opt.company === courier);
-          if (courierOptions.length > 0) {
-            handleServiceChange(courierOptions[0]);
-          }
+          // Auto select the cheapest option as default
+          const cheapest = sorted[0];
+          setSelectedService(cheapest);
+          setShippingCost(Number(cheapest.price));
+          setShippingMethod(`${cheapest.company.toUpperCase()} - ${cheapest.courier_service_name}`);
+          localStorage.setItem('selectedService', JSON.stringify(cheapest));
         } else {
           setShippingOptions([]);
           setSelectedService(null);
@@ -410,11 +508,11 @@ const PaymentDashboard = () => {
         console.error("Error calculating cost:", err);
       });
     }
-  }, [selectedVillage, courier, cart, provinces, cities, districts, villages]);
+  }, [selectedVillage, cart, provinces, cities, districts, villages]);
 
   const handleServiceChange = (service) => {
     setSelectedService(service);
-    setShippingCost(service.price);
+    setShippingCost(Number(service.price));
     setShippingMethod(`${service.company.toUpperCase()} - ${service.courier_service_name}`);
     localStorage.setItem('selectedService', JSON.stringify(service));
   };
@@ -442,7 +540,7 @@ const PaymentDashboard = () => {
     // Consistent total calculation (same formula used in display)
     const discountedAmount = Math.max(0, subtotal - discountAmount - referralDiscount);
     const taxes = Math.round(discountedAmount * 0.11);
-    const finalTotal = discountedAmount + shippingCost + taxes;
+    const finalTotal = discountedAmount + Number(shippingCost) + taxes;
     const items = cart;
 
     // Sync address back to user profile in database
@@ -477,6 +575,58 @@ const PaymentDashboard = () => {
       }).catch(err => console.error("Failed to sync profile address on checkout:", err));
     }
 
+    const orderId = searchParams.get("orderId");
+    if (orderId && !orderId.startsWith('temp-')) {
+      setCreating(true);
+      // Preserve original email & tempId from the existing order's shipping_address
+      const originalAddr = editingOrder?.shipping_address || editingOrder?.shippingAddress || {};
+      const originalEmail = originalAddr.email || userEmail || "guest@mail.com";
+      const originalTempId = originalAddr.tempId;
+
+      const updatedPayload = {
+        paymentMethod: selectedPaymentMethod,
+        shippingAddress: {
+          ...address,
+          email: originalEmail,
+          ...(originalTempId ? { tempId: originalTempId } : {}),
+          province: provinces.find(p => p.id === selectedProvince)?.name || "",
+          city: cities.find(c => c.id === selectedCity)?.name || "",
+          district: districts.find(d => d.id === selectedDistrict)?.name || "",
+          area: villages.find(v => v.id === selectedVillage)?.name || "",
+          provinceId: selectedProvince,
+          cityId: selectedCity,
+          districtId: selectedDistrict,
+          areaId: selectedVillage,
+          courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
+        },
+        total: finalTotal > 0 ? finalTotal : 0
+      };
+
+      fetch(`${config.API_URL}/api/orders/${orderId}/payment-details`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedPayload)
+      })
+        .then(res => res.json().then(data => {
+          if (!res.ok) throw new Error(data.error || "Gagal memperbarui pesanan");
+          return data;
+        }))
+        .then(data => {
+          localStorage.setItem('selectedPaymentMethod', selectedPaymentMethod);
+          localStorage.setItem(`savedAddress_${userEmail || 'guest'}`, JSON.stringify(address));
+
+          navigate(`/payment/confirm?orderId=${orderId}`);
+        })
+        .catch(err => {
+          console.error("Order update failed:", err);
+          alert(err.message || (language === 'EN' ? "An error occurred while updating your order" : "Terjadi kesalahan saat memperbarui pesanan Anda"));
+        })
+        .finally(() => {
+          setCreating(false);
+        });
+      return;
+    }
+
     if (selectedPaymentMethod === 'cod' || selectedPaymentMethod === 'midtrans') {
       const tempOrder = {
         id: "temp",
@@ -490,6 +640,10 @@ const PaymentDashboard = () => {
           city: cities.find(c => c.id === selectedCity)?.name || "",
           district: districts.find(d => d.id === selectedDistrict)?.name || "",
           area: villages.find(v => v.id === selectedVillage)?.name || "",
+          provinceId: selectedProvince,
+          cityId: selectedCity,
+          districtId: selectedDistrict,
+          areaId: selectedVillage,
           courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
         },
         couponCode: appliedCoupon,
@@ -521,6 +675,10 @@ const PaymentDashboard = () => {
         city: cities.find(c => c.id === selectedCity)?.name || "",
         district: districts.find(d => d.id === selectedDistrict)?.name || "",
         area: villages.find(v => v.id === selectedVillage)?.name || "",
+        provinceId: selectedProvince,
+        cityId: selectedCity,
+        districtId: selectedDistrict,
+        areaId: selectedVillage,
         courierInfo: selectedService ? `${selectedService.company.toUpperCase()} ${selectedService.courier_service_name}` : ""
       },
       couponCode: appliedCoupon,
@@ -595,7 +753,16 @@ const PaymentDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <select 
                   className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black dark:text-white"
-                  value={selectedProvince} onChange={e => setSelectedProvince(e.target.value)}
+                  value={selectedProvince} onChange={e => {
+                    setSelectedProvince(e.target.value);
+                    setSelectedCity("");
+                    setSelectedDistrict("");
+                    setSelectedVillage("");
+                    localStorage.removeItem('sel_city');
+                    localStorage.removeItem('sel_dist');
+                    localStorage.removeItem('sel_vill');
+                    localStorage.removeItem('selectedService');
+                  }}
                 >
                   <option value="">{isId ? "Pilih Provinsi" : "Select Province"}</option>
                   {provinceOptions}
@@ -603,7 +770,14 @@ const PaymentDashboard = () => {
 
                 <select 
                   className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black dark:text-white"
-                  value={selectedCity} onChange={e => setSelectedCity(e.target.value)}
+                  value={selectedCity} onChange={e => {
+                    setSelectedCity(e.target.value);
+                    setSelectedDistrict("");
+                    setSelectedVillage("");
+                    localStorage.removeItem('sel_dist');
+                    localStorage.removeItem('sel_vill');
+                    localStorage.removeItem('selectedService');
+                  }}
                   disabled={!selectedProvince}
                 >
                   <option value="">{isId ? "Pilih Kota/Kabupaten" : "Select City/Regency"}</option>
@@ -614,7 +788,12 @@ const PaymentDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <select 
                   className="w-full p-4 bg-white dark:bg-gray-800 border-none rounded shadow-sm focus:ring-1 focus:ring-black dark:text-white"
-                  value={selectedDistrict} onChange={e => setSelectedDistrict(e.target.value)}
+                  value={selectedDistrict} onChange={e => {
+                    setSelectedDistrict(e.target.value);
+                    setSelectedVillage("");
+                    localStorage.removeItem('sel_vill');
+                    localStorage.removeItem('selectedService');
+                  }}
                   disabled={!selectedCity}
                 >
                   <option value="">{isId ? "Pilih Kecamatan" : "Select District"}</option>
@@ -658,80 +837,81 @@ const PaymentDashboard = () => {
             </section>
 
             {/* 2. Shipping Method */}
-            <section>
+            <section className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold">2</div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{isId ? 'Metode Pengiriman' : 'Shipping Method'}</h2>
               </div>
 
-              {/* Kurir Selection */}
-              <div className="flex gap-2 mb-6">
-                {['jne', 'pos', 'tiki', 'manual'].map(c => {
-                  const hasRates = shippingOptions.some(opt => opt.company === c);
-                  if (c === 'manual' && !hasRates) return null;
-                  
-                  return (
+              {!selectedVillage ? (
+                /* Empty state */
+                <div className="flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-center">
+                  <span className="text-2xl mb-2">📍</span>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider font-bold">
+                    {isId ? 'Alamat Belum Lengkap' : 'Address Incomplete'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isId ? 'Lengkapi alamat pengiriman Anda terlebih dahulu untuk melihat pilihan kurir.' : 'Complete your shipping address first to calculate rates.'}
+                  </p>
+                </div>
+              ) : loadingShipping ? (
+                /* Loading Skeleton */
+                <div className="space-y-3">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800 animate-pulse flex justify-between items-center">
+                    <div className="space-y-2 w-2/3">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                    </div>
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                  </div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest text-center animate-pulse">
+                    {isId ? 'Menghitung biaya pengiriman terbaik...' : 'Calculating best shipping rates...'}
+                  </p>
+                </div>
+              ) : shippingError && !shippingError.startsWith('Note:') && shippingOptions.length === 0 ? (
+                /* Error state */
+                <div className="p-6 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/20 text-center space-y-2">
+                  <span className="text-xl">⚠️</span>
+                  <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                    {isId ? 'Gagal Mendapatkan Ongkir' : 'Failed to Retrieve Shipping'}
+                  </p>
+                  <p className="text-xs text-red-500">{shippingError}</p>
+                </div>
+              ) : selectedService ? (
+                /* Premium Selected Courier Card (Shopify Style) */
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-10 rounded-lg bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-black text-xs text-gray-800 dark:text-gray-200 uppercase whitespace-nowrap">
+                      {selectedService.company}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-900 dark:text-white uppercase">
+                        {selectedService.company.toUpperCase()} - {selectedService.courier_service_name}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {isId ? 'Estimasi:' : 'Estimated:'} {selectedService.duration}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-sm text-gray-900 dark:text-white">
+                      Rp {Number(selectedService.price).toLocaleString('id-ID')}
+                    </span>
                     <button
-                      key={c}
-                      onClick={() => { setCourier(c); setSelectedService(null); }}
-                      className={`flex-1 py-3 font-black rounded-xl border-2 transition-all uppercase text-[10px] tracking-widest ${courier === c ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-100 dark:border-gray-700 hover:border-gray-200'}`}
+                      type="button"
+                      onClick={() => setIsShippingModalOpen(true)}
+                      className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-850 hover:bg-gray-100 dark:hover:bg-gray-850 hover:text-black dark:hover:text-white transition"
                     >
-                      {c === 'manual' ? 'Custom' : c}
+                      {isId ? 'Ubah' : 'Change'}
                     </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-3">
-                {!selectedVillage && (
-                  <p className="text-sm text-gray-500 italic text-center p-4 bg-gray-50 dark:bg-gray-800 rounded">{isId ? 'Pilih alamat lengkap terlebih dahulu untuk melihat ongkir.' : 'Select a complete address first to view shipping cost.'}</p>
-                )}
-                
-                {selectedVillage && loadingShipping && (
-                  <div className="flex flex-col items-center justify-center p-8 space-y-3 bg-white dark:bg-gray-800 rounded shadow-sm border border-dashed border-gray-200">
-                    <div className="w-8 h-8 border-4 border-black dark:border-white border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-sm font-medium animate-pulse">{isId ? 'Menghitung ongkos kirim terbaik...' : 'Calculating best shipping rates...'}</p>
                   </div>
-                )}
-                
-                {selectedProvince && selectedCity && selectedDistrict && selectedVillage && !loadingShipping && shippingError && !shippingError.startsWith('Note:') && shippingOptions.length === 0 && (
-                  <div className="flex flex-col items-center justify-center p-8 space-y-3 bg-red-50 dark:bg-red-900/10 rounded-3xl border border-red-100 dark:border-red-900/30">
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400 uppercase tracking-tighter">⚠️ Biaya pengiriman gagal dihitung</p>
-                    <p className="text-[10px] text-red-500 text-center font-bold">{shippingError}</p>
-                    <div className="mt-2 p-2 bg-white/50 rounded text-[9px] text-gray-500 font-mono">
-                      Query: {`${villages.find(x => x.id === selectedVillage)?.name || ''}, ${districts.find(x => x.id === selectedDistrict)?.name || ''}, ${cities.find(x => x.id === selectedCity)?.name || ''}`}
-                    </div>
-                  </div>
-                )}
-
-                {shippingError && shippingError.startsWith('Note:') && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/20 mb-4">
-                    <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest text-center">💡 {shippingError.replace('Note: ', '')}</p>
-                  </div>
-                )}
-
-                {selectedVillage && !loadingShipping && shippingOptions.length > 0 && shippingOptions.filter(opt => opt.company === courier).map((opt, idx) => (
-                  <label key={idx} className={`flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded shadow-sm cursor-pointer border ${selectedService?.courier_service_code === opt.courier_service_code ? 'border-red-500 bg-red-50 dark:bg-gray-700' : 'border-transparent'}`}>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio" name="shipping" value={opt.courier_service_code} 
-                        checked={selectedService?.courier_service_code === opt.courier_service_code}
-                        onChange={() => handleServiceChange(opt)}
-                        className="text-black dark:text-white focus:ring-black"
-                      />
-                      <div>
-                        <div className="font-bold">{opt.company.toUpperCase()} - {opt.courier_service_name}</div>
-                        <div className="text-xs text-gray-500">Estimasi: {opt.duration}</div>
-                      </div>
-                    </div>
-                    <span className="font-bold text-red-600">Rp {opt.price.toLocaleString('id-ID')}</span>
-                  </label>
-                ))}
-                
-                {selectedAreaId && shippingOptions.length > 0 && shippingOptions.filter(opt => opt.company === courier).length === 0 && (
-                  <p className="text-sm text-gray-500 italic text-center p-4 bg-gray-50 dark:bg-gray-800 rounded">Tidak ada layanan kurir {courier.toUpperCase()} yang tersedia untuk rute ini.</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                /* Fallback empty state */
+                <p className="text-sm text-gray-500 italic text-center p-4 bg-gray-50 dark:bg-gray-800 rounded">
+                  {isId ? 'Tidak ada layanan kurir yang tersedia.' : 'No shipping options available.'}
+                </p>
+              )}
             </section>
 
             {/* 3. Payment Method */}
@@ -767,11 +947,11 @@ const PaymentDashboard = () => {
               <div className="space-y-6 mb-6">
                 {cart.map((item, idx) => (
                   <div key={idx} className="flex gap-4">
-                    <div className="w-16 h-16 bg-white dark:bg-gray-700 rounded overflow-hidden relative border border-gray-200 dark:border-gray-600 shrink-0">
+                    <div className="w-16 h-16 bg-white dark:bg-gray-100 rounded overflow-hidden relative border border-gray-200 dark:border-gray-600 shrink-0">
                       <img
                         src={getImageUrl(item?.image || (item?.images && item?.images?.[0]))}
                         alt={item.name}
-                        className="w-full h-full object-contain p-1"
+                        className="w-full h-full object-contain p-1 mix-blend-multiply"
                         onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/100x100?text=Prod"; }}
                       />
                       <span className="absolute top-0 right-0 bg-gray-500 text-white text-[9px] font-bold px-1 rounded-bl">x{item.qty}</span>
@@ -788,21 +968,23 @@ const PaymentDashboard = () => {
               </div>
 
               {/* Promo Code */}
-              <div className="flex gap-2 mb-8">
-                <input
-                  type="text"
-                  placeholder={language === 'EN' ? "Promo Code" : "Kode Promo"}
-                  className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-transparent dark:text-white"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  disabled={appliedCoupon}
-                />
-                {appliedCoupon ? (
-                  <button onClick={() => { setAppliedCoupon(null); setDiscountAmount(0); setCouponCode(""); localStorage.removeItem('appliedCoupon'); localStorage.removeItem('discountAmount'); }} className="bg-red-500 text-white px-4 py-2 text-sm font-bold rounded">{language === 'EN' ? 'Cancel' : 'Batal'}</button>
-                ) : (
-                  <button onClick={handleApplyCoupon} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 text-sm font-bold rounded">{language === 'EN' ? 'Apply' : 'Gunakan'}</button>
-                )}
-              </div>
+              {hasActiveCoupons && (
+                <div className="flex gap-2 mb-8 animate-fadeIn">
+                  <input
+                    type="text"
+                    placeholder={language === 'EN' ? "Promo Code" : "Kode Promo"}
+                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm bg-transparent dark:text-white"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    disabled={appliedCoupon}
+                  />
+                  {appliedCoupon ? (
+                    <button onClick={() => { setAppliedCoupon(null); setDiscountAmount(0); setCouponCode(""); localStorage.removeItem('appliedCoupon'); localStorage.removeItem('discountAmount'); }} className="bg-red-500 text-white px-4 py-2 text-sm font-bold rounded">{language === 'EN' ? 'Cancel' : 'Batal'}</button>
+                  ) : (
+                    <button onClick={handleApplyCoupon} className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 text-sm font-bold rounded">{language === 'EN' ? 'Apply' : 'Gunakan'}</button>
+                  )}
+                </div>
+              )}
 
               {/* Counts */}
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
@@ -813,7 +995,7 @@ const PaymentDashboard = () => {
                 <div className="flex justify-between">
                   <span>{t('cart.shipping')}</span>
                   <span className={`font-bold ${shippingCost === 0 ? 'text-green-500' : 'text-gray-900 dark:text-white'}`}>
-                    {shippingCost === 0 ? t('cart.free') : `Rp ${shippingCost.toLocaleString('id-ID')}`}
+                    {shippingCost === 0 ? t('cart.free') : `Rp ${Number(shippingCost).toLocaleString('id-ID')}`}
                   </span>
                 </div>
                 {discountAmount > 0 && (
@@ -834,7 +1016,7 @@ const PaymentDashboard = () => {
                 <div className="text-right">
                   <span className="text-xs text-gray-400 block mb-1">IDR</span>
                   <span className="text-3xl font-[900] tracking-tight text-red-600 dark:text-red-500">
-                    Rp{Math.max(0, Math.round((subtotal - discountAmount) * 1.11) + shippingCost).toLocaleString('id-ID')}
+                    Rp{Math.max(0, Math.round((subtotal - discountAmount) * 1.11) + Number(shippingCost)).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
@@ -857,6 +1039,74 @@ const PaymentDashboard = () => {
 
         </div>
       </div>
+      {/* Shipping Method Selection Modal */}
+      {isShippingModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsShippingModalOpen(false)}
+          ></div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 max-w-md w-full relative z-10 shadow-2xl rounded-2xl transform transition-all animate-in fade-in zoom-in duration-300">
+            <button 
+              onClick={() => setIsShippingModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white text-xl font-bold"
+            >
+              &times;
+            </button>
+            <h3 className="text-lg font-black uppercase tracking-tight mb-4 dark:text-white">
+              {isId ? 'Pilih Metode Pengiriman' : 'Select Shipping Method'}
+            </h3>
+            <p className="text-xs text-gray-500 mb-6 font-light">
+              {isId 
+                ? 'Kami menampilkan seluruh pilihan pengiriman otomatis terjangkau langsung dari RajaOngkir.' 
+                : 'All available delivery options pulled directly from RajaOngkir.'}
+            </p>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+              {shippingOptions.map((opt, idx) => {
+                const isSelected = selectedService?.courier_service_code === opt.courier_service_code && selectedService?.company === opt.company;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      handleServiceChange(opt);
+                      setIsShippingModalOpen(false);
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-850 ring-1 ring-black dark:ring-white' : 'border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 bg-white dark:bg-gray-900'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center font-bold text-[10px] text-gray-700 dark:text-gray-300 uppercase border border-gray-100 dark:border-gray-800 whitespace-nowrap">
+                        {opt.company}
+                      </div>
+                      <div>
+                        <div className="font-bold text-xs uppercase text-gray-900 dark:text-white">
+                          {opt.company.toUpperCase()} - {opt.courier_service_name}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-medium">
+                          {isId ? 'Estimasi:' : 'Estimated:'} {opt.duration}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-black text-xs text-gray-900 dark:text-white">
+                        Rp {Number(opt.price).toLocaleString('id-ID')}
+                      </span>
+                      {isSelected && (
+                        <span className="text-green-600 font-black text-sm">✓</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button 
+              onClick={() => setIsShippingModalOpen(false)}
+              className="mt-6 w-full bg-black dark:bg-white text-white dark:text-black font-bold py-3 rounded-xl text-xs uppercase tracking-widest transition hover:opacity-90 active:scale-95 shadow-lg"
+            >
+              {isId ? 'Tutup' : 'Close'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

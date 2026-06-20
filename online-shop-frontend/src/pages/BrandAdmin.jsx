@@ -5,6 +5,37 @@ import config from '../config.js';
 const API_URL = `${config.API_URL}/api/brand`;
 const UPLOAD_URL = `${config.API_URL}/api/upload`;
 
+function processLogo(file, maxSize = 300) {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = function () {
+      let w = img.width;
+      let h = img.height;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (w > maxSize || h > maxSize) {
+        if (w > h) {
+          h = Math.round((h * maxSize) / w);
+          w = maxSize;
+        } else {
+          w = Math.round((w * maxSize) / h);
+          h = maxSize;
+        }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        if (!blob) return reject('Gagal proses gambar');
+        const compressedFile = new File([blob], file.name || "logo.jpg", { type: 'image/jpeg' });
+        resolve(compressedFile);
+      }, 'image/jpeg', 0.80);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 const BrandAdmin = () => {
   const [brand, setBrand] = useState({ brandName: "", logo: "", phone: "" });
   const [logoFile, setLogoFile] = useState(null);
@@ -23,11 +54,17 @@ const BrandAdmin = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value, files } = e.target;
     if (name === "logo" && files && files[0]) {
-      setLogoFile(files[0]);
-      setLogoPreview(URL.createObjectURL(files[0]));
+      try {
+        const compressed = await processLogo(files[0]);
+        setLogoFile(compressed);
+        setLogoPreview(URL.createObjectURL(compressed));
+      } catch (err) {
+        setLogoFile(files[0]);
+        setLogoPreview(URL.createObjectURL(files[0]));
+      }
     } else {
       setBrand({ ...brand, [name]: value });
     }

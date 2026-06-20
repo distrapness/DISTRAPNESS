@@ -12,8 +12,8 @@ const getRajaOngkirConfig = async () => {
             return acc;
         }, {});
         return {
-            apiKey: settings.rajaongkir_api_key || process.env.RAJAONGKIR_API_KEY,
-            origin: settings.rajaongkir_origin || process.env.RAJAONGKIR_ORIGIN || '151' // Default Jakarta Barat if not set
+            apiKey: process.env.RAJAONGKIR_API_KEY || settings.rajaongkir_api_key,
+            origin: process.env.RAJAONGKIR_ORIGIN || settings.rajaongkir_origin || '151' // Default Jakarta Barat if not set
         };
     } catch (err) {
         return {
@@ -83,18 +83,46 @@ const rajaOngkirService = {
         // RajaOngkir Starter needs City ID. We try to find city name in query string.
         // This is a bit hacky but works for basic implementations.
         const config = await getRajaOngkirConfig();
-        const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1000) * (item.quantity || 1), 0);
+        const totalWeight = items.reduce((sum, item) => sum + (Number(item.weight) || 1000) * (Number(item.quantity) || 1), 0);
         
         // Extract city from query (e.g. "Jakarta Selatan, DKI Jakarta")
         const parts = query.split(',');
         const cityName = parts[parts.length - 2]?.trim() || parts[0]?.trim();
         
+        if (!cityName) throw new Error("Format alamat pengiriman tidak valid untuk mendapatkan ongkir.");
+
         // 1. Find City ID
         const cities = await rajaOngkirService.getCities('');
-        const matchedCity = cities.find(c => 
-            cityName.toLowerCase().includes(c.city_name.toLowerCase()) || 
-            c.city_name.toLowerCase().includes(cityName.toLowerCase())
-        );
+        
+        // Determine if city type is Kota or Kabupaten
+        const isKota = cityName.toUpperCase().includes('KOTA');
+        const isKabupaten = cityName.toUpperCase().includes('KABUPATEN') || cityName.toUpperCase().includes('KAB.');
+        
+        // Clean prefix names (KOTA / KABUPATEN / KAB.) for clean substring match
+        const cleanCityName = cityName
+            .replace(/KOTA|KABUPATEN|KAB\./gi, '')
+            .trim()
+            .toLowerCase();
+
+        // Match by name AND type to prevent Kediri Kota matching Kediri Kabupaten etc.
+        let matchedCity = cities.find(c => {
+            const roCityName = c.city_name.toLowerCase();
+            const roType = c.type.toLowerCase();
+            const nameMatches = cleanCityName.includes(roCityName) || roCityName.includes(cleanCityName);
+            if (!nameMatches) return false;
+            
+            if (isKota && roType === 'kota') return true;
+            if (isKabupaten && roType === 'kabupaten') return true;
+            return false;
+        });
+
+        // Fallback to name-only match if type check did not yield result
+        if (!matchedCity) {
+            matchedCity = cities.find(c => {
+                const roCityName = c.city_name.toLowerCase();
+                return cleanCityName.includes(roCityName) || roCityName.includes(cleanCityName);
+            });
+        }
 
         if (!matchedCity) throw new Error(`Kota "${cityName}" tidak ditemukan di RajaOngkir.`);
 
@@ -115,7 +143,7 @@ const rajaOngkirService = {
         return { 
             pricing: allPricing, 
             area_id: matchedCity.city_id, 
-            resolved_area_name: matchedCity.city_name 
+            resolved_area_name: `${matchedCity.type} ${matchedCity.city_name}` 
         };
     }
 };

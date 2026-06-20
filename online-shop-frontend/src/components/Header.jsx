@@ -7,11 +7,8 @@ import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
 import { useWishlist } from "./WishlistContext";
 
-const BRAND_API_URL = `${config.API_URL}/api/brand`;
-
 const Header = ({ onCartClick, onWishlistClick }) => {
-  const [brand, setBrand] = useState({ brandName: "Online Shop", logo: "", logoWhite: "" });
-  const { currency, setCurrency, dark, setDark, language, setLanguage, t } = useCurrency();
+  const { currency, setCurrency, dark, setDark, language, setLanguage, t, brand } = useCurrency();
   const { isLoggedIn, userEmail, userRole, logout } = useAuth();
   const { cart } = useCart();
   const { wishlist } = useWishlist();
@@ -47,25 +44,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
 
-  useEffect(() => {
-    fetch(BRAND_API_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("API Error");
-        return res.json();
-      })
-      .then(data => {
-        // Ensure paths are correct
-        setBrand({
-          ...data,
-          logo: data.logo || "/uploads/logo-hitam.png",
-          logoWhite: data.logoWhite || "/uploads/logo-putih.png"
-        });
-      })
-      .catch((err) => {
-        console.error("Fetch logo failed:", err);
-        setBrand({ brandName: "DISTRAPNESS", logo: "/uploads/logo-hitam.png", logoWhite: "/uploads/logo-putih.png" });
-      });
-  }, []);
+
 
   useEffect(() => {
     if (dark) {
@@ -113,7 +92,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
               <img
                 src={logoUrl}
                 alt="Logo"
-                className="h-10 md:h-12 lg:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-110"
+                className="h-10 md:h-12 lg:h-14 w-auto object-contain transition-transform duration-500 group-hover:scale-110 dark:invert"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = "/assets/placeholder.jpg"; // Fallback if logo fails

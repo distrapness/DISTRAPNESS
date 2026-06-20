@@ -185,6 +185,20 @@ const shippingService = {
                 'Content-Type': 'application/json' 
             }
         });
+        
+        // If Biteship returns fallback price, try RajaOngkir as alternative
+        if (response.data && response.data.is_fallback) {
+          console.warn('Biteship fallback detected, attempting RajaOngkir as alternative');
+          const rajaService = require('../services/rajaOngkirService');
+          try {
+            const rajaResult = await rajaService.getRatesByQuery(query, items, origin);
+            return rajaResult;
+          } catch (rajaErr) {
+            console.error('RajaOngkir fallback also failed:', rajaErr.message);
+            // Return original fallback data
+            return response.data;
+          }
+        }
 
         return { pricing: response.data.pricing, area_id: areaId, resolved_area_name: area.name };
       } catch (error) {

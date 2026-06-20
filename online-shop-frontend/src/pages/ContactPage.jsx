@@ -3,7 +3,7 @@ import config from "../config";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 
 const ContactPage = () => {
-  const { t } = useCurrency();
+  const { t, brand } = useCurrency();
   const [status, setStatus] = useState(null); // 'success' | 'error' | null
   const [form, setForm] = useState({ nama: '', email: '', pesan: '' });
   const [loading, setLoading] = useState(false);
@@ -15,17 +15,6 @@ const ContactPage = () => {
   const validateEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
-
-  const [brand, setBrand] = useState({ brandName: "DISTRAPNESS", phone: "6285888159265" });
-  
-  React.useEffect(() => {
-    fetch(`${config.API_URL}/api/brand`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.phone) setBrand(prev => ({ ...prev, ...data }));
-      })
-      .catch(err => console.error("Error fetching contact info:", err));
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

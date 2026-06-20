@@ -1,6 +1,6 @@
 const pool = require('../db');
 
-const key = 'biteship_test.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiZGlzdHJhcG5lc3MiLCJ1c2VySWQiOiI2OWU3OWUwYTIyMTIwNWI4YjliYmUwOTkiLCJpYXQiOjE3NzY5NzY5NzZ9.FYCY7ZQkPsX1pv_FekkRd0-GlVyjP_SXinfIX9snZRM';
+const key = 'biteship_test.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiZGlzdHJhcG5lc3MiLCJ1c2VySWQiOiI2OWU3OWUwYTIyMTIwNWI4YjliYmUwOTkiLCJpYXQiOjE3ODE4NDc2OTR9.w_YCt_S5FRrvTVuxlgSDYQ74jUCfSK-RE10z5L7o0Tw';
 
 async function updateKey() {
     try {

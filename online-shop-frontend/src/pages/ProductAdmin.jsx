@@ -196,7 +196,7 @@ const ProductAdmin = () => {
           if (!blob) return reject('Gagal proses gambar');
           blob.name = file.name;
           resolve(blob);
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.80);
       };
       img.onerror = reject;
       img.src = URL.createObjectURL(file);

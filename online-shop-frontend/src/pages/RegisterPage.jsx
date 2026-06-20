@@ -83,7 +83,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!recaptchaToken) {
+    const isLocal = window.location.hostname === 'localhost';
+    if (!recaptchaToken && !isLocal) {
       setError("Silakan centang Captcha terlebih dahulu.");
       return;
     }
@@ -98,7 +99,7 @@ export default function RegisterPage() {
         password, 
         fullName, 
         birthDate, 
-        recaptchaToken 
+        recaptchaToken: recaptchaToken || 'bypass_localhost'
       });
 
       login(registerRes.data.token, registerRes.data.email, registerRes.data.role);

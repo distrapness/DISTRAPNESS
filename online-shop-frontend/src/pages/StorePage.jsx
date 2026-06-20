@@ -3,17 +3,7 @@ import { useCurrency } from "../components/CurrencyContext.jsx";
 import config from "../config";
 
 const StorePage = () => {
-  const { t } = useCurrency();
-  const [brand, setBrand] = useState({ phone: "6285888159265" });
-
-  useEffect(() => {
-    fetch(`${config.API_URL}/api/brand`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.phone) setBrand(data);
-      })
-      .catch(err => console.error("Error fetching brand contact:", err));
-  }, []);
+  const { t, brand } = useCurrency();
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col justify-start items-center px-4 pt-4 pb-12 w-full">

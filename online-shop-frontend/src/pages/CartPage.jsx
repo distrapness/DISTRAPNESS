@@ -11,6 +11,52 @@ const CartPage = () => {
     const { isLoggedIn } = useAuth();
     const { t } = useCurrency();
 
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+    const [couponCode, setCouponCode] = React.useState(localStorage.getItem('appliedCoupon') || "");
+    const [discountAmount, setDiscountAmount] = React.useState(Number(localStorage.getItem('discountAmount')) || 0);
+    const [appliedCoupon, setAppliedCoupon] = React.useState(localStorage.getItem('appliedCoupon') || null);
+    const [couponError, setCouponError] = React.useState("");
+    const [verifyingCoupon, setVerifyingCoupon] = React.useState(false);
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setVerifyingCoupon(true);
+        setCouponError("");
+        try {
+            const res = await fetch(`${config.API_URL}/api/coupons/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: couponCode, cartTotal: subtotal })
+            });
+            const data = await res.json();
+            if (res.ok && data.valid) {
+                setDiscountAmount(data.discountAmount);
+                setAppliedCoupon(data.couponCode);
+                localStorage.setItem('appliedCoupon', data.couponCode);
+                localStorage.setItem('discountAmount', String(data.discountAmount));
+            } else {
+                setDiscountAmount(0);
+                setAppliedCoupon(null);
+                localStorage.removeItem('appliedCoupon');
+                localStorage.removeItem('discountAmount');
+                setCouponError(data.error || "Kupon tidak valid");
+            }
+        } catch (e) {
+            setCouponError("Gagal memverifikasi kupon");
+        } finally {
+            setVerifyingCoupon(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setDiscountAmount(0);
+        setAppliedCoupon(null);
+        setCouponCode("");
+        localStorage.removeItem('appliedCoupon');
+        localStorage.removeItem('discountAmount');
+    };
+
     // Validation State
     const [realProducts, setRealProducts] = React.useState({});
     const [validating, setValidating] = React.useState(true);
@@ -51,9 +97,8 @@ const CartPage = () => {
     };
 
     const hasInvalidItems = cart.some(item => checkItem(item).invalid);
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const shipping = subtotal > 300000 ? 0 : 25000;
-    const total = subtotal + shipping;
+    const total = Math.max(0, subtotal - discountAmount + shipping);
 
     return (
         <div className="bg-gray-50 dark:bg-gray-900 min-h-screen pt-4 pb-32">
@@ -94,11 +139,11 @@ const CartPage = () => {
                                             </div>
                                         )}
 
-                                        <div className={`w-16 h-16 md:w-24 md:h-24 bg-gray-50 dark:bg-gray-700 flex-shrink-0 rounded-md overflow-hidden border border-gray-100 dark:border-gray-600 ${status.invalid ? 'opacity-50' : ''}`}>
+                                        <div className={`w-16 h-16 md:w-24 md:h-24 bg-gray-50 dark:bg-gray-100 flex-shrink-0 rounded-md overflow-hidden border border-gray-100 dark:border-gray-600 ${status.invalid ? 'opacity-50' : ''}`}>
                                             <img
                                                 src={getImageUrl(item.image)}
                                                 alt={item.name}
-                                                className="w-full h-full object-contain p-1"
+                                                className="w-full h-full object-contain p-1 mix-blend-multiply"
                                             />
                                         </div>
                                         <div className={`flex-1 min-w-0 ${status.invalid ? 'opacity-50' : ''}`}>
@@ -135,6 +180,53 @@ const CartPage = () => {
                         <div className="w-full lg:w-1/3 bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 h-fit sticky top-32">
                             <h2 className="text-xl font-bold uppercase tracking-widest mb-6 border-b pb-4">{t('cart.orderSummary')}</h2>
 
+                            {/* Coupon Section */}
+                            <div className="mb-6 pb-6 border-b border-gray-150 dark:border-gray-700">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                                    {t('cart.couponLabel') || 'Voucher / Promo Code'}
+                                </label>
+                                {appliedCoupon ? (
+                                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/20 border border-green-150 dark:border-green-800 p-3 rounded-xl">
+                                        <div>
+                                            <span className="text-xs font-black text-green-700 dark:text-green-400 block uppercase tracking-wide">
+                                                🎉 KUPON BERHASIL
+                                            </span>
+                                            <span className="text-[10px] font-bold text-green-600 dark:text-green-500 font-mono uppercase">
+                                                {appliedCoupon}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={handleRemoveCoupon}
+                                            className="text-xs font-bold text-red-500 hover:text-red-700 underline"
+                                        >
+                                            Hapus
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Contoh: WELCOME10"
+                                            value={couponCode}
+                                            onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                                            className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs font-mono uppercase tracking-wider dark:text-white outline-none focus:ring-1 focus:ring-black"
+                                        />
+                                        <button
+                                            onClick={handleApplyCoupon}
+                                            disabled={verifyingCoupon}
+                                            className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-widest rounded-lg hover:opacity-85 disabled:opacity-50"
+                                        >
+                                            {verifyingCoupon ? '...' : 'Gunakan'}
+                                        </button>
+                                    </div>
+                                )}
+                                {couponError && (
+                                    <p className="text-[10px] text-red-500 font-bold mt-2">
+                                        ⚠️ {couponError}
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="space-y-4 mb-6">
                                 <div className="flex justify-between text-gray-600">
                                     <span>{t('cart.subtotal')} ({cart.reduce((a, c) => a + c.qty, 0)} {t('cart.items')})</span>
@@ -149,8 +241,8 @@ const CartPage = () => {
                                     <span>Rp{Number(subtotal * 0.11).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
                                 </div>
                                 <div className="flex justify-between text-red-500 font-bold">
-                                    <span>{t('cart.savings')}</span>
-                                    <span>-Rp0</span>
+                                    <span>{t('cart.savings') || 'Hemat'}</span>
+                                    <span>-Rp{Number(discountAmount).toLocaleString('id-ID')}</span>
                                 </div>
                             </div>
 
@@ -184,11 +276,11 @@ const CartPage = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                         {Object.values(realProducts).slice(0, 4).map(p => (
                             <Link key={p.id} to={`/shop/${p.id}`} className="group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-700">
-                                <div className="aspect-[3/4] bg-gray-50 dark:bg-gray-700 mb-4 overflow-hidden rounded-lg">
+                                <div className="aspect-[3/4] bg-gray-50 dark:bg-gray-100 mb-4 overflow-hidden rounded-lg">
                                     <img 
                                         src={getImageUrl(p.images?.[0] || p.image)} 
                                         alt={p.name} 
-                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
                                     />
                                 </div>
                                 <div className="font-bold text-sm uppercase tracking-tight truncate dark:text-white">{p.name}</div>

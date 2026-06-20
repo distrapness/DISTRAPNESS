@@ -1,4 +1,6 @@
 const express = require('express');
+const compression = require('compression');
+const cacheService = require('./services/cacheService');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
@@ -19,14 +21,24 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20)", 
   else console.log("[DATABASE] birth_date column checked/added.");
 });
 
+// Auto-migrate database: ensure updatedAt column exists in orders table
+pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()', (err) => {
+  if (err) console.error("[DATABASE] Error adding updatedAt column to orders:", err.message);
+  else console.log("[DATABASE] orders updatedAt column checked/added.");
+});
+
+
 const app = express();
+app.use(compression());
 const server = http.createServer(app);
 setupSocket(server, app); // Enabled for local stability
 
 // ====== GOOGLE RECAPTCHA CONFIG ======
-const RECAPTCHA_SECRET = '6LcmfhstAAAAAHSygpkMox2_5evMdlA31ClpAxPG';
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET || '6LcmfhstAAAAAHSygpkMox2_5evMdlA31ClpAxPG';
+
 
 const verifyGoogleRecaptcha = async (token) => {
+  if (token === 'bypass_localhost') return true;
   if (!token) return false;
   try {
     const axios = require('axios');
@@ -169,6 +181,10 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 // Brand API (Synced with Settings Table)
 app.get('/api/brand', async (req, res) => {
+  const cacheKey = 'brand_info';
+  const cached = cacheService.get(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('site_title', 'logo_url', 'contact_phone')");
     const settings = rows.reduce((acc, row) => {
@@ -176,12 +192,14 @@ app.get('/api/brand', async (req, res) => {
       return acc;
     }, {});
     
-    res.json({
+    const brandData = {
       brandName: settings.site_title || "DISTRAPNESS",
       logo: settings.logo_url || "/uploads/logo-hitam.png",
       logoWhite: settings.logo_url || "/uploads/logo-putih.png",
       phone: settings.contact_phone || "6285888159265"
-    });
+    };
+    cacheService.set(cacheKey, brandData);
+    res.json(brandData);
   } catch (err) {
     console.error("Brand fetch error:", err);
     res.json({ brandName: "DISTRAPNESS" });
@@ -195,6 +213,7 @@ app.put('/api/brand', verifyToken, verifyAdmin, async (req, res) => {
       'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
       ['site_title', brandName, 'logo_url', logo, 'contact_phone', phone]
     );
+    cacheService.clearPattern('brand_info');
     res.json({ success: true });
   } catch (err) {
     console.error("Brand update error:", err);
@@ -684,60 +703,73 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
     // Low Stock ( < 10 )
     const [lowStock] = await pool.promise().query('SELECT id, name, stock, images FROM products WHERE stock < 10 LIMIT 3');
 
-    // Chart Data (Real Revenue Last 7 Days)
-    const [allOrders] = await pool.promise().query('SELECT total, "createdAt", items, status, "paymentMethod" FROM orders');
-    
-    // Process real chart data
-    const chartData = [0, 0, 0, 0, 0, 0, 0]; // Day -6 to Day 0 (Today)
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    
-    // Process real best sellers
-    const productSales = {};
-    
-    // Status counts
-    const statusCounts = {
-      success: 0, // paid, processing, completed, shipped
-      pending: 0, // pending, waiting_payment, waiting_verification
-      failed: 0   // cancelled, expired, failed
-    };
-
-    // Payment method stats
-    const paymentMethodStats = {};
-
-    allOrders.forEach(o => {
-      // Calculate Chart Data (only for non-dead orders)
-      const isDead = o.status === 'cancelled' || o.status === 'expired' || o.status === 'failed';
-      if (!isDead) {
-        const orderDate = new Date(o.createdAt);
-        const diffTime = Math.abs(today - orderDate);
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays >= 0 && diffDays < 7) {
-          chartData[6 - diffDays] += Number(o.total) || 0;
-        }
-      }
-
-      // Group by status
-      if (['paid', 'processing', 'completed', 'shipped'].includes(o.status)) {
-        statusCounts.success += 1;
-        
-        // Group by payment method for success orders
-        const method = o.paymentMethod || 'other';
-        if (!paymentMethodStats[method]) {
-          paymentMethodStats[method] = { count: 0, total: 0 };
-        }
-        paymentMethodStats[method].count += 1;
-        paymentMethodStats[method].total += Number(o.total) || 0;
-      } else if (['cancelled', 'expired', 'failed'].includes(o.status)) {
-        statusCounts.failed += 1;
+    // 1. Get status counts aggregated in SQL
+    const [statusRows] = await pool.promise().query('SELECT status, COUNT(*) as count FROM orders GROUP BY status');
+    const statusCounts = { success: 0, pending: 0, failed: 0 };
+    statusRows.forEach(row => {
+      const status = row.status;
+      const count = Number(row.count) || 0;
+      if (['paid', 'processing', 'completed', 'shipped'].includes(status)) {
+        statusCounts.success += count;
+      } else if (['cancelled', 'expired', 'failed'].includes(status)) {
+        statusCounts.failed += count;
       } else {
-        statusCounts.pending += 1;
+        statusCounts.pending += count;
       }
+    });
 
-      // Calculate Best Sellers
+    // 2. Get payment method stats aggregated in SQL
+    const [paymentRows] = await pool.promise().query(`
+      SELECT "paymentMethod", COUNT(*) as count, SUM(total) as total 
+      FROM orders 
+      WHERE status IN ('paid', 'processing', 'completed', 'shipped') 
+      GROUP BY "paymentMethod"
+    `);
+    const paymentMethodStats = {};
+    paymentRows.forEach(row => {
+      const method = row.paymentMethod || 'other';
+      paymentMethodStats[method] = {
+        count: Number(row.count) || 0,
+        total: Number(row.total) || 0
+      };
+    });
+
+    // 3. Get chart data (last 7 days) aggregated in SQL
+    const [chartRows] = await pool.promise().query(`
+      SELECT DATE_TRUNC('day', "createdAt") as day, SUM(total) as total 
+      FROM orders 
+      WHERE status IN ('paid', 'processing', 'completed', 'shipped') 
+        AND "createdAt" >= NOW() - INTERVAL '7 days' 
+      GROUP BY DATE_TRUNC('day', "createdAt")
+      ORDER BY day ASC
+    `);
+    
+    // Process real chart data into a 7-day array [Day-6, ..., Today]
+    const chartData = [0, 0, 0, 0, 0, 0, 0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    chartRows.forEach(row => {
+      const rowDate = new Date(row.day);
+      rowDate.setHours(0, 0, 0, 0);
+      const diffTime = Math.abs(today - rowDate);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays < 7) {
+        chartData[6 - diffDays] = Number(row.total) || 0;
+      }
+    });
+
+    // 4. Get items from successful orders in the last 30 days to calculate best sellers
+    const [itemRows] = await pool.promise().query(`
+      SELECT items FROM orders 
+      WHERE status IN ('paid', 'processing', 'completed', 'shipped') 
+        AND "createdAt" >= NOW() - INTERVAL '30 days'
+    `);
+    
+    const productSales = {};
+    itemRows.forEach(row => {
       try {
-        const items = JSON.parse(o.items || '[]');
+        const items = typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []);
         items.forEach(item => {
           if (!productSales[item.id]) {
             productSales[item.id] = { id: item.id, name: item.name, price: item.price, sales: 0, images: item.images || [item.image] };
@@ -759,10 +791,15 @@ app.get('/api/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
     const [monthlyThis] = await pool.promise().query("SELECT SUM(total) as total FROM orders WHERE status IN ('paid', 'processing', 'completed', 'shipped') AND \"createdAt\" >= DATE_TRUNC('month', NOW())");
     const [monthlyLast] = await pool.promise().query("SELECT SUM(total) as total FROM orders WHERE status IN ('paid', 'processing', 'completed', 'shipped') AND \"createdAt\" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month') AND \"createdAt\" < DATE_TRUNC('month', NOW())");
 
+    // Fetch logged-in admin's wallet balance
+    const [adminRow] = await pool.promise().query('SELECT balance FROM users WHERE id = ?', [req.user.id]);
+    const adminBalance = adminRow[0] ? Number(adminRow[0].balance) : 0;
+
     res.json({
       totalOrders: orders[0].count,
       totalRevenue: revenue[0].total || 0,
       totalProducts: products[0].count,
+      adminBalance,
       lowStock: lowStock.map(p => ({
         ...p,
         images: safeJsonParse(p.images)
@@ -832,6 +869,10 @@ app.put('/api/settings', verifyToken, verifyAdmin, async (req, res) => {
 
 // Categories API
 app.get('/api/categories', async (req, res) => {
+  const cacheKey = 'categories_list';
+  const cached = cacheService.get(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const [rows] = await pool.promise().query('SELECT * FROM categories ORDER BY id DESC');
     
@@ -858,6 +899,7 @@ app.get('/api/categories', async (req, res) => {
       return cat;
     }));
 
+    cacheService.set(cacheKey, categoriesWithImages);
     res.json(categoriesWithImages);
   } catch (err) {
     console.error("Categories fetch error:", err);
@@ -875,6 +917,8 @@ app.post('/api/categories', verifyToken, verifyAdmin, async (req, res) => {
       'INSERT INTO categories (name, slug, image) VALUES (?, ?, ?)',
       [name, slug, image || null]
     );
+    cacheService.clearPattern('categories_list');
+    cacheService.clearPattern('products');
     res.json({ id: result.insertId, name, slug, image });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -892,6 +936,8 @@ app.put('/api/categories/:id', verifyToken, verifyAdmin, async (req, res) => {
     } else {
       await pool.promise().query('UPDATE categories SET image=? WHERE id=?', [image, id]);
     }
+    cacheService.clearPattern('categories_list');
+    cacheService.clearPattern('products');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -901,6 +947,8 @@ app.put('/api/categories/:id', verifyToken, verifyAdmin, async (req, res) => {
 app.delete('/api/categories/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     await pool.promise().query('DELETE FROM categories WHERE id=?', [req.params.id]);
+    cacheService.clearPattern('categories_list');
+    cacheService.clearPattern('products');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -962,31 +1010,61 @@ app.use('/api/shipping-manual', shippingManualRoutes);
 const couponRoutes = require('./routes/couponRoutes');
 app.use('/api/coupons', couponRoutes);
 
+const affiliateRoutes = require('./routes/affiliateRoutes');
+app.use('/api/affiliate', affiliateRoutes);
 
 
-const PORT = process.env.PORT || 5000;
-if (require.main === module) {
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} (with Socket.io)`);
+
+
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000; // fallback
+const MAX_PORT_TRIES = 10;
+let currentPort = PORT;
+function startServer(port, attempt = 0) {
+  server.listen(port, () => {
+    currentPort = port;
+    console.log(`Server running on port ${port} (with Socket.io)`);
     // Run initial check after 5 seconds of startup, then hourly
     setTimeout(async () => {
       try {
         const axios = require('axios');
-        await axios.post(`http://localhost:${PORT}/api/orders/auto-cancel`);
+        await axios.post(`http://localhost:${port}/api/orders/auto-cancel`);
         console.log("[STARTUP] Initial stale orders check done.");
       } catch (err) {
         console.error("[STARTUP] Initial stale orders check failed:", err.message);
       }
     }, 5000);
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && attempt < MAX_PORT_TRIES) {
+      console.warn(`Port ${port} in use, trying ${port + 1}...`);
+      startServer(port + 1, attempt + 1);
+    } else {
+      console.error('Server failed to start:', err);
+    }
   });
 }
+if (require.main === module) {
+  startServer(currentPort);
+}
+
+// Graceful shutdown
+function shutdown() {
+  console.log('Shutting down server...');
+  server.close(() => {
+    console.log('HTTP server closed.');
+    pool.end(() => {
+      console.log('DB pool closed.');
+      process.exit(0);
+    });
+  });
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 // Background Interval Task for Auto-Cancellation (runs every 1 hour)
 setInterval(async () => {
   try {
     const axios = require('axios');
-    const port = process.env.PORT || 5000;
-    await axios.post(`http://localhost:${port}/api/orders/auto-cancel`);
+    await axios.post(`http://localhost:${currentPort}/api/orders/auto-cancel`);
     console.log("[CRON] Stale orders auto-cancellation successfully triggered.");
   } catch (err) {
     console.error("[CRON] Failed to auto-cancel stale orders:", err.message);

@@ -4,15 +4,18 @@ import { FaPaperPlane, FaUserCircle } from 'react-icons/fa';
 import config from '../config.js';
 import { useCurrency } from '../components/CurrencyContext.jsx';
 
-const socket = io(config.API_URL);
-
 const AdminChat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
   const { t } = useCurrency();
+  const socketRef = useRef(null);
 
   useEffect(() => {
+    // Initialize socket connection on mount
+    const socket = io(config.API_URL);
+    socketRef.current = socket;
+
     fetch(`${config.API_URL}/chats`, {
       headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
     })
@@ -26,6 +29,7 @@ const AdminChat = () => {
     socket.emit('join', t('chat.adminName'));
     return () => {
       socket.off('chat_message');
+      socket.disconnect();
     };
   }, [t]);
 
@@ -36,7 +40,7 @@ const AdminChat = () => {
   const sendMessage = (e) => {
     e.preventDefault();
     if (input.trim() !== '') {
-      socket.emit('admin_message', { message: input });
+      socketRef.current?.emit('admin_message', { message: input });
       setInput('');
     }
   };

@@ -9,8 +9,17 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
     image.src = imageSrc;
     image.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = croppedAreaPixels.width;
-      canvas.height = croppedAreaPixels.height;
+      
+      let targetWidth = croppedAreaPixels.width;
+      let targetHeight = croppedAreaPixels.height;
+      const maxBannerWidth = 1200;
+      if (targetWidth > maxBannerWidth) {
+        targetHeight = Math.round((targetHeight * maxBannerWidth) / targetWidth);
+        targetWidth = maxBannerWidth;
+      }
+      
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(
         image,
@@ -20,12 +29,12 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
         croppedAreaPixels.height,
         0,
         0,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height
+        targetWidth,
+        targetHeight
       );
       canvas.toBlob((blob) => {
         resolve(blob);
-      }, 'image/jpeg');
+      }, 'image/jpeg', 0.80);
     };
     image.onerror = reject;
   });

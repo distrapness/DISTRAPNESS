@@ -12,6 +12,23 @@ router.get('/', verifyToken, verifyAdmin, (req, res) => {
     });
 });
 
+// GET all active coupons (Public)
+router.get('/active', (req, res) => {
+    const query = `
+        SELECT code, type, value, min_purchase, start_date, expiry_date, usage_limit, usage_count 
+        FROM coupons 
+        WHERE is_active = TRUE 
+          AND (start_date IS NULL OR start_date <= NOW())
+          AND (expiry_date IS NULL OR expiry_date >= NOW())
+          AND (usage_limit = 0 OR usage_count < usage_limit)
+        ORDER BY created_at DESC
+    `;
+    pool.query(query, (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(results);
+    });
+});
+
 // CREATE coupon (Admin)
 router.post('/', verifyToken, verifyAdmin, (req, res) => {
     const { code, type, value, min_purchase, start_date, expiry_date, usage_limit, is_active } = req.body;

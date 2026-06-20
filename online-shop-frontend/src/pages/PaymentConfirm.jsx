@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import config from '../config.js';
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
@@ -8,7 +8,9 @@ import { useCart } from "../components/CartContext.jsx";
 const PaymentConfirm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isTemp = searchParams.get("temp") === "true";
+  const location = useLocation();
+  const orderIdParam = searchParams.get("orderId");
+  const isTemp = searchParams.get("temp") === "true" || (orderIdParam && orderIdParam.startsWith('temp-'));
   const { clearCart } = useCart();
   const [paymentData, setPaymentData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +24,142 @@ const PaymentConfirm = () => {
   const [tempOrderId, setTempOrderId] = useState("");
   const [timeLeft, setTimeLeft] = useState("");
   const [isExpired, setIsExpired] = useState(false);
+
+  // Guard: prevent duplicate pending-order creation across onClose/onError/handleGoBack/unmount
+  const pendingCreatedRef = useRef(false);
+  const paymentDataRef = useRef(null);
+  const tempOrderIdRef = useRef("");
+  const paymentAttemptedRef = useRef(false);
+  const isNavigatingBackRef = useRef(false);
+
+  useEffect(() => {
+    paymentDataRef.current = paymentData;
+  }, [paymentData]);
+
+  useEffect(() => {
+    tempOrderIdRef.current = tempOrderId;
+  }, [tempOrderId]);
+
+  const onUnmountRef = useRef(null);
+
+  useEffect(() => {
+    onUnmountRef.current = createAndSavePendingOrderRef;
+  });
+
+  const logDebug = (msg) => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('debug_autosave_logs') || '[]');
+      logs.push(`${new Date().toLocaleTimeString()}: ${msg}`);
+      localStorage.setItem('debug_autosave_logs', JSON.stringify(logs.slice(-50)));
+    } catch(e){}
+  };
+
+  const createAndSavePendingOrderRef = (isUnload = false) => {
+    logDebug(`createAndSavePendingOrderRef: triggered (isUnload=${isUnload})`);
+    if (pendingCreatedRef.current) {
+      logDebug("createAndSavePendingOrderRef: Abort (already saved)");
+      return;
+    }
+    // Prevent auto-save if they are just navigating back to payment edit
+    if (isNavigatingBackRef.current) {
+      logDebug("createAndSavePendingOrderRef: Abort (navigating back to payment edit)");
+      return;
+    }
+    // Prevent auto-save if they are navigating back to payment or cart page (e.g. browser back button)
+    const destPath = window.location.pathname;
+    if (destPath === '/payment' || destPath === '/cart') {
+      logDebug(`createAndSavePendingOrderRef: Abort (navigating back to ${destPath})`);
+      return;
+    }
+    let currentPaymentData = paymentDataRef.current;
+    if (!currentPaymentData) {
+      logDebug("createAndSavePendingOrderRef: paymentData state is null, falling back to localStorage tempCheckoutOrder");
+      const tempStr = localStorage.getItem('tempCheckoutOrder') || localStorage.getItem('tempCodOrder') || localStorage.getItem('tempMidtransOrder');
+      if (tempStr) {
+        try {
+          currentPaymentData = JSON.parse(tempStr);
+        } catch (e) {
+          logDebug("createAndSavePendingOrderRef: failed to parse tempCheckoutOrder from localStorage");
+        }
+      }
+    }
+    if (!currentPaymentData) {
+      logDebug("createAndSavePendingOrderRef: Abort (paymentData is null)");
+      return;
+    }
+    if (currentPaymentData.id !== 'temp') {
+      logDebug(`createAndSavePendingOrderRef: Abort (id is not temp: ${currentPaymentData.id})`);
+      return;
+    }
+    pendingCreatedRef.current = true;
+
+    let savedService = null;
+    try {
+      const savedServiceStr = localStorage.getItem('selectedService');
+      if (savedServiceStr) savedService = JSON.parse(savedServiceStr);
+    } catch(e){}
+
+    const email = (currentPaymentData.shippingAddress && currentPaymentData.shippingAddress.email) || currentPaymentData.email || "customer@mail.com";
+    const uniqueTempId = tempOrderIdRef.current || `midtrans-${Date.now()}`;
+    const payload = {
+      id: `temp-${uniqueTempId}`,
+      userId: currentPaymentData.userId || "guest",
+      email: email,
+      items: currentPaymentData.items,
+      total: currentPaymentData.total,
+      paymentMethod: currentPaymentData.paymentMethod || "midtrans",
+      status: 'pending',
+      shippingAddress: {
+        ...(currentPaymentData.shippingAddress || {}),
+        tempId: uniqueTempId
+      },
+      couponCode: currentPaymentData.couponCode,
+      discountAmount: currentPaymentData.discountAmount,
+      referralCode: currentPaymentData.referralCode,
+      selectedCourier: localStorage.getItem('selectedCourier') || 'jne',
+      selectedService: savedService,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      localStorage.setItem('tempPendingOrder', JSON.stringify(payload));
+      logDebug("createAndSavePendingOrderRef: Saved tempPendingOrder to localStorage.");
+    } catch (err) {
+      logDebug(`createAndSavePendingOrderRef: localStorage error: ${err.message}`);
+    }
+
+    // Clear cart & temp data
+    clearCart();
+    localStorage.removeItem('cart');
+    localStorage.removeItem('tempCodOrder');
+    localStorage.removeItem('tempCheckoutOrder');
+    logDebug("createAndSavePendingOrderRef: Cart and temp checkout cleared.");
+  };
+
+  useEffect(() => {
+    // Clear paymentAttempted on new mount to ensure fresh status
+    localStorage.removeItem('paymentAttempted');
+    paymentAttemptedRef.current = false;
+    
+    logDebug("PaymentConfirm: mounted");
+    return () => {
+      logDebug("PaymentConfirm: unmounting cleanup running via onUnmountRef");
+      if (onUnmountRef.current) {
+        onUnmountRef.current();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      logDebug("beforeunload: triggered");
+      createAndSavePendingOrderRef(true);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // Review states
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -185,8 +323,8 @@ const PaymentConfirm = () => {
   };
 
   useEffect(() => {
-    const isTemp = searchParams.get("temp") === "true";
-    if (isTemp) {
+    const isTempParam = searchParams.get("temp") === "true";
+    if (isTempParam) {
       const tempStr = localStorage.getItem('tempCheckoutOrder') || localStorage.getItem('tempCodOrder') || localStorage.getItem('tempMidtransOrder');
       if (tempStr) {
         try {
@@ -207,6 +345,35 @@ const PaymentConfirm = () => {
     }
 
     const orderId = searchParams.get("orderId") || localStorage.getItem("lastOrderId");
+
+    if (orderId && orderId.startsWith('temp-')) {
+      const tempPendingStr = localStorage.getItem('tempPendingOrder');
+      if (tempPendingStr) {
+        try {
+          const tempData = JSON.parse(tempPendingStr);
+          // Normalize address field
+          tempData.shippingAddress = tempData.shippingAddress || tempData.shipping_address;
+          tempData.shipping_address = tempData.shippingAddress;
+          const parsedOrder = {
+            ...tempData,
+            id: 'temp',
+          };
+          setPaymentData(parsedOrder);
+          setError("");
+          setLoading(false);
+          
+          if (parsedOrder.paymentMethod && parsedOrder.paymentMethod !== "cod" && parsedOrder.paymentMethod !== "mandiri_tf") {
+            fetchSnapToken(parsedOrder);
+          }
+          return;
+        } catch (e) {
+          console.error("Error parsing tempPendingOrder:", e);
+        }
+      }
+      setError("Data pesanan tidak ditemukan");
+      setLoading(false);
+      return;
+    }
 
     if (!orderId) {
       setError("Data pesanan tidak ditemukan");
@@ -585,6 +752,33 @@ const PaymentConfirm = () => {
     return createData.orderId;
   };
 
+  /**
+   * Saves a temp Midtrans order as "pending" in the DB (once only).
+   * Returns the newly created orderId, or null if already created.
+   */
+  const createAndSavePendingOrder = async () => {
+    if (pendingCreatedRef.current) return null;   // already saved
+    if (!paymentData || paymentData.id !== 'temp') return null; // not a temp order
+    // Check if payment was attempted (clicked Pay Now)
+    if (!paymentAttemptedRef.current && localStorage.getItem('paymentAttempted') !== 'true') {
+      return null;
+    }
+    pendingCreatedRef.current = true;
+    try {
+      const newOrderId = await handleCreateDatabaseOrder('pending');
+      // Clear cart & temp data
+      clearCart();
+      localStorage.removeItem('cart');
+      localStorage.removeItem('tempCodOrder');
+      localStorage.removeItem('tempCheckoutOrder');
+      return newOrderId;
+    } catch (err) {
+      console.error("Failed to save pending order:", err);
+      pendingCreatedRef.current = false; // allow retry on error
+      return null;
+    }
+  };
+
   const [processing, setProcessing] = useState(false);
   const method = paymentData?.paymentMethod;
 
@@ -593,11 +787,11 @@ const PaymentConfirm = () => {
 
     try {
       setProcessing(true);
-      const isTemp = searchParams.get("temp") === "true";
 
       // ─── COD FLOW ───────────────────────────────────────────────────
       if (method === "cod") {
         if (isTemp) {
+          pendingCreatedRef.current = true; // Set guard immediately
           // 1. Create order in database first
           const createRes = await fetch(`${config.API_URL}/api/orders`, {
             method: "POST",
@@ -638,6 +832,7 @@ const PaymentConfirm = () => {
           localStorage.removeItem('cart');
           localStorage.removeItem('tempCodOrder');
           localStorage.removeItem('tempCheckoutOrder');
+          localStorage.removeItem('tempPendingOrder');
           localStorage.removeItem('referral_code');
           localStorage.removeItem('appliedCoupon');
           localStorage.removeItem('discountAmount');
@@ -652,6 +847,13 @@ const PaymentConfirm = () => {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Gagal mengonfirmasi pesanan COD");
+
+          // Save success metadata for Success page (same as temp flow)
+          localStorage.setItem('lastOrderId', paymentData.id);
+          localStorage.setItem('cartTotal', paymentData.total);
+          localStorage.setItem('lastOrderItems', JSON.stringify(paymentData.items));
+          localStorage.setItem('lastOrderEmail', paymentData.shippingAddress?.email || paymentData.email || "");
+
           navigate("/payment-success");
           return;
         }
@@ -670,11 +872,17 @@ const PaymentConfirm = () => {
         throw new Error(language === 'EN' ? "Payment token is not ready. Please try again." : "Token pembayaran belum siap. Silakan coba kembali.");
       }
 
+      // Mark payment as attempted
+      paymentAttemptedRef.current = true;
+      localStorage.setItem('paymentAttempted', 'true');
+      logDebug("handlePayment: paymentAttempted flags set to true");
+
       window.snap.pay(activeSnapToken, {
         onSuccess: async () => {
           let finalOrderId = activeOrderId;
           if (isTemp) {
             try {
+              pendingCreatedRef.current = true; // Set guard immediately
               finalOrderId = await handleCreateDatabaseOrder('paid');
             } catch (err) {
               alert(err.message || "Gagal menyimpan data pesanan Anda.");
@@ -693,6 +901,7 @@ const PaymentConfirm = () => {
           // Clear remaining temp files
           localStorage.removeItem('tempCodOrder');
           localStorage.removeItem('tempCheckoutOrder');
+          localStorage.removeItem('tempPendingOrder');
           localStorage.removeItem('referral_code');
           localStorage.removeItem('appliedCoupon');
           localStorage.removeItem('discountAmount');
@@ -703,10 +912,20 @@ const PaymentConfirm = () => {
 
           navigate("/payment-success");
         },
-        onPending: async () => {
+        onPending: async (result) => {
+          console.log("Midtrans pending result:", result);
+          const payType = (result?.payment_type || '').toLowerCase();
+          const isPayLater = ['bank_transfer', 'echannel', 'cstore'].includes(payType) || payType.includes('va') || payType.includes('transfer') || payType.includes('bill');
+
+          if (!isPayLater) {
+            console.log("Immediate payment pending, waiting for success or close/error.");
+            return;
+          }
+
           let finalOrderId = activeOrderId;
           if (isTemp) {
             try {
+              pendingCreatedRef.current = true; // Set guard immediately
               finalOrderId = await handleCreateDatabaseOrder('waiting_payment');
             } catch (err) {
               alert(err.message || "Gagal menyimpan data pesanan Anda.");
@@ -718,6 +937,7 @@ const PaymentConfirm = () => {
 
           localStorage.removeItem('tempCodOrder');
           localStorage.removeItem('tempCheckoutOrder');
+          localStorage.removeItem('tempPendingOrder');
 
           // Clear cart
           clearCart();
@@ -728,13 +948,11 @@ const PaymentConfirm = () => {
         },
         onError: async () => {
           if (isTemp) {
-            // Do NOT create order in database, stay on the page
             alert(language === 'EN' ? "Payment failed. Please try again." : "Pembayaran gagal. Silakan coba kembali.");
           } else {
             await updateCustomerStatus(activeOrderId, 'pending');
             localStorage.removeItem('tempCodOrder');
             localStorage.removeItem('tempCheckoutOrder');
-            // Clear cart
             clearCart();
             localStorage.removeItem('cart');
             alert(language === 'EN' ? "Payment failed or pending. You can pay later from your profile menu." : "Pembayaran gagal atau ditunda. Anda dapat membayarnya nanti dari menu profil.");
@@ -743,13 +961,13 @@ const PaymentConfirm = () => {
         },
         onClose: async () => {
           if (isTemp) {
-            // Do NOT create order in database, stay on the page
-            alert(language === 'EN' ? "Payment window closed. You can try paying again by clicking Pay Now." : "Jendela pembayaran ditutup. Anda dapat mencoba membayar kembali dengan mengklik Bayar Sekarang.");
+            alert(language === 'EN'
+              ? "Payment window closed. You can try paying again by clicking Pay Now."
+              : "Jendela pembayaran ditutup. Anda dapat mencoba membayar kembali dengan mengklik Bayar Sekarang.");
           } else {
             await updateCustomerStatus(activeOrderId, 'pending');
             localStorage.removeItem('tempCodOrder');
             localStorage.removeItem('tempCheckoutOrder');
-            // Clear cart
             clearCart();
             localStorage.removeItem('cart');
             alert(language === 'EN' ? "Payment pending or closed. You can pay later from your profile menu." : "Pembayaran ditunda atau ditutup. Anda dapat membayarnya nanti dari menu profil.");
@@ -766,23 +984,21 @@ const PaymentConfirm = () => {
   };
 
   const handleGoBack = async () => {
-    const isTemp = searchParams.get("temp") === "true";
     if (isTemp) {
-      navigate('/payment');
+      isNavigatingBackRef.current = true;
+      if (orderIdParam && orderIdParam.startsWith('temp-')) {
+        navigate(`/payment?orderId=${orderIdParam}`);
+      } else {
+        navigate('/payment');
+      }
       return;
     }
 
-    try {
-      if (paymentData && paymentData.id) {
-        await updateCustomerStatus(paymentData.id, 'cancelled');
-      }
-    } catch (err) {
-      console.error("Error cancelling order on back:", err);
+    if (paymentData && paymentData.id && paymentData.id !== 'temp') {
+      navigate(`/payment?orderId=${paymentData.id}`);
+      return;
     }
 
-    if (paymentData && paymentData.items) {
-      localStorage.setItem('cart', JSON.stringify(paymentData.items));
-    }
     navigate('/payment');
   };
 
@@ -899,13 +1115,19 @@ const PaymentConfirm = () => {
                       paymentData.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
                       paymentData.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                       paymentData.status === 'processing' ? 'bg-teal-100 text-teal-700' :
+                      paymentData.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                      paymentData.status === 'waiting_verification' ? 'bg-amber-100 text-amber-700 animate-pulse' :
+                      paymentData.status === 'failed' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700 animate-pulse'
                     }`}>
-                      {paymentData.status === 'paid' ? '✔ Paid' : 
-                       paymentData.status === 'shipped' ? '🚚 Shipped' :
-                       paymentData.status === 'cancelled' ? '✘ Cancelled' :
-                       paymentData.status === 'processing' ? '⚙ Processing' :
-                       '⌛ Waiting for Payment'}
+                      {paymentData.status === 'paid' ? (language === 'EN' ? '✔ Paid' : '✔ Lunas') : 
+                       paymentData.status === 'shipped' ? (language === 'EN' ? '🚚 Shipped' : '🚚 Dikirim') :
+                       paymentData.status === 'cancelled' ? (language === 'EN' ? '✘ Cancelled' : '✘ Dibatalkan') :
+                       paymentData.status === 'processing' ? (language === 'EN' ? '⚙ Processing' : '⚙ Diproses') :
+                       paymentData.status === 'completed' ? (language === 'EN' ? '✔ Completed' : '✔ Selesai') :
+                       paymentData.status === 'waiting_verification' ? (language === 'EN' ? '⌛ Waiting Verification' : '⌛ Menunggu Verifikasi') :
+                       paymentData.status === 'failed' ? (language === 'EN' ? '✘ Failed' : '✘ Gagal') :
+                       (language === 'EN' ? '⌛ Waiting for Payment' : '⌛ Menunggu Pembayaran')}
                    </div>
                 </div>
 

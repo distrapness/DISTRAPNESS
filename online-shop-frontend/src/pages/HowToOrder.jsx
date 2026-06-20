@@ -3,9 +3,31 @@ import { useCurrency } from "../components/CurrencyContext.jsx";
 import Footer from "../components/Footer.jsx";
 
 const HowToOrder = () => {
-    const { t } = useCurrency();
+    const { t, language } = useCurrency();
+    const isId = language !== 'EN';
 
-    const steps = [
+    const steps = isId ? [
+        {
+            num: "01",
+            title: "Pilih Produk",
+            desc: "Jelajahi koleksi premium kami dan pilih produk yang sesuai dengan gaya Anda. Pilih ukuran dan jumlah."
+        },
+        {
+            num: "02",
+            title: "Tambah ke Keranjang",
+            desc: "Masukkan pilihan Anda ke keranjang belanja. Anda dapat meninjau kembali dan menyesuaikan pilihan Anda di laci keranjang belanja."
+        },
+        {
+            num: "03",
+            title: "Checkout Aman",
+            desc: "Lengkapi detail pengiriman Anda dan pilih metode pembayaran yang Anda inginkan (Transfer Bank, QRIS, atau COD)."
+        },
+        {
+            num: "04",
+            title: "Pengiriman Premium",
+            desc: "Setelah pembayaran diverifikasi, kami akan memproses pesanan Anda dengan hati-hati. Lacak pengiriman Anda langsung dari halaman profil."
+        }
+    ] : [
         {
             num: "01",
             title: "Select Products",
@@ -32,8 +54,8 @@ const HowToOrder = () => {
         <div className="min-h-screen bg-gray-50 dark:bg-gray-955 pt-4 md:pt-6 transition-colors duration-500">
             <div className="max-w-5xl mx-auto px-6 pb-24">
                 <header className="text-center mb-20">
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Guide</span>
-                    <h1 className="text-4xl md:text-6xl font-[900] text-black dark:text-white uppercase tracking-tighter italic mb-6">How to Order</h1>
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">{isId ? "Panduan" : "Guide"}</span>
+                    <h1 className="text-4xl md:text-6xl font-[900] text-black dark:text-white uppercase tracking-tighter italic mb-6">{isId ? "Cara Pemesanan" : "How to Order"}</h1>
                     <div className="w-20 h-1 bg-black dark:bg-white mx-auto"></div>
                 </header>
 
@@ -55,10 +77,10 @@ const HowToOrder = () => {
 
                 <div className="mt-20 text-center bg-black dark:bg-white text-white dark:text-black p-16 rounded-[40px] shadow-2xl relative overflow-hidden">
                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 dark:bg-black/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                   <h2 className="text-3xl font-black uppercase tracking-tighter italic mb-4 relative z-10">Ready to start shopping?</h2>
-                   <p className="text-sm opacity-60 mb-10 max-w-sm mx-auto relative z-10">Discover our latest collection and elevate your daily lifestyle with Distrapness.</p>
+                   <h2 className="text-3xl font-black uppercase tracking-tighter italic mb-4 relative z-10">{isId ? "Siap untuk mulai berbelanja?" : "Ready to start shopping?"}</h2>
+                   <p className="text-sm opacity-60 mb-10 max-w-sm mx-auto relative z-10">{isId ? "Temukan koleksi terbaru kami dan tingkatkan gaya hidup harian Anda dengan Distrapness." : "Discover our latest collection and elevate your daily lifestyle with Distrapness."}</p>
                    <a href="/shop" className="inline-block bg-white dark:bg-black text-black dark:text-white px-12 py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl hover:scale-110 active:scale-95 transition-all relative z-10">
-                       Browse Collection →
+                       {isId ? "Jelajahi Koleksi →" : "Browse Collection →"}
                    </a>
                 </div>
             </div>

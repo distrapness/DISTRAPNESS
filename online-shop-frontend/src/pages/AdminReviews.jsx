@@ -7,6 +7,8 @@ import { FaTrash, FaStar, FaUser, FaBox } from 'react-icons/fa';
 const AdminReviews = () => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState('');
   const { t } = useCurrency();
 
   useEffect(() => {
@@ -31,6 +33,29 @@ const AdminReviews = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReplySubmit = async (id) => {
+    try {
+      const res = await fetch(`${config.API_URL}/api/products/reviews/${id}/reply`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+        },
+        body: JSON.stringify({ admin_reply: replyText })
+      });
+      if (res.ok) {
+        setReplyingTo(null);
+        setReplyText('');
+        fetchReviews();
+      } else {
+        alert("Gagal menyimpan balasan.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error menyimpan balasan.");
     }
   };
 
@@ -86,9 +111,58 @@ const AdminReviews = () => {
                     <span className="truncate">{rev.product_name || `Product ID: ${rev.product_id}`}</span>
                   </div>
 
-                  <p className="text-sm text-gray-600 dark:text-gray-300 italic line-clamp-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 italic line-clamp-4 mb-4">
                     "{rev.comment}"
                   </p>
+
+                  {/* Reply Display */}
+                  {rev.admin_reply && replyingTo !== rev.id && (
+                    <div className="mt-3 p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100/30 dark:border-blue-900/30 text-xs">
+                      <div className="font-bold text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
+                        <span>💬 Balasan Anda:</span>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-300 italic font-light">"{rev.admin_reply}"</p>
+                    </div>
+                  )}
+
+                  {/* Reply Input Form */}
+                  {replyingTo === rev.id ? (
+                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="w-full p-2 text-xs border rounded-lg dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white bg-white dark:bg-gray-900"
+                        placeholder="Tulis balasan..."
+                        rows={3}
+                      />
+                      <div className="flex justify-end gap-2 mt-2">
+                        <button
+                          onClick={() => setReplyingTo(null)}
+                          className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-500 hover:text-black dark:hover:text-white"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={() => handleReplySubmit(rev.id)}
+                          className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-black dark:bg-white text-white dark:text-black rounded hover:opacity-90"
+                        >
+                          Kirim
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setReplyingTo(rev.id);
+                          setReplyText(rev.admin_reply || '');
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        {rev.admin_reply ? 'Edit Balasan' : 'Balas Ulasan'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-700 flex justify-between items-center">
