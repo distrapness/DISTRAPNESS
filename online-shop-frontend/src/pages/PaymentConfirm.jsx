@@ -641,12 +641,11 @@ const PaymentConfirm = () => {
     const timeline = [];
     const hr = 60 * 60 * 1000;
 
-    // 1. Order Placed (Day 0, +0 mins)
     const t1Date = getSafeDate(0, 1);
     timeline.push({
       title: language === 'ID' 
-        ? `[System] Pesanan berhasil dibuat dengan Nomor Resi Internal #${order.id ? order.id.slice(0, 8) : 'GUDANG'}.`
-        : `[System] Order placed successfully with Internal Reference #${order.id ? order.id.slice(0, 8) : 'WH'}.`,
+        ? `[System] Pesanan berhasil dibuat dengan Nomor Resi Internal #${order.id ? String(order.id).slice(0, 8) : 'GUDANG'}.`
+        : `[System] Order placed successfully with Internal Reference #${order.id ? String(order.id).slice(0, 8) : 'WH'}.`,
       date: formatDate(t1Date),
       time: formatTime(t1Date)
     });
