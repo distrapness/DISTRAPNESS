@@ -438,15 +438,14 @@ const Sparkline = ({ data, color = "green", height = 40 }) => {
     </svg>
   );
 };
-
 const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) => (
   <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-shadow">
-    <div className="flex justify-between items-start mb-4 relative z-10">
-      <div>
+    <div className="flex justify-between items-start gap-4 mb-4 relative z-10">
+      <div className="min-w-0 flex-1">
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{title}</p>
-        <h3 className="text-3xl font-black text-gray-900 dark:text-white mt-1">{value}</h3>
+        <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 dark:text-white mt-1 break-all">{value}</h3>
       </div>
-      <div className={`p-4 rounded-2xl ${
+      <div className={`p-4 rounded-2xl flex-shrink-0 ${
         color === 'green' ? 'bg-green-50 text-green-600' :
         color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
         'bg-blue-50 text-blue-600'
@@ -454,7 +453,6 @@ const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) =
         {icon}
       </div>
     </div>
-
     <div className="flex items-center gap-2 mb-6 relative z-10">
       <span className={`text-[10px] font-black uppercase ${
         trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' :

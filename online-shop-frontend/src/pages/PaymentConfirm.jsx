@@ -499,6 +499,36 @@ const PaymentConfirm = () => {
   }, []);
 
 
+  const getOrderDisplayStatus = (order) => {
+    if (!order) return { key: 'pending', label: language === 'EN' ? 'Waiting for Payment' : 'Menunggu Pembayaran', colorClass: 'bg-yellow-100 text-yellow-700 animate-pulse' };
+    
+    if (order.order_status === 'completed') {
+      return { key: 'completed', label: language === 'EN' ? '✔ Completed' : '✔ Selesai', colorClass: 'bg-emerald-100 text-emerald-700' };
+    }
+    if (order.order_status === 'shipped') {
+      return { key: 'shipped', label: language === 'EN' ? '🚚 Shipped' : '🚚 Dikirim', colorClass: 'bg-blue-100 text-blue-700' };
+    }
+    if (order.order_status === 'processing') {
+      return { key: 'processing', label: language === 'EN' ? '⚙ Processing' : '⚙ Diproses', colorClass: 'bg-teal-100 text-teal-700' };
+    }
+    if (order.order_status === 'cancelled') {
+      return { key: 'cancelled', label: language === 'EN' ? '✘ Cancelled' : '✘ Dibatalkan', colorClass: 'bg-red-100 text-red-700' };
+    }
+    if (order.order_status === 'waiting_verification' || order.payment_status === 'waiting_verification') {
+      return { key: 'waiting_verification', label: language === 'EN' ? '⌛ Waiting Verification' : '⌛ Menunggu Verifikasi', colorClass: 'bg-amber-100 text-amber-700 animate-pulse' };
+    }
+    if (order.payment_status === 'paid') {
+      return { key: 'paid', label: language === 'EN' ? '✔ Paid' : '✔ Lunas', colorClass: 'bg-green-100 text-green-700' };
+    }
+    if (order.payment_status === 'failed') {
+      return { key: 'failed', label: language === 'EN' ? '✘ Failed' : '✘ Gagal', colorClass: 'bg-red-100 text-red-700' };
+    }
+    if (order.payment_status === 'expired') {
+      return { key: 'expired', label: language === 'EN' ? '✘ Expired' : '✘ Kedaluwarsa', colorClass: 'bg-red-100 text-red-700' };
+    }
+    return { key: 'pending', label: language === 'EN' ? '⌛ Waiting for Payment' : '⌛ Menunggu Pembayaran', colorClass: 'bg-yellow-100 text-yellow-700 animate-pulse' };
+  };
+
   const getActiveStepIndex = (status) => {
     switch (status) {
       case 'completed': return 4;
@@ -611,17 +641,19 @@ const PaymentConfirm = () => {
     const timeline = [];
     const hr = 60 * 60 * 1000;
 
-    // 1. Order Placed (Day 0, 0h)
-    const t1Date = getSafeDate(0, 0);
+    // 1. Order Placed (Day 0, +0 mins)
+    const t1Date = getSafeDate(0, 1);
     timeline.push({
       title: language === 'ID' 
-        ? `[System] Pesanan berhasil dibuat. Metode pembayaran: ${order.paymentMethod ? order.paymentMethod.toUpperCase() : 'COD'}.`
-        : `[System] Order placed successfully. Payment method: ${order.paymentMethod ? order.paymentMethod.toUpperCase() : 'COD'}.`,
+        ? `[System] Pesanan berhasil dibuat dengan Nomor Resi Internal #${order.id ? order.id.slice(0, 8) : 'GUDANG'}.`
+        : `[System] Order placed successfully with Internal Reference #${order.id ? order.id.slice(0, 8) : 'WH'}.`,
       date: formatDate(t1Date),
       time: formatTime(t1Date)
     });
 
-    if (order.payment_status === 'cancelled' || order.payment_status === 'expired' || order.payment_status === 'failed') {
+    const displayKey = getOrderDisplayStatus(order).key;
+
+    if (displayKey === 'cancelled' || order.payment_status === 'expired' || order.payment_status === 'failed') {
       const tCancelDate = getSafeDate(30 * 60 * 1000, 1);
       timeline.unshift({
         title: language === 'ID'
@@ -634,7 +666,7 @@ const PaymentConfirm = () => {
     }
 
     // 2. Payment Confirmed (Day 0, +1 hour)
-    if (['paid', 'processing', 'shipped', 'completed'].includes(order.payment_status)) {
+    if (['paid', 'processing', 'shipped', 'completed'].includes(displayKey)) {
       const t2Date = getSafeDate(1 * hr, 2);
       timeline.unshift({
         title: language === 'ID'
@@ -646,7 +678,7 @@ const PaymentConfirm = () => {
     }
 
     // 3. Picked Up (Day 1, +26 hours)
-    if (['paid', 'processing', 'shipped', 'completed'].includes(order.payment_status)) {
+    if (['processing', 'shipped', 'completed'].includes(displayKey)) {
       const t3Date = getSafeDate(26 * hr, 3);
       timeline.unshift({
         title: language === 'ID'
@@ -658,7 +690,7 @@ const PaymentConfirm = () => {
     }
 
     // 4. Sorting Center Arrival (Day 2, +48 hours)
-    if (['shipped', 'completed'].includes(order.payment_status)) {
+    if (['shipped', 'completed'].includes(displayKey)) {
       const t4Date = getSafeDate(48 * hr, 4);
       timeline.unshift({
         title: language === 'ID'
@@ -680,7 +712,7 @@ const PaymentConfirm = () => {
     }
 
     // 5. Hub Arrival (Day 3, +74 hours)
-    if (['shipped', 'completed'].includes(order.payment_status)) {
+    if (['shipped', 'completed'].includes(displayKey)) {
       const t6Date = getSafeDate(74 * hr, 6);
       timeline.unshift({
         title: language === 'ID'
@@ -702,7 +734,7 @@ const PaymentConfirm = () => {
     }
 
     // 6. Delivered (Day 4, +110 hours)
-    if (order.payment_status === 'completed') {
+    if (displayKey === 'completed') {
       const t8Date = getSafeDate(110 * hr, 8);
       const recipientName = address.name || `${address.firstName || ''} ${address.lastName || ''}`.trim() || 'Penerima';
       timeline.unshift({
@@ -1066,111 +1098,102 @@ const PaymentConfirm = () => {
             ) : paymentData && (
               <div className="w-full text-left">
                 {/* Header Status */}
-                <div className="flex flex-col items-center mb-10">
-                   <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Order Status</span>
-                   <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                      paymentData.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
-                      paymentData.payment_status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                      paymentData.payment_status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      paymentData.payment_status === 'processing' ? 'bg-teal-100 text-teal-700' :
-                      paymentData.payment_status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                      paymentData.payment_status === 'waiting_verification' ? 'bg-amber-100 text-amber-700 animate-pulse' :
-                      paymentData.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
-                      'bg-yellow-100 text-yellow-700 animate-pulse'
-                    }`}>
-                      {paymentData.payment_status === 'paid' ? (language === 'EN' ? '✔ Paid' : '✔ Lunas') : 
-                       paymentData.payment_status === 'shipped' ? (language === 'EN' ? '🚚 Shipped' : '🚚 Dikirim') :
-                       paymentData.payment_status === 'cancelled' ? (language === 'EN' ? '✘ Cancelled' : '✘ Dibatalkan') :
-                       paymentData.payment_status === 'processing' ? (language === 'EN' ? '⚙ Processing' : '⚙ Diproses') :
-                       paymentData.payment_status === 'completed' ? (language === 'EN' ? '✔ Completed' : '✔ Selesai') :
-                       paymentData.payment_status === 'waiting_verification' ? (language === 'EN' ? '⌛ Waiting Verification' : '⌛ Menunggu Verifikasi') :
-                       paymentData.payment_status === 'failed' ? (language === 'EN' ? '✘ Failed' : '✘ Gagal') :
-                       (language === 'EN' ? '⌛ Waiting for Payment' : '⌛ Menunggu Pembayaran')}
-                   </div>
-                </div>
+                {(() => {
+                  const displayStatus = getOrderDisplayStatus(paymentData);
+                  return (
+                    <>
+                      <div className="flex flex-col items-center mb-10">
+                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Order Status</span>
+                         <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${displayStatus.colorClass}`}>
+                            {displayStatus.label}
+                         </div>
+                      </div>
 
-                {/* Shopee-style Horizontal Progress Bar */}
-                {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(paymentData.payment_status) && (
-                  <div className="mb-8 bg-gray-50/50 dark:bg-gray-800/40 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-850">
-                    <div className="relative flex items-start justify-between w-full mt-2 mb-2">
-                      {/* Background Gray Line */}
-                      <div className="absolute left-0 right-0 top-5 h-[2px] bg-gray-200 dark:bg-gray-700 -z-0 rounded-full"></div>
-                      
-                      {/* Active Green Line */}
-                      <div 
-                        className="absolute left-0 top-5 h-[2px] bg-emerald-500 transition-all duration-1000 -z-0 rounded-full"
-                        style={{ width: `${(getActiveStepIndex(paymentData.payment_status) / (shopeeSteps.length - 1)) * 100}%` }}
-                      ></div>
+                      {/* Shopee-style Horizontal Progress Bar */}
+                      {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(displayStatus.key) && (
+                        <div className="mb-8 bg-gray-50/50 dark:bg-gray-800/40 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-850">
+                          <div className="relative flex items-start justify-between w-full mt-2 mb-2">
+                            {/* Background Gray Line */}
+                            <div className="absolute left-0 right-0 top-5 h-[2px] bg-gray-200 dark:bg-gray-700 -z-0 rounded-full"></div>
+                            
+                            {/* Active Green Line */}
+                            <div 
+                              className="absolute left-0 top-5 h-[2px] bg-emerald-500 transition-all duration-1000 -z-0 rounded-full"
+                              style={{ width: `${(getActiveStepIndex(displayStatus.key) / (shopeeSteps.length - 1)) * 100}%` }}
+                            ></div>
 
-                      {shopeeSteps.map((step, idx) => {
-                        const isActive = getActiveStepIndex(paymentData.payment_status) >= idx;
-                        const isCurrent = getActiveStepIndex(paymentData.payment_status) === idx;
+                            {shopeeSteps.map((step, idx) => {
+                              const isActive = getActiveStepIndex(displayStatus.key) >= idx;
+                              const isCurrent = getActiveStepIndex(displayStatus.key) === idx;
+                              return (
+                                <div key={step.key} className="flex flex-col items-center flex-1 relative z-10">
+                                  {/* Circle Icon */}
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 bg-white dark:bg-gray-900 transition-all duration-500 ${
+                                    isActive 
+                                      ? 'border-emerald-500 dark:border-emerald-500 shadow-sm' 
+                                      : 'border-gray-100 dark:border-gray-800'
+                                  } ${isCurrent ? 'scale-105 ring-2 ring-emerald-500/10' : ''}`}>
+                                    {renderStepIcon(step.icon, isActive)}
+                                  </div>
+                                  {/* Label */}
+                                  <span className={`text-[8px] md:text-[10px] font-black mt-2 text-center px-0.5 uppercase tracking-wider break-words leading-tight w-full max-w-[55px] md:max-w-none mx-auto block ${
+                                    isActive ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-gray-650'
+                                  }`}>
+                                    {language === 'ID' ? step.labelID : step.labelEN}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Shopee-style Tracking History Timeline */}
+                      {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(displayStatus.key) && (() => {
+                        const timelineItems = generateTimeline(paymentData);
                         return (
-                          <div key={step.key} className="flex flex-col items-center flex-1 relative z-10">
-                            {/* Circle Icon */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 bg-white dark:bg-gray-900 transition-all duration-500 ${
-                              isActive 
-                                ? 'border-emerald-500 dark:border-emerald-500 shadow-sm' 
-                                : 'border-gray-100 dark:border-gray-800'
-                            } ${isCurrent ? 'scale-105 ring-2 ring-emerald-500/10' : ''}`}>
-                              {renderStepIcon(step.icon, isActive)}
+                          <div className="mb-8 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-4 md:p-8">
+                            <div className="mb-6 border-b pb-4">
+                              <h2 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 capitalize">
+                                {displayStatus.label}
+                              </h2>
                             </div>
-                            {/* Label */}
-                            <span className={`text-[8px] md:text-[10px] font-black mt-2 text-center px-0.5 uppercase tracking-wider break-words leading-tight w-full max-w-[55px] md:max-w-none mx-auto block ${
-                              isActive ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-gray-650'
-                            }`}>
-                              {language === 'ID' ? step.labelID : step.labelEN}
-                            </span>
+
+                            <div className="relative border-l-2 border-gray-100 dark:border-gray-800 ml-2 pl-6 py-1 space-y-6">
+                              {timelineItems.map((item, idx) => {
+                                const isLatest = idx === 0;
+                                const showDate = idx === 0 || timelineItems[idx - 1].date !== item.date;
+                                return (
+                                  <div key={idx} className="relative">
+                                    {/* Bullet dot */}
+                                    <span className="absolute -left-[31px] top-1 flex items-center justify-center bg-white dark:bg-gray-900 rounded-full p-0.5 z-10">
+                                      {isLatest ? (
+                                        <span className="relative flex h-3 w-3">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                                        </span>
+                                      ) : (
+                                        <span className="w-2 h-2 rounded-full bg-gray-200 dark:bg-gray-700"></span>
+                                      )}
+                                    </span>
+                                    
+                                    {/* Description and Date/Time */}
+                                    <div>
+                                      <p className={`text-xs ${isLatest ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-500 dark:text-gray-400 font-medium'}`}>
+                                        {item.title}
+                                      </p>
+                                      <span className="text-[9px] text-gray-400 block mt-1 tracking-wider">
+                                        {showDate ? `${item.date} · ` : ""}{item.time}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Shopee-style Tracking History Timeline */}
-                {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(paymentData.payment_status) && (() => {
-                  const timelineItems = generateTimeline(paymentData);
-                  return (
-                    <div className="mb-8 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-4 md:p-8">
-                      <div className="mb-6 border-b pb-4">
-                        <h2 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 capitalize">
-                          {t(`admin.status.${paymentData.payment_status}`)}
-                        </h2>
-                      </div>
-
-                      <div className="relative border-l-2 border-gray-100 dark:border-gray-800 ml-2 pl-6 py-1 space-y-6">
-                        {timelineItems.map((item, idx) => {
-                          const isLatest = idx === 0;
-                          const showDate = idx === 0 || timelineItems[idx - 1].date !== item.date;
-                          return (
-                            <div key={idx} className="relative">
-                              {/* Bullet dot */}
-                              <span className="absolute -left-[31px] top-1 flex items-center justify-center bg-white dark:bg-gray-900 rounded-full p-0.5 z-10">
-                                {isLatest ? (
-                                  <span className="relative flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                                  </span>
-                                ) : (
-                                  <span className="w-2 h-2 rounded-full bg-gray-200 dark:bg-gray-700"></span>
-                                )}
-                              </span>
-                              
-                              {/* Description and Date/Time */}
-                              <div>
-                                <p className={`text-xs ${isLatest ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-500 dark:text-gray-400 font-medium'}`}>
-                                  {item.title}
-                                </p>
-                                <span className="text-[9px] text-gray-400 block mt-1 tracking-wider">
-                                  {showDate ? `${item.date} · ` : ""}{item.time}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      })()}
+                    </>
                   );
                 })()}
 
