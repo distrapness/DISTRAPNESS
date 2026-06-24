@@ -13,11 +13,12 @@ const SocialProof = () => {
 
     useEffect(() => {
         // Fetch products to show in notifications
-        fetch(`${config.API_URL}/api/products`)
+        fetch(`${config.API_URL}/api/products?limit=100`)
             .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data) && data.length > 0) {
-                    setProducts(data);
+                const productList = data?.products || [];
+                if (Array.isArray(productList) && productList.length > 0) {
+                    setProducts(productList);
                 }
             })
             .catch(() => {});

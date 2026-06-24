@@ -1,5 +1,11 @@
-const { Pool } = require('pg');
+const pg = require('pg');
+const { Pool } = pg;
 require('dotenv').config();
+
+// Force pg to parse timestamp without timezone (OID 1114) as UTC instead of local time
+pg.types.setTypeParser(1114, function(stringValue) {
+  return new Date(stringValue.replace(' ', 'T') + 'Z');
+});
 
 const pgPool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -14,7 +20,6 @@ const pgPool = new Pool({
  * Menerjemahkan syntax MySQL (?) ke PostgreSQL ($1) secara otomatis.
  */
 function convertQuery(sql) {
-  let idx = 1;
   let pgSql = sql;
 
   // 1. Tangani ON DUPLICATE KEY UPDATE khusus untuk tabel settings
@@ -23,8 +28,36 @@ function convertQuery(sql) {
     pgSql = pgSql.replace(/ON DUPLICATE KEY UPDATE setting_value = \?/gi, 'ON CONFLICT (setting_key) DO UPDATE SET setting_value = ?');
   }
 
-  // 2. Ubah ? menjadi $1, $2, dst
-  pgSql = pgSql.replace(/\?/g, () => `$${idx++}`);
+  // 2. Ubah ? menjadi $1, $2, dst (Aman dari tanda tanya di dalam string literal)
+  let idx = 1;
+  let inString = false;
+  let stringChar = '';
+  let result = '';
+  
+  for (let i = 0; i < pgSql.length; i++) {
+    const char = pgSql[i];
+    
+    if (inString) {
+      result += char;
+      if (char === stringChar) {
+        // Cek jika karakter kutip di-escape (contoh: \')
+        if (pgSql[i-1] !== '\\') {
+          inString = false;
+        }
+      }
+    } else {
+      if (char === "'" || char === '"') {
+        inString = true;
+        stringChar = char;
+        result += char;
+      } else if (char === '?') {
+        result += `$${idx++}`;
+      } else {
+        result += char;
+      }
+    }
+  }
+  pgSql = result;
 
   // 3. Tambahkan RETURNING id untuk INSERT agar insertId bekerja
   if (/^\s*INSERT\s+INTO/i.test(pgSql) && !/RETURNING/i.test(pgSql)) {
@@ -65,7 +98,13 @@ const pool = {
     const pgValues = values || [];
 
     pgPool.query(pgSql, pgValues, (err, res) => {
-      if (err) return callback(err);
+      if (err) {
+        console.error(`[DB ERROR] Query: ${pgSql} | Error: ${err.message}`);
+        const friendlyError = process.env.NODE_ENV === 'production'
+          ? new Error('Terjadi kesalahan pada sistem basis data internal.')
+          : err;
+        return callback(friendlyError);
+      }
       callback(null, processResult(sql, res));
     });
   },
@@ -82,7 +121,10 @@ const pool = {
           // MySQL2 promise returns [rows, fields]
           return [processed, res.fields];
         } catch (err) {
-          throw err;
+          console.error(`[DB PROMISE ERROR] Query: ${pgSql} | Error: ${err.message}`);
+          throw process.env.NODE_ENV === 'production'
+            ? new Error('Gagal memproses data kueri internal.')
+            : err;
         }
       },
       getConnection: async () => {
@@ -91,8 +133,15 @@ const pool = {
           query: async (sql, values) => {
             const pgSql = convertQuery(sql);
             const pgValues = values || [];
-            const res = await client.query(pgSql, pgValues);
-            return [processResult(sql, res), res.fields];
+            try {
+              const res = await client.query(pgSql, pgValues);
+              return [processResult(sql, res), res.fields];
+            } catch (err) {
+              console.error(`[DB CONNECTION ERROR] Query: ${pgSql} | Error: ${err.message}`);
+              throw process.env.NODE_ENV === 'production'
+                ? new Error('Koneksi basis data gagal memproses kueri.')
+                : err;
+            }
           },
           beginTransaction: async () => {
             await client.query('BEGIN');

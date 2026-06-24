@@ -73,13 +73,13 @@ const ProductAdmin = () => {
     setLoading(true);
     try {
       const [prodRes, catRes] = await Promise.all([
-        fetch(`${API_URL}?t=${Date.now()}`),
+        fetch(`${API_URL}?limit=1000&t=${Date.now()}`),
         fetch(`${CATEGORIES_URL}?t=${Date.now()}`)
       ]);
       const prodData = await prodRes.json();
       const catData = await catRes.json();
 
-      setProducts(Array.isArray(prodData) ? prodData : []);
+      setProducts(prodData && Array.isArray(prodData.products) ? prodData.products : []);
       setCategories(Array.isArray(catData) ? catData : []);
     } catch (err) {
       setError("Gagal memuat data.");
@@ -454,10 +454,10 @@ const ProductAdmin = () => {
             </select>
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full md:w-auto">
             <button
               onClick={() => { setIsBulkMode(!isBulkMode); setSelectedProductIds([]); }}
-              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isBulkMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 sm:flex-initial text-center ${isBulkMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'}`}
             >
               {isBulkMode ? 'BATAL MASSAL' : 'EDIT MASSAL'}
             </button>
@@ -465,7 +465,7 @@ const ProductAdmin = () => {
             {isBulkMode && selectedProductIds.length > 0 && (
               <button
                 onClick={handleBulkUpdate}
-                className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-200 animate-pulse"
+                className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-200 animate-pulse whitespace-nowrap flex-1 sm:flex-initial text-center"
               >
                 Simpan {selectedProductIds.length} Produk
               </button>
@@ -473,7 +473,7 @@ const ProductAdmin = () => {
 
             <button
               onClick={() => { handleCancelEdit(); setIsFormOpen(true); }}
-              className="bg-black dark:bg-white text-white dark:text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-black/10 hover:scale-95 active:scale-90 transition-all flex items-center gap-2"
+              className="bg-black dark:bg-white text-white dark:text-black px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-black/10 hover:scale-95 active:scale-90 transition-all flex items-center justify-center gap-2 whitespace-nowrap flex-1 sm:flex-initial"
             >
               <span>+</span> Tambah Produk
             </button>
@@ -487,7 +487,7 @@ const ProductAdmin = () => {
           ) : (
             <div className="overflow-x-auto">
               {error && <div className="p-4 bg-red-100 text-red-600">{error}</div>}
-              <table className="min-w-full text-left">
+              <table className="w-full min-w-[800px] text-left">
                 <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                   <tr>
                     {isBulkMode && (

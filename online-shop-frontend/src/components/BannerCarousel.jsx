@@ -2,19 +2,31 @@ import React, { useEffect, useState } from "react";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
-import { getCachedBanners, setCachedBanners } from "../utils/productCache.js";
+import { useQuery } from '@tanstack/react-query';
 
 const API_URL = `${config.API_URL}/api/banners`;
 
+const fetchBanners = async () => {
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error("Gagal mengambil banner");
+  const data = await res.json();
+  return data.map(banner => ({
+    ...banner,
+    image: getImageUrl(banner.image)
+  }));
+};
+
 const BannerCarousel = () => {
   const { t } = useCurrency();
-  const [banners, setBanners] = useState([]);
   const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [hover, setHover] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+
+  const { data: banners = [], isLoading, error } = useQuery({
+    queryKey: ['banners'],
+    queryFn: fetchBanners,
+  });
 
   // Auto-change every 3 seconds
   useEffect(() => {
@@ -60,41 +72,13 @@ const BannerCarousel = () => {
     if (touchStart) onEnd();
   };
 
-  useEffect(() => {
-    const cached = getCachedBanners();
-    if (cached) {
-      setBanners(cached.data);
-      setLoading(false);
-      if (cached.isFresh) return;
-    } else {
-      setLoading(true);
-    }
-
-    fetch(API_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal mengambil banner");
-        return res.json();
-      })
-      .then((data) => {
-        const mapped = data.map(banner => ({
-          ...banner,
-          image: getImageUrl(banner.image)
-        }));
-        setBanners(mapped);
-        setCachedBanners(mapped);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!cached) setError(err.message);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  // Removed manual fetch useEffect block in favor of TanStack useQuery
 
   const next = () => setCurrent((prev) => (prev + 1) % banners.length);
   const prev = () => setCurrent((prev) => (prev - 1 + banners.length) % banners.length);
 
-  if (loading) return <div className="w-full h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-b-3xl mb-12">Memuat banner...</div>;
-  if (error) return <div className="w-full h-64 flex items-center justify-center bg-red-100 text-red-600 rounded-b-3xl mb-12">{error}</div>;
+  if (isLoading) return <div className="w-full h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-b-3xl mb-12">Memuat banner...</div>;
+  if (error) return <div className="w-full h-64 flex items-center justify-center bg-red-100 text-red-600 rounded-b-3xl mb-12">{error.message}</div>;
   if (!banners.length) return <div className="w-full h-64 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-b-3xl mb-12">Belum ada banner.</div>;
 
   const banner = banners[current];

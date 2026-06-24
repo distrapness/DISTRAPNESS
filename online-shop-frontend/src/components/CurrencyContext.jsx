@@ -22,12 +22,17 @@ export const CurrencyProvider = ({ children }) => {
         return res.json();
       })
       .then(data => {
+        let phoneVal = data.phone || "6285888159265";
+        phoneVal = phoneVal.replace(/[^0-9]/g, '');
+        if (phoneVal.startsWith('0')) {
+          phoneVal = '62' + phoneVal.slice(1);
+        }
         setBrand({
           ...data,
           brandName: data.brandName || "DISTRAPNESS",
           logo: data.logo || "/uploads/logo-hitam.png",
           logoWhite: data.logoWhite || "/uploads/logo-putih.png",
-          phone: data.phone || "6285888159265"
+          phone: phoneVal
         });
       })
       .catch((err) => {

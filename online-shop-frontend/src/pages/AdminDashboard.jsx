@@ -5,6 +5,7 @@ import config from "../config.js";
 import { io } from "socket.io-client";
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { formatDisplayOrderId } from "../utils/orderHelper";
 import {
   FaBoxOpen, FaShoppingCart, FaMoneyBillWave, FaArrowRight,
   FaTags, FaCog, FaUserFriends, FaExclamationTriangle, FaChartLine, FaWallet
@@ -97,12 +98,12 @@ const AdminDashboard = () => {
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-500">
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Ikhtisar Dashboard</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Inilah yang terjadi di toko Anda hari ini.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button 
             onClick={handleExportCSV}
             className="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition"
@@ -309,7 +310,7 @@ const AdminDashboard = () => {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {recentOrders.map(order => (
                     <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                      <td className="px-4 py-4 font-bold text-gray-900 dark:text-white">#{order.id}</td>
+                      <td className="px-4 py-4 font-bold text-gray-900 dark:text-white break-all">{formatDisplayOrderId(order.id)}</td>
                       <td className="px-4 py-4">
                         <div className="text-gray-900 dark:text-white font-medium">{formatCurrency(order.total)}</div>
                         <div className="text-xs text-gray-500">{order.paymentMethod}</div>
@@ -319,9 +320,10 @@ const AdminDashboard = () => {
                       </td>
                       <td className="px-4 py-4 text-right">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold inline-block
-                          ${order.status === 'paid' || order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {order.status}
+                          ${order.order_status === 'completed' || order.order_status === 'delivered' ? 'bg-green-100 text-green-700' :
+                            order.order_status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
+                            order.order_status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {order.order_status}
                         </span>
                       </td>
                     </tr>

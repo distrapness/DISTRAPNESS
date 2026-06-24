@@ -9,10 +9,16 @@ import { useCart } from "../components/CartContext";
 import Footer from "../components/Footer.jsx";
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
-import { getCachedProducts, setCachedProducts } from "../utils/productCache.js";
 import ProductItemCard from "../components/ProductItemCard.jsx";
+import { useQuery } from '@tanstack/react-query';
 
 const API_URL = `${config.API_URL}/api/products`;
+
+const fetchProducts = async () => {
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error("Gagal mengambil produk");
+  return res.json();
+};
 
 const FlashSaleCountdown = ({ endDate }) => {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -74,40 +80,17 @@ const ProductFlashTimer = ({ endDate }) => {
 };
 
 const HomePage = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { currency, t, language } = useCurrency();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
-  const flashSaleProducts = (products || []).filter(p => p.is_flash_sale && new Date(p.flash_sale_end) > new Date());
+  const { data, isLoading: loading, error } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+  });
 
-  useEffect(() => {
-    const cached = getCachedProducts();
-    if (cached) {
-      setProducts(cached.data);
-      setLoading(false);
-      if (cached.isFresh) return;
-    } else {
-      setLoading(true);
-    }
-
-    fetch(API_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal mengambil produk");
-        return res.json();
-      })
-      .then((data) => {
-        setProducts(data);
-        setCachedProducts(data);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!cached) setError(err.message);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const products = data?.products || [];
+  const flashSaleProducts = products.filter(p => p.is_flash_sale && new Date(p.flash_sale_end) > new Date());
 
   const convertPrice = useCallback((price) => {
     if (currency.code === "IDR") return currency.symbol + " " + Number(price).toLocaleString(currency.locale, { minimumFractionDigits: 0 });
@@ -186,7 +169,7 @@ const HomePage = () => {
                 <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
               ))
             ) : error ? (
-              <div className="col-span-full text-center text-red-500">{error}</div>
+              <div className="col-span-full text-center text-red-500">{error?.message || error}</div>
             ) : !products || products.length === 0 ? (
               <div className="col-span-full text-center text-gray-500">Produk tidak ditemukan.</div>
             ) : (

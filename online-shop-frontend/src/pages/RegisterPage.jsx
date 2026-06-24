@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import config from "../config.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from "../contexts/AuthContext";
@@ -21,9 +21,83 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // OTP Verification States
+  const [showOtpVerif, setShowOtpVerif] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendingOtp, setResendingOtp] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [serverOtp, setServerOtp] = useState("");
+  const [emailSent, setEmailSent] = useState(true);
+
   const navigate = useNavigate();
-  const { t } = useCurrency();
+  const location = useLocation();
+  const { t, brand } = useCurrency();
   const { login } = useAuth();
+
+  useEffect(() => {
+    if (location.state && location.state.showOtp && location.state.email) {
+      setEmail(location.state.email);
+      setShowOtpVerif(true);
+    }
+  }, [location]);
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setVerifyingOtp(true);
+    try {
+      const res = await axios.post(`${config.API_URL}/api/register/verify`, {
+        email,
+        otp
+      });
+      login(res.data.token, res.data.email, res.data.role);
+      setSuccess("Verifikasi berhasil! Akun Anda aktif.");
+      setTimeout(() => navigate("/"), 1500);
+    } catch (err) {
+      setError(err.response?.data?.message || "Verifikasi OTP gagal. Silakan periksa kembali kode Anda.");
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setError("");
+    setSuccess("");
+    setResendingOtp(true);
+    try {
+      const res = await axios.post(`${config.API_URL}/api/register/resend-otp`, { email });
+      setSuccess(res.data.message || "Kode OTP baru berhasil dikirim.");
+      if (res.data.otp) {
+        setServerOtp(res.data.otp);
+      }
+      setEmailSent(res.data.emailSent !== false);
+      setResendTimer(60);
+    } catch (err) {
+      setError(err.response?.data?.message || "Gagal mengirim ulang OTP.");
+    } finally {
+      setResendingOtp(false);
+    }
+  };
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [resendTimer]);
+
+  useEffect(() => {
+    if (showOtpVerif) {
+      setResendTimer(60);
+    }
+  }, [showOtpVerif]);
 
   const renderRecaptcha = () => {
     if (window.grecaptcha && document.getElementById('recaptcha-container')) {
@@ -68,6 +142,15 @@ export default function RegisterPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!showOtpVerif && window.grecaptcha) {
+      const timer = setTimeout(() => {
+        renderRecaptcha();
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [showOtpVerif]);
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
@@ -89,6 +172,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!agreed) {
+      setError("Silakan setujui Syarat & Ketentuan serta Kebijakan Privasi yang berlaku.");
+      return;
+    }
+
     setLoading(true);
     const birthDate = `${birthYear}-${birthMonth}-${birthDay}`;
 
@@ -102,9 +190,18 @@ export default function RegisterPage() {
         recaptchaToken: recaptchaToken || 'bypass_localhost'
       });
 
-      login(registerRes.data.token, registerRes.data.email, registerRes.data.role);
-      setSuccess(t('register.success'));
-      setTimeout(() => navigate("/"), 1500);
+      if (registerRes.data.registered && !registerRes.data.verified) {
+        setSuccess(registerRes.data.message || "Pendaftaran berhasil! Silakan masukkan kode OTP yang telah dikirim ke email Anda.");
+        if (registerRes.data.otp) {
+          setServerOtp(registerRes.data.otp);
+        }
+        setEmailSent(registerRes.data.emailSent !== false);
+        setShowOtpVerif(true);
+      } else {
+        login(registerRes.data.token, registerRes.data.email, registerRes.data.role);
+        setSuccess(t('register.success'));
+        setTimeout(() => navigate("/"), 1500);
+      }
     } catch (err) {
       if (window.grecaptcha) {
         window.grecaptcha.reset();
@@ -130,6 +227,116 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (showOtpVerif) {
+    const adminPhone = brand?.phone ? brand.phone.replace(/[^0-9]/g, '') : "6285888159265";
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 py-12">
+        <form onSubmit={handleVerifyOtp} className="bg-white dark:bg-gray-800 p-10 rounded-3xl shadow-2xl w-full max-w-md border border-gray-100 dark:border-gray-700">
+          <h2 className="text-3xl font-[900] uppercase tracking-tighter mb-4 text-center text-gray-900 dark:text-white italic">
+            {emailSent ? "Verifikasi Email" : "Verifikasi WhatsApp"}
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-8 font-medium leading-relaxed">
+            {emailSent ? (
+              <>
+                Masukkan 6-digit kode verifikasi yang telah dikirimkan ke email <span className="font-bold text-black dark:text-white">{email}</span>. Kode berlaku selama 5 menit.
+              </>
+            ) : (
+              <>
+                Email gagal dikirim. Masukkan 6-digit kode verifikasi yang telah dikirimkan ke WhatsApp <span className="font-bold text-black dark:text-white">{phone}</span>. Kode berlaku selama 5 menit.
+              </>
+            )}
+          </p>
+
+          {!emailSent && serverOtp && (
+            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/30 rounded-xl text-center">
+              <span className="block text-[10px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest mb-1">
+                [WhatsApp OTP Verification]
+              </span>
+              <span className="block font-mono text-2xl font-bold text-yellow-700 dark:text-yellow-300 tracking-wider">
+                {serverOtp}
+              </span>
+              <span className="block text-[9px] text-yellow-500 mt-1">
+                Gunakan kode di atas atau klik tombol WhatsApp di bawah untuk konfirmasi ke Admin.
+              </span>
+            </div>
+          )}
+
+          <label className="block mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Kode Verifikasi OTP</label>
+          <input
+            type="text"
+            maxLength={6}
+            value={otp}
+            onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} // Numeric only
+            className="w-full mb-6 px-4 py-4 bg-gray-50 dark:bg-gray-700/50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none dark:text-white transition-all text-center font-mono text-2xl font-black tracking-[0.4em]"
+            placeholder="••••••"
+            required
+            autoFocus
+          />
+
+          {error && <div className="mb-4 text-red-500 text-center font-bold text-xs">{error}</div>}
+          {success && <div className="mb-4 text-green-500 text-center font-bold text-xs">{success}</div>}
+
+          <button
+            type="submit"
+            className="w-full py-4 px-6 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl uppercase tracking-[0.2em] text-[10px] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl"
+            disabled={verifyingOtp}
+          >
+            {verifyingOtp ? "Memverifikasi..." : "Verifikasi OTP"}
+          </button>
+
+          <div className="mt-8 text-center text-xs font-bold uppercase tracking-widest text-gray-500">
+            Tidak menerima kode?{" "}
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              className="text-black dark:text-white underline disabled:opacity-50"
+              disabled={resendingOtp || resendTimer > 0}
+            >
+              {resendingOtp ? "Mengirim..." : resendTimer > 0 ? `Kirim Ulang (${resendTimer}s)` : "Kirim Ulang"}
+            </button>
+          </div>
+          
+          <div className="mt-4 text-center text-xs font-bold uppercase tracking-widest">
+            <button
+              type="button"
+              onClick={() => {
+                setShowOtpVerif(false);
+                setError("");
+                setSuccess("");
+              }}
+              className="text-gray-400 hover:text-black dark:hover:text-white underline"
+            >
+              Kembali ke Pendaftaran
+            </button>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-705 text-center">
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+              {!emailSent ? "⚠️ Email OTP gagal terkirim otomatis" : "Tidak menerima kode di email?"}
+            </p>
+            <a
+              href={`https://wa.me/${adminPhone}?text=${encodeURIComponent(
+                serverOtp 
+                  ? `Halo Admin Distrapness, saya mendaftar akun baru dan ingin melakukan verifikasi. Berikut detail saya:\n\nEmail: ${email}\nNomor HP: ${phone}\nKode OTP: ${serverOtp}`
+                  : `Halo Admin Distrapness, saya tidak menerima email verifikasi OTP. Mohon kirimkan kode verifikasi saya.\n\nEmail: ${email}\nNomor HP: ${phone}`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition shadow-md hover:shadow-lg active:scale-95"
+            >
+              <img
+                src="/assets/whatsapp.png"
+                alt="WhatsApp"
+                className="w-4 h-4 object-contain"
+              />
+              Kirim OTP via WhatsApp
+            </a>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 py-12">
@@ -255,6 +462,20 @@ export default function RegisterPage() {
         <label className="block mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">{t('captcha.label')}</label>
         <div className="flex justify-center mb-8">
           <div id="recaptcha-container"></div>
+        </div>
+
+        <div className="flex items-start gap-3 mb-6">
+          <input
+            type="checkbox"
+            id="agreeTerms"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-black focus:ring-black accent-black dark:accent-white cursor-pointer"
+            required
+          />
+          <label htmlFor="agreeTerms" className="text-[11px] text-gray-500 dark:text-gray-400 font-bold leading-tight select-none cursor-pointer">
+            Saya menyetujui <a href="/terms-conditions" target="_blank" rel="noreferrer" className="text-black dark:text-white underline">Syarat & Ketentuan</a> serta <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-black dark:text-white underline">Kebijakan Privasi</a> yang berlaku
+          </label>
         </div>
 
         {error && <div className="mb-4 text-red-500 text-center font-bold text-xs">{error}</div>}

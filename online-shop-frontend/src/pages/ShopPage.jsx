@@ -5,30 +5,54 @@ import { useCart } from "../components/CartContext";
 import Footer from "../components/Footer.jsx";
 import config from "../config.js";
 import { getImageUrl } from "../utils/imageHelper";
-import { getCachedProducts, setCachedProducts } from "../utils/productCache.js";
 import ProductItemCard from "../components/ProductItemCard.jsx";
+import { useQuery } from '@tanstack/react-query';
 
 const API_URL = `${config.API_URL}/api/products`;
 
-const getCategories = (products) => {
-  if (!products || !Array.isArray(products)) return [];
-  const unique = new Set(products.map(p => p.category).filter(Boolean));
-  return Array.from(unique);
+const fetchProducts = async ({ queryKey }) => {
+  const [_key, { search, category, sortBy, page, pageSize }] = queryKey;
+  const offset = (page - 1) * pageSize;
+  const params = new URLSearchParams();
+  params.append("limit", pageSize);
+  params.append("offset", offset);
+  if (search) params.append("search", search.trim());
+  if (category && category !== "Semua") params.append("category", category.trim());
+  if (sortBy) params.append("sortBy", sortBy);
+  
+  const res = await fetch(`${API_URL}?${params.toString()}`);
+  if (!res.ok) throw new Error("Gagal mengambil produk");
+  return res.json();
+};
+
+const fetchCategories = async () => {
+  const res = await fetch(`${config.API_URL}/api/categories`);
+  if (!res.ok) throw new Error("Gagal mengambil kategori");
+  return res.json();
 };
 
 const ShopPage = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchParams] = useSearchParams(); // Get params
   const [search, setSearch] = useState(searchParams.get("search") || ""); // Init from param
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "Semua");
   const [sortBy, setSortBy] = useState("newest");
-  const [priceRange, setPriceRange] = useState([0, 5000000]);
-  const [stockFilter, setStockFilter] = useState("all"); // all | in_stock | out_of_stock
   const { currency, t, language } = useCurrency();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12); // default 12 produk per halaman
+
+  const { data, isLoading: loading, error } = useQuery({
+    queryKey: ['products', { search, category: selectedCategory, sortBy, page, pageSize }],
+    queryFn: fetchProducts,
+    placeholderData: (prev) => prev,
+  });
+
+  const { data: categoryList = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+  });
 
   useEffect(() => {
     // Update search if URL changes (optional, but good for back button)
@@ -39,55 +63,13 @@ const ShopPage = () => {
     if (cat !== null) setSelectedCategory(cat);
   }, [searchParams]);
 
-  useEffect(() => {
-    const cached = getCachedProducts();
-    if (cached) {
-      setProducts(cached.data);
-      setLoading(false);
-      if (cached.isFresh) return;
-    } else {
-      setLoading(true);
-    }
+  const categories = useMemo(() => {
+    return ["Semua", ...categoryList.map(c => c.name)];
+  }, [categoryList]);
 
-    fetch(API_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal mengambil produk");
-        return res.json();
-      })
-      .then((data) => {
-        setProducts(data);
-        setCachedProducts(data);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!cached) setError(err.message);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const categories = useMemo(() => ["Semua", ...getCategories(products)], [products]);
-
-  const filtered = useMemo(() => {
-    let result = products.filter(
-      (p) =>
-        (selectedCategory === "Semua" || p.category === selectedCategory) &&
-        (p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.description?.toLowerCase().includes(search.toLowerCase()))
-    );
-
-    // Sorting Logic
-    return result.sort((a, b) => {
-      switch (sortBy) {
-        case "price_asc": return a.price - b.price;
-        case "price_desc": return b.price - a.price;
-        case "name_asc": return a.name.localeCompare(b.name);
-        case "newest": default: return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-      }
-    });
-  }, [products, selectedCategory, search, sortBy]);
-
-  const maxProductPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 5000000;
-  const activeFiltersCount = (priceRange[0] > 0 || priceRange[1] < maxProductPrice ? 1 : 0) + (stockFilter !== 'all' ? 1 : 0) + (selectedCategory !== 'Semua' ? 1 : 0);
+  const products = data?.products || [];
+  const totalItems = data?.pagination?.total || 0;
+  const totalPages = data?.pagination?.pages || 1;
 
   const convertPrice = useCallback((price) => {
     if (currency.code === "IDR") return currency.symbol + " " + Number(price).toLocaleString(currency.locale, { minimumFractionDigits: 0 });
@@ -96,25 +78,15 @@ const ShopPage = () => {
     );
   }, [currency]);
 
-  // Tambahkan state dan fungsi untuk pagination
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12); // default 12 produk per halaman
-
-  // Hitung jumlah halaman
-  const totalPages = Math.ceil(filtered.length / pageSize);
-
-  // Produk yang ditampilkan di halaman saat ini
-  const paginatedProducts = filtered.slice((page - 1) * pageSize, page * pageSize);
-
   return (
     <>
       <div className="w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-700 pt-4 pb-16">
         <div className="max-w-7xl mx-auto px-4 mt-2 md:mt-4">
           {/* Filter Bar */}
           <div className="mb-8">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-5 md:grid-cols-6 gap-4">
               {/* Search */}
-              <div className="relative group sm:col-span-3">
+              <div className="relative group sm:col-span-3 md:col-span-4">
                 <input
                   className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 text-sm transition-all shadow-sm"
                   placeholder={language === 'EN' ? "Search Products..." : "Cari produk..."}
@@ -125,7 +97,7 @@ const ShopPage = () => {
               </div>
               {/* Category */}
               <select
-                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-sm font-medium text-gray-900 dark:text-gray-100 focus:outline-none shadow-sm appearance-none cursor-pointer"
+                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-sm font-medium text-gray-900 dark:text-gray-100 focus:outline-none shadow-sm appearance-none cursor-pointer sm:col-span-1"
                 value={selectedCategory}
                 onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
               >
@@ -133,12 +105,23 @@ const ShopPage = () => {
                   <option key={cat} value={cat}>{cat === "Semua" ? (language === 'EN' ? "All Categories" : "Semua Kategori") : cat}</option>
                 ))}
               </select>
+              {/* Sort By */}
+              <select
+                className="w-full px-4 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-sm font-medium text-gray-900 dark:text-gray-100 focus:outline-none shadow-sm appearance-none cursor-pointer sm:col-span-1"
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+              >
+                <option value="newest">{language === 'EN' ? "Newest" : "Terbaru"}</option>
+                <option value="price_asc">{language === 'EN' ? "Price: Low to High" : "Harga: Rendah ke Tinggi"}</option>
+                <option value="price_desc">{language === 'EN' ? "Price: High to Low" : "Harga: Tinggi ke Rendah"}</option>
+                <option value="name_asc">{language === 'EN' ? "Alphabetical" : "Abjad"}</option>
+              </select>
             </div>
 
             {/* Active Filter Summary */}
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs text-gray-500">
-                {language === 'EN' ? 'Showing' : 'Menampilkan'} <span className="font-bold text-black dark:text-white">{filtered.length}</span> {language === 'EN' ? 'products' : 'produk'}
+                {language === 'EN' ? 'Showing' : 'Menampilkan'} <span className="font-bold text-black dark:text-white">{totalItems}</span> {language === 'EN' ? 'products' : 'produk'}
                 {selectedCategory !== 'Semua' && <span className="ml-2 bg-black dark:bg-white text-white dark:text-black px-2.5 py-0.5 rounded-full text-[10px] font-bold">{language === 'EN' ? '1 filter active' : '1 filter aktif'}</span>}
               </p>
               {selectedCategory !== 'Semua' && (
@@ -159,8 +142,8 @@ const ShopPage = () => {
                 <div key={i} className="h-[300px] border border-gray-100 dark:border-gray-800 rounded-lg p-6 bg-white dark:bg-gray-900 animate-pulse" />
               ))
             ) : error ? (
-              <div className="col-span-full text-red-500">{error}</div>
-            ) : !paginatedProducts || paginatedProducts.length === 0 ? (
+              <div className="col-span-full text-red-500">{error?.message || error}</div>
+            ) : !products || products.length === 0 ? (
               <div className="col-span-full py-32 flex flex-col items-center justify-center text-center">
                 <div className="w-24 h-24 mb-6 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
                   <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -168,14 +151,14 @@ const ShopPage = () => {
                 <h3 className="text-xl font-black uppercase tracking-tighter text-black dark:text-white mb-2 italic">{language === 'EN' ? 'Product Not Found' : 'Produk Tidak Ditemukan'}</h3>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest max-w-[200px]">{language === 'EN' ? 'Try changing your filters or search keywords.' : 'Coba ubah filter atau kata kunci pencarian Anda.'}</p>
                 <button 
-                  onClick={() => { setSelectedCategory('Semua'); setStockFilter('all'); setPriceRange([0, maxProductPrice]); setSearch(''); setPage(1); }}
+                  onClick={() => { setSelectedCategory('Semua'); setSearch(''); setPage(1); }}
                   className="mt-8 px-8 py-3 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl hover:scale-105 active:scale-95 transition-all"
                 >
                   {language === 'EN' ? 'RESET FILTERS' : 'RESET FILTER'}
                 </button>
               </div>
             ) : (
-              paginatedProducts.map((product) => (
+              products.map((product) => (
                 <ProductItemCard
                   key={product.id || product._id}
                   product={product}

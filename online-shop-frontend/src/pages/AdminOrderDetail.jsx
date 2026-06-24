@@ -4,6 +4,7 @@ import BackButton from "../components/BackButton.jsx";
 import config from '../config.js';
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { formatDisplayOrderId } from "../utils/orderHelper";
 
 const AdminOrderDetail = () => {
     const { id } = useParams();
@@ -15,21 +16,10 @@ const AdminOrderDetail = () => {
     const printRef = useRef();
 
     const getStatusLabel = (s) => {
-        const customMap = {
-            pending: "Belum Bayar",
-            waiting_payment: "Belum Bayar",
-            waiting_verification: "Menunggu Verifikasi",
-            paid: "Siap Kirim (Paid)",
-            processing: "Diproses (COD)",
-            shipped: "Dikirim",
-            completed: "Selesai",
-            cancelled: "Dibatalkan",
-            failed: "Gagal"
-        };
-        return t(`admin.status.${s}`) || customMap[s] || s;
+        return t(`admin.status.order_${s}`) || s;
     };
 
-    useEffect(() => {
+    const fetchOrder = () => {
         fetch(`${config.API_URL}/api/orders/${id}`, {
             headers: { "Authorization": `Bearer ${localStorage.getItem('token')}` }
         })
@@ -40,6 +30,10 @@ const AdminOrderDetail = () => {
             })
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        fetchOrder();
     }, [id]);
 
     const handleUpdateStatus = async (newStatus) => {
@@ -55,7 +49,7 @@ const AdminOrderDetail = () => {
                 body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) {
-                setOrder({ ...order, status: newStatus });
+                fetchOrder();
             }
         } catch (e) {
             alert("Gagal update status");
@@ -76,7 +70,7 @@ const AdminOrderDetail = () => {
                 body: JSON.stringify({ status: 'shipped', trackingNumber: trackingInput })
             });
             if (res.ok) {
-                setOrder({ ...order, status: 'shipped', tracking_number: trackingInput });
+                fetchOrder();
                 alert("Nomor Resi disimpan & Status diubah jadi Dikirim!");
             }
         } catch (e) {
@@ -138,20 +132,24 @@ const AdminOrderDetail = () => {
                         <BackButton to="/admin/orders" />
                         <div>
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-2 block italic">Order Details</span>
-                            <h1 className="text-3xl font-[900] text-black dark:text-white uppercase tracking-tighter italic">Order #{order.id}</h1>
+                            <h1 className="text-3xl font-[900] text-black dark:text-white uppercase tracking-tighter italic break-all">Order {formatDisplayOrderId(order.id)}</h1>
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
                          <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm
-                             ${order.status === 'paid' ? 'bg-green-100 text-green-700' :
-                             order.status === 'pending' ? 'bg-orange-100 text-orange-700' :
-                             order.status === 'waiting_verification' ? 'bg-blue-100 text-blue-700' :
-                             order.status === 'processing' ? 'bg-teal-100 text-teal-700' :
-                             order.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
-                             order.status === 'completed' ? 'bg-gray-100 text-gray-700' :
-                             order.status === 'cancelled' || order.status === 'failed' ? 'bg-red-100 text-red-700' :
-                             'bg-gray-200 text-gray-700'}`}>
-                             {getStatusLabel(order.status)}
+                             ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
+                             order.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                             order.payment_status === 'waiting_verification' ? 'bg-blue-100 text-blue-700' :
+                             'bg-red-100 text-red-700'}`}>
+                             Payment: {t(`admin.status.payment_${order.payment_status}`) || order.payment_status}
+                         </span>
+                         <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm
+                             ${order.order_status === 'completed' || order.order_status === 'delivered' ? 'bg-gray-100 text-gray-700' :
+                             order.order_status === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                             order.order_status === 'processing' ? 'bg-teal-100 text-teal-700' :
+                             order.order_status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                             'bg-yellow-100 text-yellow-700'}`}>
+                             Order: {t(`admin.status.order_${order.order_status}`) || order.order_status}
                          </span>
                         <button onClick={handlePrint} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl hover:bg-black hover:text-white transition-all shadow-lg flex items-center gap-2">
                              PRINT INVOICE
@@ -165,13 +163,13 @@ const AdminOrderDetail = () => {
                             </button>
                             {showStatusDropdown && (
                                 <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-50 py-2">
-                                    {['pending', 'paid', 'processing', 'shipped', 'completed', 'cancelled', 'failed'].map(s => (
+                                    {['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled'].map(s => (
                                         <button 
                                             key={s} 
                                             onClick={() => { handleUpdateStatus(s); setShowStatusDropdown(false); }} 
                                             className="block w-full text-left px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 border-b border-gray-50 dark:border-gray-800 last:border-0"
                                         >
-                                            Set as {getStatusLabel(s)}
+                                            Set Order to {t(`admin.status.order_${s}`) || s}
                                         </button>
                                     ))}
                                 </div>
@@ -185,11 +183,11 @@ const AdminOrderDetail = () => {
                     {/* Left Column: Details */}
                     <div className="lg:col-span-2 space-y-8" id="print-area">
                         {/* Items Card */}
-                        <div className="bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                            <div className="px-10 py-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+                        <div className="bg-white dark:bg-gray-900 rounded-[24px] sm:rounded-[40px] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                            <div className="px-6 sm:px-10 py-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Order Items</h3>
                             </div>
-                            <div className="p-10">
+                            <div className="p-6 sm:p-10">
                                 <table className="w-full text-left">
                                     <thead className="text-[9px] uppercase font-black tracking-widest text-gray-400 border-b border-gray-100 dark:border-gray-800">
                                         <tr>
@@ -222,7 +220,7 @@ const AdminOrderDetail = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Customer Details */}
-                            <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-xl p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden">
+                            <div className="bg-white dark:bg-gray-900 rounded-[24px] sm:rounded-[30px] shadow-xl p-6 sm:p-10 border border-gray-100 dark:border-gray-800 relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-gray-50 dark:bg-black/20 rounded-full -mr-12 -mt-12"></div>
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300 mb-6 border-b pb-3">Customer Information</h3>
                                 <div className="flex items-center gap-5 mb-8">
@@ -243,7 +241,7 @@ const AdminOrderDetail = () => {
                             </div>
 
                             {/* Shipping Address */}
-                            <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-xl p-10 border border-gray-100 dark:border-gray-800 text-right relative overflow-hidden">
+                            <div className="bg-white dark:bg-gray-900 rounded-[24px] sm:rounded-[30px] shadow-xl p-6 sm:p-10 border border-gray-100 dark:border-gray-800 text-right relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-24 h-24 bg-gray-50 dark:bg-black/20 rounded-full -ml-12 -mt-12"></div>
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300 mb-6 border-b pb-3">Delivery Destination</h3>
                                 <div className="leading-relaxed flex flex-col items-end">
@@ -282,7 +280,7 @@ const AdminOrderDetail = () => {
                     <div className="space-y-8">
 
                         {/* Fulfillment Card */}
-                        <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-2xl p-10 border border-gray-100 dark:border-gray-800">
+                        <div className="bg-white dark:bg-gray-900 rounded-[24px] sm:rounded-[30px] shadow-2xl p-6 sm:p-10 border border-gray-100 dark:border-gray-800">
                             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-8 pb-3 border-b border-gray-50 dark:border-gray-800">Admin Control</h3>
 
                             <div className="mb-8">
@@ -307,7 +305,7 @@ const AdminOrderDetail = () => {
 
                         {/* Payment Proof */}
                         {order.paymentProof && (
-                            <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-2xl p-10 border border-gray-100 dark:border-gray-800">
+                            <div className="bg-white dark:bg-gray-900 rounded-[24px] sm:rounded-[30px] shadow-2xl p-6 sm:p-10 border border-gray-100 dark:border-gray-800">
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-8 pb-3 border-b border-gray-50 dark:border-gray-800">Payment Verification</h3>
                                 <div className="space-y-6">
                                     <a href={getImageUrl(order.paymentProof)} target="_blank" rel="noopener noreferrer" className="block relative group">

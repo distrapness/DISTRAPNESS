@@ -65,9 +65,10 @@ const CartPage = () => {
         const validateStock = async () => {
             setValidating(true);
             try {
-                const res = await fetch(`${config.API_URL}/api/products`);
+                const res = await fetch(`${config.API_URL}/api/products?limit=1000`);
                 if (res.ok) {
-                    const products = await res.json();
+                    const data = await res.json();
+                    const products = data.products || [];
                     const productMap = {};
                     products.forEach(p => {
                         productMap[p.id] = p;

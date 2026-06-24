@@ -30,33 +30,49 @@ router.post('/withdraw', verifyToken, async (req, res) => {
     const { amount, bank_account } = req.body;
     const userId = req.user.id;
 
-    if (!amount || amount < 50000) {
-        return res.status(400).json({ error: 'Minimal penarikan adalah Rp 50.000' });
+    const withdrawAmount = parseFloat(amount);
+    if (isNaN(withdrawAmount) || withdrawAmount < 50000) {
+        return res.status(400).json({ error: 'Minimal penarikan adalah Rp 50.000 dan harus berupa angka valid.' });
+    }
+
+    if (!bank_account || bank_account.trim() === "") {
+        return res.status(400).json({ error: 'Nomor akun bank tujuan wajib diisi.' });
     }
 
     const connection = await pool.promise().getConnection();
     try {
-        const [user] = await connection.query('SELECT balance FROM users WHERE id = ?', [userId]);
-        if (!user.length || parseFloat(user[0].balance) < parseFloat(amount)) {
-            return res.status(400).json({ error: 'Saldo tidak mencukupi' });
+        // 1. Mulai transaksi terlebih dahulu agar isolasi berjalan
+        await connection.beginTransaction();
+
+        // 2. Kunci baris user dengan FOR UPDATE untuk mencegah pembacaan data saldo yang kotor (dirty reads) secara konkruen
+        const [user] = await connection.query('SELECT balance FROM users WHERE id = ? FOR UPDATE', [userId]);
+        
+        if (!user.length) {
+            await connection.rollback();
+            return res.status(404).json({ error: 'Pengguna tidak ditemukan' });
         }
 
-        await connection.beginTransaction();
+        const currentBalance = parseFloat(user[0].balance);
+        if (currentBalance < withdrawAmount) {
+            await connection.rollback();
+            return res.status(400).json({ error: 'Saldo tidak mencukupi untuk melakukan penarikan.' });
+        }
+
+        // 3. Potong saldo afiliasi
+        await connection.query('UPDATE users SET balance = balance - ? WHERE id = ?', [withdrawAmount, userId]);
         
-        // Deduct balance
-        await connection.query('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
-        
-        // Create withdrawal record
+        // 4. Catat riwayat penarikan
         await connection.query(
-            'INSERT INTO withdrawals (user_id, amount, bank_account, status) VALUES (?, ?, ?, ?)',
-            [userId, amount, bank_account, 'pending']
+            'INSERT INTO withdrawals (user_id, amount, bank_account, status, created_at) VALUES (?, ?, ?, ?, NOW())',
+            [userId, withdrawAmount, bank_account.trim(), 'pending']
         );
 
         await connection.commit();
         res.json({ success: true, message: 'Permintaan penarikan berhasil dikirim' });
     } catch (err) {
         await connection.rollback();
-        res.status(500).json({ error: err.message });
+        console.error("[WITHDRAW TRANSACTION ERROR]:", err.message);
+        res.status(500).json({ error: 'Terjadi kesalahan sistem saat memproses penarikan.' });
     } finally {
         connection.release();
     }

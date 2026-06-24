@@ -16,38 +16,86 @@ const parseSizes = (str) => {
 
 // GET /api/products
 router.get('/', (req, res) => {
-  const limit = parseInt(req.query.limit) || 1000;
+  const limit = parseInt(req.query.limit) || 12;
   const offset = parseInt(req.query.offset) || 0;
+  const search = req.query.search ? `%${req.query.search.trim().toLowerCase()}%` : null;
+  const category = req.query.category && req.query.category !== 'Semua' ? req.query.category.trim() : null;
+  const sortBy = req.query.sortBy || 'newest';
 
-  const cacheKey = `products_list_${limit}_${offset}`;
-  const cached = cacheService.get(cacheKey);
-  if (cached) return res.json(cached);
+  // Build dynamic SQL query
+  let sql = 'SELECT * FROM products';
+  let countSql = 'SELECT COUNT(*) as total FROM products';
+  let conditions = [];
+  let params = [];
 
-  pool.query('SELECT * FROM products LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
+  if (search) {
+    conditions.push('(LOWER(name) LIKE ? OR LOWER(description) LIKE ?)');
+    params.push(search, search);
+  }
+  if (category) {
+    conditions.push('category = ?');
+    params.push(category);
+  }
+
+  if (conditions.length > 0) {
+    const condStr = ' WHERE ' + conditions.join(' AND ');
+    sql += condStr;
+    countSql += condStr;
+  }
+
+  // Sorting
+  switch (sortBy) {
+    case 'price_asc':
+      sql += ' ORDER BY price ASC';
+      break;
+    case 'price_desc':
+      sql += ' ORDER BY price DESC';
+      break;
+    case 'name_asc':
+      sql += ' ORDER BY name ASC';
+      break;
+    case 'newest':
+    default:
+      sql += ' ORDER BY id DESC'; 
+      break;
+  }
+
+  sql += ' LIMIT ? OFFSET ?';
+  const queryParams = [...params, limit, offset];
+
+  pool.query(sql, queryParams, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const products = results.map(product => {
-      const { sku, dimensions, ...rest } = product;
-      const parsedSizes = parseSizes(product.sizes);
-      
-      // Recalculate stock from sizes if sizes exist
-      // This ensures shop always shows correct stock matching admin panel
-      let recalculatedStock = rest.stock;
-      if (parsedSizes && typeof parsedSizes === 'object' && Object.keys(parsedSizes).length > 0) {
-        const sizeTotal = Object.values(parsedSizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
-        // Only override if sizes have actual data to avoid resetting manually-set stock
-        recalculatedStock = sizeTotal;
-      }
-      
-      return {
-        ...rest,
-        stock: recalculatedStock,
-        images: parseImages(product.images) || (product.image ? [product.image] : []),
-        sizes: parsedSizes
-      };
+    pool.query(countSql, params, (errCount, countResults) => {
+      if (errCount) return res.status(500).json({ error: errCount.message });
+
+      const totalItems = countResults[0]?.total || 0;
+
+      const products = results.map(product => {
+        const { sku, dimensions, ...rest } = product;
+        const parsedSizes = parseSizes(product.sizes);
+        let recalculatedStock = rest.stock;
+        if (parsedSizes && typeof parsedSizes === 'object' && Object.keys(parsedSizes).length > 0) {
+          recalculatedStock = Object.values(parsedSizes).reduce((sum, v) => sum + (Number(v) || 0), 0);
+        }
+        return {
+          ...rest,
+          stock: recalculatedStock,
+          images: parseImages(product.images) || (product.image ? [product.image] : []),
+          sizes: parsedSizes
+        };
+      });
+
+      res.json({
+        products,
+        pagination: {
+          total: totalItems,
+          limit,
+          offset,
+          pages: Math.ceil(totalItems / limit)
+        }
+      });
     });
-    cacheService.set(cacheKey, products);
-    res.json(products);
   });
 });
 

@@ -10,9 +10,20 @@ import { CartProvider } from './components/CartContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { WishlistProvider } from './components/WishlistContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 
 import { useState, useEffect } from 'react';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // Cache valid for 5 minutes
+      refetchOnWindowFocus: false, // Prevent distracting background refetches
+      retry: 1, // Fail fast locally
+    },
+  },
+});
 
 const RootComponent = () => {
   const [clientId, setClientId] = useState(config.GOOGLE_CLIENT_ID);
@@ -31,23 +42,25 @@ const RootComponent = () => {
   }, []);
 
   return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <CurrencyProvider>
-            <BannerProvider>
-              <AuthProvider>
-                <CartProvider>
-                  <WishlistProvider>
-                    <App />
-                  </WishlistProvider>
-                </CartProvider>
-              </AuthProvider>
-            </BannerProvider>
-          </CurrencyProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </GoogleOAuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <GoogleOAuthProvider clientId={clientId}>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <CurrencyProvider>
+              <BannerProvider>
+                <AuthProvider>
+                  <CartProvider>
+                    <WishlistProvider>
+                      <App />
+                    </WishlistProvider>
+                  </CartProvider>
+                </AuthProvider>
+              </BannerProvider>
+            </CurrencyProvider>
+          </BrowserRouter>
+        </ErrorBoundary>
+      </GoogleOAuthProvider>
+    </QueryClientProvider>
   );
 };
 

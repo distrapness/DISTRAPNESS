@@ -1,33 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrency } from './CurrencyContext.jsx';
 import config from '../config.js';
 import { getImageUrl } from '../utils/imageHelper';
-import { getCachedCategories, setCachedCategories } from '../utils/productCache.js';
+import { useQuery } from '@tanstack/react-query';
+
+const fetchCategories = async () => {
+    const res = await fetch(`${config.API_URL}/api/categories`);
+    if (!res.ok) throw new Error("Gagal mengambil kategori");
+    return res.json();
+};
 
 const CategoryGrid = () => {
     const { t } = useCurrency();
-    const [categories, setCategories] = useState([]);
+    const { data: categories = [], isLoading } = useQuery({
+        queryKey: ['categories'],
+        queryFn: fetchCategories,
+    });
 
-    useEffect(() => {
-        const cached = getCachedCategories();
-        if (cached) {
-            setCategories(cached.data);
-            if (cached.isFresh) return;
-        }
-
-        fetch(`${config.API_URL}/api/categories`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setCategories(data);
-                    setCachedCategories(data);
-                }
-            })
-            .catch(err => console.error("Failed to load categories", err));
-    }, []);
-
-    if (categories.length === 0) return null;
+    if (isLoading || categories.length === 0) return null;
 
     return (
         <section className="py-12 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">

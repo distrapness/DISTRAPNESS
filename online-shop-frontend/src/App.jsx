@@ -226,7 +226,9 @@ function App() {
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/store" element={<StorePage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms-conditions" element={<TermsPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               <Route path="/faq" element={<FAQPage />} />
             </Routes>
           </Suspense>

@@ -295,6 +295,25 @@ export const translations = {
                 systemFeedback: "System & Feedback"
             },
             status: {
+                // Payment Status
+                payment_pending: "Waiting for Payment",
+                payment_paid: "Paid",
+                payment_cod: "Cash on Delivery (COD)",
+                payment_failed: "Payment Failed",
+                payment_expired: "Expired",
+                payment_refunded: "Refunded",
+                payment_cancelled: "Cancelled",
+                payment_waiting_verification: "Waiting Verification",
+                
+                // Order Status
+                order_pending: "Pending",
+                order_processing: "Processing",
+                order_shipped: "Shipped",
+                order_delivered: "Delivered",
+                order_completed: "Completed",
+                order_cancelled: "Cancelled",
+
+                // Legacy fallback (if any)
                 pending: "Waiting for Payment",
                 paid: "Paid (Ready to Ship)",
                 shipped: "Shipped",
@@ -950,6 +969,25 @@ export const translations = {
                 systemFeedback: "Sistem & Feedback"
             },
             status: {
+                // Payment Status
+                payment_pending: "Menunggu Pembayaran",
+                payment_paid: "Lunas",
+                payment_cod: "Bayar di Tempat (COD)",
+                payment_failed: "Pembayaran Gagal",
+                payment_expired: "Kadaluarsa",
+                payment_refunded: "Dikembalikan",
+                payment_cancelled: "Dibatalkan",
+                payment_waiting_verification: "Menunggu Verifikasi",
+                
+                // Order Status
+                order_pending: "Menunggu Diproses",
+                order_processing: "Sedang Diproses",
+                order_shipped: "Dalam Pengiriman",
+                order_delivered: "Pesanan Diterima",
+                order_completed: "Selesai",
+                order_cancelled: "Dibatalkan",
+
+                // Legacy fallback (if any)
                 pending: "Menunggu Pembayaran",
                 paid: "Lunas (Siap Kirim)",
                 shipped: "Dikirim",

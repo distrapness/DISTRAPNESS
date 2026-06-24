@@ -17,16 +17,44 @@ export function CartProvider({ children }) {
     }
   });
 
-  // Load correct cart from localStorage when userEmail changes
+  // Load correct cart from localStorage when userEmail changes (merge guest cart into user cart on login)
   useEffect(() => {
     if (userEmail !== currentEmail) {
-      const key = userEmail ? `cart_${userEmail.toLowerCase().trim()}` : 'cart_guest';
-      let newCart = [];
+      const oldKey = currentEmail ? `cart_${currentEmail.toLowerCase().trim()}` : 'cart_guest';
+      const newKey = userEmail ? `cart_${userEmail.toLowerCase().trim()}` : 'cart_guest';
+      
+      let guestCart = [];
+      if (!currentEmail && userEmail) {
+        // User just logged in, load the guest cart items to merge
+        try {
+          const storedGuest = localStorage.getItem('cart_guest');
+          guestCart = storedGuest ? JSON.parse(storedGuest) : [];
+        } catch {}
+      }
+
+      let userCart = [];
       try {
-        const stored = localStorage.getItem(key);
-        newCart = stored ? JSON.parse(stored) : [];
+        const storedUser = localStorage.getItem(newKey);
+        userCart = storedUser ? JSON.parse(storedUser) : [];
       } catch {}
-      setCart(newCart);
+
+      let mergedCart = [...userCart];
+      if (guestCart.length > 0) {
+        guestCart.forEach(guestItem => {
+          const foundIdx = mergedCart.findIndex(userItem =>
+            String(userItem.id) === String(guestItem.id) && (userItem.selectedSize || 'M') === (guestItem.selectedSize || 'M')
+          );
+          if (foundIdx !== -1) {
+            mergedCart[foundIdx].qty += guestItem.qty;
+          } else {
+            mergedCart.push(guestItem);
+          }
+        });
+        // Clear guest cart after successful merge
+        localStorage.removeItem('cart_guest');
+      }
+
+      setCart(mergedCart);
       setCurrentEmail(userEmail);
     }
   }, [userEmail, currentEmail]);

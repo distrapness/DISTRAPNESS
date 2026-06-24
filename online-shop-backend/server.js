@@ -11,9 +11,59 @@ const http = require('http');
 const setupSocket = require('./socket');
 const jwt = require('jsonwebtoken'); // Add JWT
 
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'supersecretkey123')) {
+  console.error("FATAL: JWT_SECRET di lingkungan produksi tidak boleh menggunakan nilai default/kosong!");
+  process.exit(1);
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123'; // Fallback secret
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ====== SUPABASE RATE LIMITER ======
+// Membuat tabel rate_limits otomatis saat start
+pool.query(`
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    ip VARCHAR(45) PRIMARY KEY,
+    count INT DEFAULT 1,
+    reset_time BIGINT
+  )
+`, (err) => {
+  if (err) console.error("[DATABASE] Error creating rate_limits table:", err.message);
+  else console.log("[DATABASE] rate_limits table checked/added.");
+});
+
+const rateLimiter = (limitTimeMs, maxRequests) => {
+  return async (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const resetTimeNew = now + limitTimeMs;
+
+    try {
+      const [rows] = await pool.promise().query(`
+        INSERT INTO rate_limits (ip, count, reset_time) 
+        VALUES (?, 1, ?)
+        ON CONFLICT (ip) DO UPDATE 
+        SET 
+          count = CASE WHEN rate_limits.reset_time < ? THEN 1 ELSE rate_limits.count + 1 END,
+          reset_time = CASE WHEN rate_limits.reset_time < ? THEN ? ELSE rate_limits.reset_time END
+        RETURNING count, reset_time
+      `, [ip, resetTimeNew, now, now, resetTimeNew]);
+      
+      const limitData = rows[0];
+      if (limitData && limitData.count > maxRequests) {
+        return res.status(429).json({ message: 'Terlalu banyak permintaan. Silakan coba beberapa menit lagi.' });
+      }
+      next();
+    } catch (error) {
+      console.error("[RATE LIMITER ERROR]", error.message);
+      next(); // Loloskan request jika database error agar tidak mengganggu fungsionalitas
+    }
+  };
+};
+
+const loginLimiter = rateLimiter(15 * 60 * 1000, 15); // max 15 kali coba per 15 menit
+const registerLimiter = rateLimiter(60 * 60 * 1000, 5); // max 5 pendaftaran per jam
 
 // Auto-migrate database: ensure birth_date column exists in users table
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20)", (err) => {
@@ -38,7 +88,14 @@ const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET || '6LcmfhstAAAAAHSygpkMox
 
 
 const verifyGoogleRecaptcha = async (token) => {
-  if (token === 'bypass_localhost') return true;
+  if (token === 'bypass_localhost') {
+    if (process.env.NODE_ENV !== 'production') {
+      return true;
+    } else {
+      console.warn("⚠️ Bypass Captcha diblokir di lingkungan production!");
+      return false;
+    }
+  }
   if (!token) return false;
   try {
     const axios = require('axios');
@@ -192,11 +249,17 @@ app.get('/api/brand', async (req, res) => {
       return acc;
     }, {});
     
+    let phoneVal = settings.contact_phone || "6285888159265";
+    phoneVal = phoneVal.replace(/[^0-9]/g, '');
+    if (phoneVal.startsWith('0')) {
+      phoneVal = '62' + phoneVal.slice(1);
+    }
+
     const brandData = {
       brandName: settings.site_title || "DISTRAPNESS",
       logo: settings.logo_url || "/uploads/logo-hitam.png",
       logoWhite: settings.logo_url || "/uploads/logo-putih.png",
-      phone: settings.contact_phone || "6285888159265"
+      phone: phoneVal
     };
     cacheService.set(cacheKey, brandData);
     res.json(brandData);
@@ -207,11 +270,18 @@ app.get('/api/brand', async (req, res) => {
 });
 
 app.put('/api/brand', verifyToken, verifyAdmin, async (req, res) => {
-  const { brandName, logo, phone } = req.body;
+  let { brandName, logo, phone } = req.body;
+  
+  let phoneVal = phone || "6285888159265";
+  phoneVal = phoneVal.replace(/[^0-9]/g, '');
+  if (phoneVal.startsWith('0')) {
+    phoneVal = '62' + phoneVal.slice(1);
+  }
+
   try {
     await pool.promise().query(
       'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?), (?, ?), (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
-      ['site_title', brandName, 'logo_url', logo, 'contact_phone', phone]
+      ['site_title', brandName, 'logo_url', logo, 'contact_phone', phoneVal]
     );
     cacheService.clearPattern('brand_info');
     res.json({ success: true });
@@ -269,43 +339,13 @@ app.get('/api/verify-server', (req, res) => {
   });
 });
 
-// EMERGENCY SETUP ROUTE (REMOVE AFTER USE OR SECURE)
-app.get('/api/setup-admin', async (req, res) => {
-  const { key, email } = req.query;
-  if (key !== 'rahasia123') return res.status(403).json({ error: 'Forsake!' });
 
-  const targetEmail = email || 'admin@distrapness.com';
-  const connection = await pool.promise().getConnection();
-  try {
-    // 1. Ensure Table Structure
-    await connection.query(`ALTER TABLE users MODIFY COLUMN role VARCHAR(50) DEFAULT 'customer'`).catch(() => { });
-    await connection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS balance DECIMAL(15,2) DEFAULT 0`).catch(() => { });
-    await connection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INT DEFAULT 0`).catch(() => { });
 
-    // 2. Update/Create Admin
-    const password = 'admin123'; 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const [users] = await connection.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))', [targetEmail]);
-    if (users.length === 0) {
-      await connection.query('INSERT INTO users (email, password, role) VALUES (?, ?, "admin")', [targetEmail, hashedPassword]);
-      res.json({ message: `AKUN BARU BERHASIL DIBUAT SEBAGAI ADMIN`, email: targetEmail, pass: 'admin123' });
-    } else {
-      // FORCE UPDATE ROLE TO ADMIN
-      await connection.query('UPDATE users SET role = "admin" WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))', [targetEmail]);
-      res.json({ message: `HAK AKSES ADMIN BERHASIL DIBERIKAN`, email: targetEmail, note: 'SILAHKAN REFRESH DAN LOGIN ULANG' });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    connection.release();
-  }
-});
-
-const { sendRegistrationWelcome, sendContactNotification, sendPasswordResetOTP } = require('./services/emailService');
+const { sendRegistrationWelcome, sendContactNotification, sendPasswordResetOTP, sendRegistrationOTP } = require('./services/emailService');
+const { sendWhatsAppOTP } = require('./services/whatsappService');
 
 // REGISTER ENDPOINT
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', registerLimiter, async (req, res) => {
   const { email, phone, password, fullName, birthDate, recaptchaToken } = req.body;
   if (!email || !phone || !password || !fullName || !birthDate || !recaptchaToken) {
     return res.status(400).json({ message: 'Semua kolom pendaftaran wajib diisi termasuk Captcha' });
@@ -322,42 +362,170 @@ app.post('/api/register', async (req, res) => {
   const cleanEmail = (email || '').toString().trim().toLowerCase();
   const cleanPhone = (phone || '').toString().trim();
 
-  // Check if email or phone is already registered
+  // Check if email or phone is already registered and verified
   pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ? OR phone = ?', [cleanEmail, cleanPhone], async (err, results) => {
     if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
+    
     if (results.length > 0) {
-      const existing = results[0];
-      if (existing.email.toLowerCase() === cleanEmail) {
-        return res.status(400).json({ message: 'Email sudah terdaftar' });
-      } else {
-        return res.status(400).json({ message: 'Nomor telepon sudah terdaftar' });
+      const verifiedUser = results.find(u => u.is_verified === true || u.is_verified === 'true');
+      if (verifiedUser) {
+        if (verifiedUser.email.toLowerCase() === cleanEmail) {
+          return res.status(400).json({ message: 'Email sudah terdaftar' });
+        } else {
+          return res.status(400).json({ message: 'Nomor telepon sudah terdaftar' });
+        }
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Clean up any unverified accounts using this email or phone number to prevent duplicate keys
     pool.query(
-      'INSERT INTO users (email, phone, password, first_name, birth_date) VALUES (?, ?, ?, ?, ?)',
-      [cleanEmail, cleanPhone, hashedPassword, fullName, birthDate],
-      (err2, result) => {
-        if (err2) return res.status(500).json({ message: 'Gagal menyimpan user', detail: err2.message });
-        
-        // Send Welcome Email (Safe, non-blocking)
+      'DELETE FROM users WHERE (TRIM(LOWER(email)) = ? OR phone = ?) AND (is_verified = false OR is_verified IS NULL)',
+      [cleanEmail, cleanPhone],
+      async (errDel) => {
+        if (errDel) return res.status(500).json({ message: 'Database cleanup error', detail: errDel.message });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+        const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+        // Insert a new unverified user with OTP logging fields
+        pool.query(
+          'INSERT INTO users (email, phone, password, first_name, birth_date, is_verified, verification_otp, verification_expires, otp_created_at, otp_delivery_method, otp_delivery_status) VALUES (?, ?, ?, ?, ?, false, ?, ?, NOW(), ?, ?)',
+          [cleanEmail, cleanPhone, hashedPassword, fullName, birthDate, otp, otpExpires, 'email', 'EMAIL_FAILED'],
+          async (err2, result) => {
+            if (err2) return res.status(500).json({ message: 'Gagal menyimpan data pendaftaran', detail: err2.message });
+
+            let emailSent = false;
+            let whatsappSent = false;
+            let deliveryMethod = 'email';
+            let deliveryStatus = 'EMAIL_FAILED';
+
+            // 1. Try Email primary channel
+            try {
+              emailSent = await sendRegistrationOTP(cleanEmail, otp);
+              if (emailSent) {
+                deliveryStatus = 'EMAIL_SENT';
+              }
+            } catch (e) {
+              console.error("[OTP ERROR] sendRegistrationOTP threw an error:", e.message);
+            }
+
+            // 2. Try WhatsApp fallback if email failed
+            if (!emailSent) {
+              console.log(`[OTP FALLBACK] Email failed to ${cleanEmail}. Triggering automatic WhatsApp fallback to ${cleanPhone}...`);
+              try {
+                whatsappSent = await sendWhatsAppOTP(cleanPhone, otp);
+                if (whatsappSent) {
+                  deliveryMethod = 'whatsapp';
+                  deliveryStatus = 'WHATSAPP_SENT';
+                } else {
+                  deliveryStatus = 'WHATSAPP_FAILED';
+                }
+              } catch (e) {
+                console.error("[OTP FALLBACK ERROR] sendWhatsAppOTP threw an error:", e.message);
+                deliveryStatus = 'WHATSAPP_FAILED';
+              }
+            }
+
+            // 3. Update database with final delivery results
+            // Use result.insertId which is handled by our pg converter adapter
+            const insertId = result.insertId;
+            pool.query(
+              'UPDATE users SET otp_delivery_method = ?, otp_delivery_status = ? WHERE id = ?',
+              [deliveryMethod, deliveryStatus, insertId],
+              (errUpdate) => {
+                if (errUpdate) {
+                  console.error("[DB ERROR] Failed to update OTP fields:", errUpdate.message);
+                }
+
+                console.log(`[OTP VERIFICATION] Generated OTP for ${cleanEmail}: ${otp} (Email Sent: ${emailSent}, WhatsApp Sent: ${whatsappSent})`);
+
+                if (!emailSent && !whatsappSent) {
+                  return res.status(500).json({
+                    message: 'Gagal mengirim OTP. Silakan coba beberapa saat lagi.',
+                    emailSent: false,
+                    whatsappSent: false,
+                    registered: true,
+                    verified: false,
+                    email: cleanEmail
+                  });
+                }
+
+                res.json({
+                  message: emailSent 
+                    ? 'Kode OTP telah dikirim ke email Anda.'
+                    : 'Email gagal dikirim. Kode OTP telah dikirim ke WhatsApp Anda.',
+                  registered: true,
+                  verified: false,
+                  email: cleanEmail,
+                  emailSent,
+                  whatsappSent,
+                  otp: otp
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+
+// VERIFY REGISTRATION OTP
+app.post('/api/register/verify', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email dan kode OTP wajib diisi' });
+  }
+
+  const cleanEmail = email.toString().trim().toLowerCase();
+
+  pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail], (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Email tidak terdaftar' });
+    }
+
+    const user = results[0];
+    if (user.is_verified) {
+      return res.status(400).json({ message: 'Akun Anda sudah terverifikasi sebelumnya. Silakan login.' });
+    }
+
+    // Verify OTP code
+    if (!user.verification_otp || user.verification_otp !== otp.toString().trim()) {
+      return res.status(400).json({ message: 'Kode OTP yang Anda masukkan salah' });
+    }
+
+    // Verify Expiry
+    const now = new Date();
+    if (user.verification_expires && new Date(user.verification_expires) < now) {
+      return res.status(400).json({ message: 'Kode OTP sudah kedaluwarsa. Silakan kirim ulang OTP.' });
+    }
+
+    // Mark as verified
+    pool.query(
+      'UPDATE users SET is_verified = true, verification_otp = NULL, verification_expires = NULL, otp_delivery_status = \'OTP_VERIFIED\' WHERE id = ?',
+      [user.id],
+      (err2) => {
+        if (err2) return res.status(500).json({ message: 'Gagal memperbarui status verifikasi', detail: err2.message });
+
+        // Send welcome email (asynchronous, safe)
         try {
           sendRegistrationWelcome(cleanEmail);
         } catch (e) {
           console.warn("Welcome email failed:", e.message);
         }
 
-        const userId = result.insertId;
-        const finalRole = 'customer';
+        // Generate Login Token
+        const finalRole = (user.role || 'customer').toString().trim().toLowerCase();
         const token = jwt.sign(
-          { id: userId, email: cleanEmail, role: finalRole },
+          { id: user.id, email: cleanEmail, role: finalRole },
           JWT_SECRET,
           { expiresIn: '24h' }
         );
 
-        res.json({ 
-          message: 'Registrasi berhasil',
+        res.json({
+          message: 'Verifikasi akun berhasil!',
           token,
           email: cleanEmail,
           role: finalRole
@@ -367,8 +535,105 @@ app.post('/api/register', async (req, res) => {
   });
 });
 
+// RESEND REGISTRATION OTP
+app.post('/api/register/resend-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: 'Email wajib diisi' });
+  }
+
+  const cleanEmail = email.toString().trim().toLowerCase();
+
+  pool.query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail], (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error', detail: err.message });
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Email tidak terdaftar' });
+    }
+
+    const user = results[0];
+    if (user.is_verified) {
+      return res.status(400).json({ message: 'Akun Anda sudah terverifikasi' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    pool.query(
+      'UPDATE users SET verification_otp = ?, verification_expires = ?, otp_created_at = NOW(), otp_delivery_method = ?, otp_delivery_status = ? WHERE id = ?',
+      [otp, otpExpires, 'email', 'EMAIL_FAILED', user.id],
+      async (err2) => {
+        if (err2) return res.status(500).json({ message: 'Gagal menghasilkan OTP baru', detail: err2.message });
+
+        let emailSent = false;
+        let whatsappSent = false;
+        let deliveryMethod = 'email';
+        let deliveryStatus = 'EMAIL_FAILED';
+
+        // 1. Try Email
+        try {
+          emailSent = await sendRegistrationOTP(cleanEmail, otp);
+          if (emailSent) {
+            deliveryStatus = 'EMAIL_SENT';
+          }
+        } catch (e) {
+          console.error("[OTP RESEND ERROR] sendRegistrationOTP threw an error:", e.message);
+        }
+
+        // 2. Try WhatsApp fallback
+        if (!emailSent) {
+          console.log(`[OTP RESEND FALLBACK] Email failed to ${cleanEmail}. Triggering WhatsApp fallback to ${user.phone}...`);
+          try {
+            whatsappSent = await sendWhatsAppOTP(user.phone, otp);
+            if (whatsappSent) {
+              deliveryMethod = 'whatsapp';
+              deliveryStatus = 'WHATSAPP_SENT';
+            } else {
+              deliveryStatus = 'WHATSAPP_FAILED';
+            }
+          } catch (e) {
+            console.error("[OTP RESEND FALLBACK ERROR] sendWhatsAppOTP threw an error:", e.message);
+            deliveryStatus = 'WHATSAPP_FAILED';
+          }
+        }
+
+        // 3. Update database logs
+        pool.query(
+          'UPDATE users SET otp_delivery_method = ?, otp_delivery_status = ? WHERE id = ?',
+          [deliveryMethod, deliveryStatus, user.id],
+          (errUpdate) => {
+            if (errUpdate) {
+              console.error("[DB ERROR] Failed to update OTP fields in resend:", errUpdate.message);
+            }
+
+            console.log(`[OTP RESEND] Generated OTP for ${cleanEmail}: ${otp} (Email Sent: ${emailSent}, WhatsApp Sent: ${whatsappSent})`);
+
+            if (!emailSent && !whatsappSent) {
+              return res.status(500).json({
+                message: 'Gagal mengirim OTP. Silakan coba beberapa saat lagi.',
+                emailSent: false,
+                whatsappSent: false,
+                email: cleanEmail
+              });
+            }
+
+            res.json({
+              message: emailSent
+                ? 'Kode OTP baru telah dikirim ke email Anda.'
+                : 'Email gagal dikirim. Kode OTP telah dikirim ke WhatsApp Anda.',
+              email: cleanEmail,
+              emailSent,
+              whatsappSent,
+              otp: otp
+            });
+          }
+        );
+      }
+    );
+  });
+});
+
 // LOGIN ENDPOINT
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { email, password, recaptchaToken } = req.body;
   if (!email || !password || !recaptchaToken) {
     return res.status(400).json({ message: 'Kolom login dan Captcha wajib diisi' });
@@ -401,6 +666,15 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ 
         message: 'Password salah!',
         detail: `Kata sandi yang Anda masukkan tidak sesuai.`
+      });
+    }
+
+    // Check if user email is verified
+    if (!user.is_verified) {
+      return res.status(403).json({ 
+        message: 'Akun Anda belum terverifikasi. Silakan masukkan kode OTP yang telah dikirim ke email Anda.',
+        verified: false,
+        email: user.email
       });
     }
 
@@ -448,11 +722,11 @@ app.get('/api/profile', verifyToken, (req, res) => {
 // UPDATE PROFILE ENDPOINT
 app.put('/api/profile', verifyToken, (req, res) => {
   const userId = req.user.id;
-  const { firstName, lastName, phone, address, province, city, district, area, postalCode, provinceId, cityId, districtId, areaId } = req.body;
+  const { firstName, lastName, phone, birthDate, address, province, city, district, area, postalCode, provinceId, cityId, districtId, areaId } = req.body;
 
   pool.query(
-    'UPDATE users SET first_name = ?, last_name = ?, phone = ?, address = ?, province = ?, city = ?, district = ?, area = ?, postal_code = ?, province_id = ?, city_id = ?, district_id = ?, area_id = ? WHERE id = ?',
-    [firstName || null, lastName || null, phone || null, address || null, province || null, city || null, district || null, area || null, postalCode || null, provinceId || null, cityId || null, districtId || null, areaId || null, userId],
+    'UPDATE users SET first_name = ?, last_name = ?, phone = ?, birth_date = ?, address = ?, province = ?, city = ?, district = ?, area = ?, postal_code = ?, province_id = ?, city_id = ?, district_id = ?, area_id = ? WHERE id = ?',
+    [firstName || null, lastName || null, phone || null, birthDate || null, address || null, province || null, city || null, district || null, area || null, postalCode || null, provinceId || null, cityId || null, districtId || null, areaId || null, userId],
     (err, results) => {
       if (err) {
         console.error("Profile update error:", err);
@@ -478,12 +752,14 @@ app.put('/api/profile/change-password', verifyToken, async (req, res) => {
 
     const user = users[0];
 
-    // If user has a real password (not random from Google), verify old password
-    if (currentPassword) {
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Password lama salah' });
-      }
+    // WAJIBKAN verifikasi password lama untuk seluruh pengguna non-oauth
+    if (!currentPassword) {
+      return res.status(400).json({ message: 'Password saat ini wajib diisi untuk melakukan perubahan.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Password lama salah' });
     }
 
     const hashedNew = await bcrypt.hash(newPassword, 10);
@@ -536,13 +812,18 @@ app.post('/api/google-login', async (req, res) => {
 
       let user;
       if (results.length === 0) {
-        // Create new user if doesn't exist
+        // Create new user if doesn't exist (set is_verified = true directly for Google auth)
         const randomPassword = await bcrypt.hash(Math.random().toString(36), 10);
-        await pool.promise().query('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [cleanEmail, randomPassword, 'customer']);
+        await pool.promise().query('INSERT INTO users (email, password, role, is_verified) VALUES (?, ?, ?, true)', [cleanEmail, randomPassword, 'customer']);
         const [newUsers] = await pool.promise().query('SELECT * FROM users WHERE TRIM(LOWER(email)) = ?', [cleanEmail]);
         user = newUsers[0];
       } else {
         user = results[0];
+        // Automatically verify user if they were unverified but now logged in with Google
+        if (!user.is_verified) {
+          await pool.promise().query('UPDATE users SET is_verified = true WHERE id = ?', [user.id]);
+          user.is_verified = true;
+        }
       }
 
       // Generate JWT

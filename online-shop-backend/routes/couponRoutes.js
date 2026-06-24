@@ -33,7 +33,18 @@ router.get('/active', (req, res) => {
 router.post('/', verifyToken, verifyAdmin, (req, res) => {
     const { code, type, value, min_purchase, start_date, expiry_date, usage_limit, is_active } = req.body;
 
-    if (!code || !value) return res.status(400).json({ error: "Code and Value are required" });
+    if (!code || value === undefined || value === null) return res.status(400).json({ error: "Code and Value are required" });
+
+    const valNum = parseFloat(value);
+    if (isNaN(valNum) || valNum <= 0) {
+        return res.status(400).json({ error: "Discount value must be a valid positive number" });
+    }
+    if (type === 'percent' && valNum > 100) {
+        return res.status(400).json({ error: "Percentage discount cannot exceed 100%" });
+    }
+    if (min_purchase !== undefined && min_purchase !== null && parseFloat(min_purchase) < 0) {
+        return res.status(400).json({ error: "Minimum purchase cannot be negative" });
+    }
 
     const query = `
     INSERT INTO coupons (code, type, value, min_purchase, start_date, expiry_date, usage_limit, is_active)
@@ -55,6 +66,19 @@ router.post('/', verifyToken, verifyAdmin, (req, res) => {
 router.put('/:id', verifyToken, verifyAdmin, (req, res) => {
     const { id } = req.params;
     const { code, type, value, min_purchase, start_date, expiry_date, usage_limit, is_active } = req.body;
+
+    if (!code || value === undefined || value === null) return res.status(400).json({ error: "Code and Value are required" });
+
+    const valNum = parseFloat(value);
+    if (isNaN(valNum) || valNum <= 0) {
+        return res.status(400).json({ error: "Discount value must be a valid positive number" });
+    }
+    if (type === 'percent' && valNum > 100) {
+        return res.status(400).json({ error: "Percentage discount cannot exceed 100%" });
+    }
+    if (min_purchase !== undefined && min_purchase !== null && parseFloat(min_purchase) < 0) {
+        return res.status(400).json({ error: "Minimum purchase cannot be negative" });
+    }
 
     const query = `
     UPDATE coupons 

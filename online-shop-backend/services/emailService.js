@@ -1,8 +1,8 @@
 const nodemailer = require('nodemailer');
 const pool = require('../db');
 
-const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.replace(/\\n/g, '').trim() : '';
-const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\\n/g, '').trim() : '';
+const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.replace(/\\n/g, '').replace(/\n/g, '').replace(/["']/g, '').trim() : '';
+const emailPass = process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\\n/g, '').replace(/\n/g, '').replace(/["']/g, '').trim() : '';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -107,10 +107,16 @@ const sendStatusUpdateEmail = async (orderData) => {
 
   if (status === 'shipped') {
     statusText = 'Dikirim';
-    messageBody = `Pesanan Anda telah dikirim! <br/> Nomor Resi: <strong>${trackingNumber || '-'}</strong>`;
-  } else if (status === 'paid') {
-    statusText = 'Lunas';
-    messageBody = `Pembayaran Anda telah kami terima. Pesanan sedang disiapkan untuk dikirim.`;
+    messageBody = `Pesanan Anda telah dikirim. ${trackingNumber ? 'Nomor Resi: ' + trackingNumber : ''}`;
+  } else if (status === 'processing') {
+    statusText = 'Diproses';
+    messageBody = `Pesanan Anda sedang diproses oleh admin.`;
+  } else if (status === 'delivered') {
+    statusText = 'Diterima';
+    messageBody = `Pesanan Anda telah sampai di tujuan.`;
+  } else if (status === 'completed') {
+    statusText = 'Selesai';
+    messageBody = `Transaksi pesanan Anda telah selesai. Terima kasih telah berbelanja!`;
   } else if (status === 'cancelled') {
     statusText = 'Dibatalkan';
     messageBody = `Pesanan Anda telah dibatalkan. Jika ini kesalahan, silakan hubungi kami.`;
@@ -536,6 +542,49 @@ const checkAndNotifyLowStock = async (productId) => {
   }
 };
 
+const sendRegistrationOTP = async (userEmail, otpCode) => {
+  if (!emailUser || !emailPass) {
+    console.log("Email disabled: EMAIL_USER or EMAIL_PASS not set");
+    return false;
+  }
+
+  const mailOptions = {
+    from: `"Distrapness" <${emailUser}>`,
+    to: userEmail,
+    subject: `Kode Verifikasi Pendaftaran Anda - ${otpCode}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #efefef; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <div style="background-color: #000; color: #fff; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px; font-weight: 900;">DISTRAPNESS</h1>
+          <p style="margin: 5px 0 0 0; font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px;">Email Verification</p>
+        </div>
+        <div style="padding: 40px 30px; text-align: center; color: #333;">
+          <h2 style="color: #000; margin-top: 0; font-size: 18px;">Verifikasi Akun Baru</h2>
+          <p style="font-size: 14px; color: #666; line-height: 1.5;">Gunakan kode OTP di bawah ini untuk memverifikasi pendaftaran akun baru Anda. Kode ini berlaku selama 5 menit.</p>
+          
+          <div style="margin: 30px 0; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px dashed #ddd; display: inline-block;">
+            <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #000;">${otpCode}</span>
+          </div>
+
+          <p style="font-size: 11px; color: #999; margin-top: 20px;">Jika Anda tidak merasa melakukan pendaftaran ini, silakan abaikan email ini secara aman.</p>
+        </div>
+        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 11px;">
+          <p>&copy; 2026 Distrapness. All Rights Reserved.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Registration OTP email sent: ' + info.response);
+    return true;
+  } catch (error) {
+    console.error('Error sending registration OTP email:', error);
+    return false;
+  }
+};
+
 module.exports = {
   sendOrderConfirmation,
   sendAdminNotification,
@@ -544,5 +593,6 @@ module.exports = {
   sendContactNotification,
   sendShippingReceiptEmail,
   sendPasswordResetOTP,
-  checkAndNotifyLowStock
+  checkAndNotifyLowStock,
+  sendRegistrationOTP
 };

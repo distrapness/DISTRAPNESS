@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCart } from "../components/CartContext";
 import ProductImageGalleryModal from "../components/ProductImageGalleryModal.jsx";
@@ -9,15 +9,26 @@ import { useCurrency } from "../components/CurrencyContext.jsx";
 import { useWishlist } from "../components/WishlistContext.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import ProductItemCard from "../components/ProductItemCard.jsx";
+import { useQuery } from '@tanstack/react-query';
 
 const API_URL = `${config.API_URL}/api/products`;
+
+const fetchProduct = async (id) => {
+  const res = await fetch(`${API_URL}/${id}`);
+  if (!res.ok) throw new Error("Gagal mengambil detail produk");
+  return res.json();
+};
+
+const fetchProducts = async () => {
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error("Gagal mengambil produk");
+  return res.json();
+};
 
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const { t, currency } = useCurrency();
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -30,7 +41,6 @@ const ProductDetail = () => {
 
   // Wishlist state
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const inWishlist = product ? isInWishlist(product.id) : false;
 
   // Accordion state
   const [openMaterial, setOpenMaterial] = useState(false);
@@ -38,50 +48,48 @@ const ProductDetail = () => {
 
   // Reviews state
   const { isLoggedIn, userEmail } = useAuth();
-  const [reviews, setReviews] = useState([]);
   const [ratingInput, setRatingInput] = useState(5);
   const [commentInput, setCommentInput] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [relatedProducts, setRelatedProducts] = useState([]);
   const [shareToast, setShareToast] = useState(false);
   const [sizeRecOpen, setSizeRecOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
 
+  const { data: product, isLoading: productLoading, error: productError } = useQuery({
+    queryKey: ['product', id],
+    queryFn: () => fetchProduct(id),
+  });
+
+  const inWishlist = product ? isInWishlist(product.id) : false;
+
+  const { data: reviews = [], refetch: refetchReviews } = useQuery({
+    queryKey: ['reviews', id],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/${id}/reviews`);
+      if (!res.ok) throw new Error("Gagal mengambil ulasan");
+      return res.json();
+    }
+  });
+
   useEffect(() => {
-    setLoading(true);
-    fetch(`${API_URL}/${id}`)
-      .then((res) => res.json())
-      .then(data => {
-        setProduct(data);
-        if (data && data.name) {
-          document.title = `${data.name} - DISTRAPNESS`;
-          // Optional: Update meta description
-          const metaDesc = document.querySelector('meta[name="description"]');
-          if (metaDesc) {
-            metaDesc.setAttribute("content", data.description?.substring(0, 150) || "Beli produk ini di DISTRAPNESS");
-          }
+    if (product) {
+      if (product.name) {
+        document.title = `${product.name} - DISTRAPNESS`;
+        // Optional: Update meta description
+        const metaDesc = document.querySelector('meta[name="description"]');
+        if (metaDesc) {
+          metaDesc.setAttribute("content", product.description?.substring(0, 150) || "Beli produk ini di DISTRAPNESS");
         }
-        // Auto-select first available size
-        if (data.sizes) {
-          const firstAvailable = ['S', 'M', 'L', 'XL'].find(s => data.sizes[s] > 0);
-          if (firstAvailable) setSelectedSize(firstAvailable);
-        }
-        // Fetch related products same category
-        fetch(API_URL)
-          .then(r => r.json())
-          .then(all => {
-            const related = Array.isArray(all)
-              ? all.filter(p => p.id !== data.id && p.category === data.category).slice(0, 4)
-              : [];
-            setRelatedProducts(related);
-          })
-          .catch(() => {});
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+      }
+      // Auto-select first available size
+      if (product.sizes) {
+        const firstAvailable = ['S', 'M', 'L', 'XL'].find(s => product.sizes[s] > 0);
+        if (firstAvailable) setSelectedSize(firstAvailable);
+      }
+    }
+  }, [product]);
 
-    fetchReviews();
-
+  useEffect(() => {
     // Fetch user profile for referral code if logged in
     if (isLoggedIn) {
       fetch(`${config.API_URL}/api/profile`, {
@@ -91,14 +99,7 @@ const ProductDetail = () => {
       .then(data => setUserProfile(data))
       .catch(() => {});
     }
-  }, [id, isLoggedIn]);
-
-  const fetchReviews = () => {
-    fetch(`${API_URL}/${id}/reviews`)
-      .then(res => res.json())
-      .then(data => setReviews(Array.isArray(data) ? data : []))
-      .catch(console.error);
-  };
+  }, [isLoggedIn]);
 
   const submitReview = (e) => {
     e.preventDefault();
@@ -120,7 +121,7 @@ const ProductDetail = () => {
       else {
         setCommentInput("");
         setRatingInput(5);
-        fetchReviews();
+        refetchReviews();
         alert(t('reviews.success'));
       }
     })
@@ -129,7 +130,15 @@ const ProductDetail = () => {
   };
 
 
-  if (loading || !product) {
+  if (productError) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center p-6 text-red-500 font-bold">
+        Error: {productError.message || "Gagal memuat produk"}
+      </div>
+    );
+  }
+
+  if (productLoading || !product) {
     return (
       <div className="min-h-screen bg-white dark:bg-black p-6 md:p-20">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -641,8 +650,14 @@ const SizeRecommenderModal = ({ product, onClose, onApply }) => {
 
 
 const RelatedProducts = ({ currentProduct }) => {
-  const [products, setProducts] = useState([]);
   const { currency, language } = useCurrency();
+
+  const { data } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+  });
+
+  const allProducts = data?.products || [];
 
   const convertPrice = useCallback((price) => {
     if (!price) return "";
@@ -652,28 +667,24 @@ const RelatedProducts = ({ currentProduct }) => {
     );
   }, [currency]);
 
-  useEffect(() => {
-    if (!currentProduct) return;
+  const products = useMemo(() => {
+    if (!currentProduct || !allProducts.length) return [];
+    
+    // Filter out current product
+    let filtered = allProducts.filter(p => p.id !== currentProduct.id);
 
-    fetch(`${config.API_URL}/api/products`)
-      .then(res => res.json())
-      .then(data => {
-        // Filter out current product
-        let filtered = data.filter(p => p.id !== currentProduct.id);
+    // Prioritize same category
+    const sameCategory = filtered.filter(p => p.category === currentProduct.category);
+    const otherCategory = filtered.filter(p => p.category !== currentProduct.category);
 
-        // Prioritize same category
-        const sameCategory = filtered.filter(p => p.category === currentProduct.category);
-        const otherCategory = filtered.filter(p => p.category !== currentProduct.category);
+    // Shuffle both
+    const shuffle = (arr) => [...arr].sort(() => 0.5 - Math.random());
 
-        // Shuffle both
-        const shuffle = (arr) => arr.sort(() => 0.5 - Math.random());
+    // Combine: Same category first, then others to fill 4 spots
+    let combined = [...shuffle(sameCategory), ...shuffle(otherCategory)];
 
-        // Combine: Same category first, then others to fill 4 spots
-        let combined = [...shuffle(sameCategory), ...shuffle(otherCategory)];
-
-        setProducts(combined.slice(0, 4));
-      });
-  }, [currentProduct]);
+    return combined.slice(0, 4);
+  }, [currentProduct, allProducts]);
 
   if (!products.length) return null;
 

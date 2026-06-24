@@ -21,6 +21,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -68,6 +69,18 @@ const Header = ({ onCartClick, onWishlistClick }) => {
     setShowAccountMenu(false);
   }, [location.pathname]);
 
+  // Block body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [mobileMenuOpen]);
+
   const logoUrl = getImageUrl(dark && brand.logoWhite ? brand.logoWhite : brand.logo);
 
   return (
@@ -80,9 +93,15 @@ const Header = ({ onCartClick, onWishlistClick }) => {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle Menu"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          {mobileMenuOpen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
         </button>
 
         {/* LOGO (Always Left and Visible) */}
@@ -264,10 +283,10 @@ const Header = ({ onCartClick, onWishlistClick }) => {
               </svg>
             </button>
             {showAccountMenu && (
-              <div className="absolute right-0 mt-4 w-48 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-2 z-50">
+              <div className="absolute right-0 mt-4 w-56 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xl py-2 z-50 rounded-lg">
                 {isLoggedIn ? (
                   <>
-                    <div className="px-4 py-2 text-xs text-gray-500 font-bold uppercase tracking-wider">{userEmail}</div>
+                    <div className="px-4 py-2 text-[10px] text-gray-500 font-bold uppercase tracking-wider truncate" title={userEmail}>{userEmail}</div>
                     <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">{t('nav.profile')}</Link>
                     <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700">{t('nav.signout')}</button>
                   </>
@@ -284,7 +303,7 @@ const Header = ({ onCartClick, onWishlistClick }) => {
       </div>
 
       {/* Mobile Menu Dropdown */}
-      <div className={`lg:hidden bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out border-t border-gray-200 dark:border-gray-700 ${mobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+      <div className={`lg:hidden fixed top-[60px] left-0 w-full h-[calc(100vh-60px)] bg-white dark:bg-zinc-900 transition-all duration-300 ease-in-out border-t border-gray-100 dark:border-white/5 shadow-2xl overflow-y-auto ${mobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'}`}>
         <nav className="flex flex-col p-6 space-y-6">
           {/* Mobile Search */}
           <form onSubmit={(e) => {
@@ -297,51 +316,51 @@ const Header = ({ onCartClick, onWishlistClick }) => {
             <input
               type="text"
               placeholder="Search products..."
-              className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded-lg py-3 px-4 text-gray-900 dark:text-white"
+              className="w-full bg-gray-50 dark:bg-gray-900/60 border border-gray-200/60 dark:border-gray-800/60 rounded-md py-3 px-4 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-colors"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black dark:hover:text-white transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
           </form>
 
-          <Link to="/" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.home').toUpperCase()}</Link>
-          <Link to="/shop" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.shop').toUpperCase()}</Link>
-          <Link to="/store" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.store').toUpperCase()}</Link>
-          <Link to="/about" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.about').toUpperCase()}</Link>
-          <Link to="/contact" className="text-xl font-bold tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-2">{t('nav.contact').toUpperCase()}</Link>
+          <Link to="/" className="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-800/50 pb-3 pt-1 hover:text-red-600 active:text-red-600 transition-colors duration-300">{t('nav.home')}</Link>
+          <Link to="/shop" className="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-800/50 pb-3 pt-1 hover:text-red-600 active:text-red-600 transition-colors duration-300">{t('nav.shop')}</Link>
+          <Link to="/store" className="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-800/50 pb-3 pt-1 hover:text-red-600 active:text-red-600 transition-colors duration-300">{t('nav.store')}</Link>
+          <Link to="/about" className="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-800/50 pb-3 pt-1 hover:text-red-600 active:text-red-600 transition-colors duration-300">{t('nav.about')}</Link>
+          <Link to="/contact" className="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-800/50 pb-3 pt-1 hover:text-red-600 active:text-red-600 transition-colors duration-300">{t('nav.contact')}</Link>
 
           {userRole === 'admin' && (
-            <Link to="/admin" className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800 pb-2">{t('admin.panel') || 'Admin Panel'}</Link>
+            <Link to="/admin" className="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-800/50 pb-3 pt-1 hover:text-red-600 active:text-red-600 transition-colors duration-300">{t('admin.panel') || 'Admin Panel'}</Link>
           )}
 
           {/* Settings Section (Lang, Currency, Theme) */}
-          <div className="pt-4 grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold uppercase text-gray-500">Language</span>
+          <div className="pt-4 grid grid-cols-2 gap-6">
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Language</span>
               <div className="flex gap-2">
                 {['EN', 'ID'].map(lang => (
                   <button
                     key={lang}
                     onClick={() => setLanguage(lang)}
-                    className={`px-3 py-1 rounded text-sm font-bold ${language === lang ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800'}`}
+                    className={`px-3 py-1.5 rounded-sm text-xs font-black tracking-wider transition-all duration-300 ${language === lang ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm' : 'bg-gray-50 text-gray-500 border border-gray-200/50 dark:bg-gray-900/60 dark:text-gray-400 dark:border-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800/60'}`}
                   >
                     {lang}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold uppercase text-gray-500">Currency</span>
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Currency</span>
               <div className="flex gap-2">
                 {CURRENCY_OPTIONS.map(opt => (
                   <button
                     key={opt.code}
                     onClick={() => setCurrency(opt)}
-                    className={`px-3 py-1 rounded text-sm font-bold ${currency.code === opt.code ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 dark:bg-gray-800'}`}
+                    className={`px-3 py-1.5 rounded-sm text-xs font-black tracking-wider transition-all duration-300 ${currency.code === opt.code ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm' : 'bg-gray-50 text-gray-500 border border-gray-200/50 dark:bg-gray-900/60 dark:text-gray-400 dark:border-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800/60'}`}
                   >
                     {opt.code}
                   </button>
@@ -350,8 +369,8 @@ const Header = ({ onCartClick, onWishlistClick }) => {
             </div>
           </div>
 
-          <div className="pt-2">
-            <button onClick={() => setDark(!dark)} className="w-full text-sm font-bold bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded flex items-center justify-center gap-2">
+          <div className="pt-4">
+            <button onClick={() => setDark(!dark)} className="w-full text-xs font-black uppercase tracking-widest bg-gray-50 dark:bg-gray-900/60 text-gray-800 dark:text-gray-200 border border-gray-200/50 dark:border-gray-800/50 px-4 py-3 rounded-sm flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-300">
               {dark ? (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>

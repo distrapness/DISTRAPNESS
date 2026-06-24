@@ -3,18 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { FaEye, FaCheck, FaTimes, FaSearch } from "react-icons/fa";
 import config from '../config.js';
 import { useCurrency } from '../components/CurrencyContext.jsx';
+import { formatDisplayOrderId } from '../utils/orderHelper';
 
-const statusColors = {
-  pending: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400",
-  waiting_payment: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400",
-  waiting_verification: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
-  paid: "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400",
-  processing: "bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400",
-  shipped: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400",
-  completed: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  failed: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400",
-  cancelled: "bg-red-50 text-red-500 dark:bg-red-900/10 dark:text-red-400"
-};
+// statusColors omitted in favor of inline logic
 
 const AdminOrderDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -212,7 +203,7 @@ const AdminOrderDashboard = () => {
       );
     }
     if (statusFilter !== 'all') {
-      res = res.filter(o => o.status === statusFilter);
+      res = res.filter(o => o.order_status === statusFilter || o.payment_status === statusFilter);
     }
     setFilteredOrders(res);
   }, [search, statusFilter, orders]);
@@ -336,7 +327,7 @@ const AdminOrderDashboard = () => {
         ) : (
           <div className="bg-white dark:bg-gray-900 rounded-[30px] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
+              <table className="w-full min-w-[900px] text-left">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
                     <th className="px-6 py-5 w-12 text-center">
@@ -351,7 +342,8 @@ const AdminOrderDashboard = () => {
                     <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Info Pembeli</th>
                     <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Total Tagihan</th>
                     <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Tanggal</th>
-                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Status</th>
+                    <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Status Pembayaran</th>
+<th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400">Status Pesanan</th>
                     <th className="px-8 py-5 font-black text-[10px] uppercase tracking-[0.2em] text-gray-400 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -367,10 +359,10 @@ const AdminOrderDashboard = () => {
                         />
                       </td>
                       <td className="px-8 py-6">
-                        <span className="bg-black dark:bg-white text-white dark:text-black px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest">#{order.id}</span>
+                        <span className="whitespace-nowrap bg-black dark:bg-white text-white dark:text-black px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest">{formatDisplayOrderId(order.id)}</span>
                       </td>
                       <td className="px-8 py-6">
-                        <div className="font-black text-black dark:text-white uppercase tracking-tight mb-1 text-xs">{String(order.userId || "Guest Customer")}</div>
+                        <div className="font-black text-black dark:text-white uppercase tracking-tight mb-1 text-xs break-all">{String(order.userId || "Guest Customer")}</div>
                         <div className="flex items-center gap-1">
                            <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">{order.paymentMethod || 'manual'}</span>
                         </div>
@@ -382,10 +374,15 @@ const AdminOrderDashboard = () => {
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}
                       </td>
                       <td className="px-8 py-6">
-                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest inline-block ${statusColors[order.status] || 'bg-gray-100'}`}>
-                          {getStatusLabel(order.status)}
-                        </span>
-                      </td>
+  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest inline-block ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : order.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+    {t(`admin.status.payment_${order.payment_status}`) || order.payment_status}
+  </span>
+</td>
+<td className="px-8 py-6">
+  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest inline-block ${order.order_status === 'completed' || order.order_status === 'delivered' ? 'bg-gray-100 text-gray-700' : order.order_status === 'shipped' ? 'bg-purple-100 text-purple-700' : order.order_status === 'processing' ? 'bg-teal-100 text-teal-700' : order.order_status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+    {t(`admin.status.order_${order.order_status}`) || order.order_status}
+  </span>
+</td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
                           <button
@@ -396,7 +393,7 @@ const AdminOrderDashboard = () => {
                             <FaEye size={12} />
                           </button>
 
-                          {order.status === "waiting_verification" && (
+                          {order.payment_status === "waiting_verification" && (
                             <>
                               <button
                                 className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 hover:bg-green-600 hover:text-white rounded-xl transition-all"

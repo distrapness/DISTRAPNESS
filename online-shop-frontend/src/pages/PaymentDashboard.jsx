@@ -11,7 +11,7 @@ const PaymentDashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { userEmail, logout } = useAuth();
-  const { clearCart } = useCart();
+  const { cart: globalCart, clearCart } = useCart();
   const { t, language } = useCurrency();
   const isId = language !== 'EN';
   const [methods, setMethods] = useState([]);
@@ -162,12 +162,17 @@ const PaymentDashboard = () => {
     const orderId = searchParams.get("orderId");
     if (!orderId) {
       setLoading(false);
-      const c = JSON.parse(localStorage.getItem("cart") || "[]");
-      setCart(c);
-      const st = c.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
-      setSubtotal(st);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (!orderId) {
+      setCart(globalCart);
+      const st = globalCart.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.qty || 1), 0);
+      setSubtotal(st);
+    }
+  }, [globalCart, searchParams]);
 
   useEffect(() => {
     const orderId = searchParams.get("orderId");
@@ -634,6 +639,8 @@ const PaymentDashboard = () => {
         total: finalTotal > 0 ? finalTotal : 0,
         paymentMethod: selectedPaymentMethod,
         status: 'pending',
+        payment_status: 'pending',
+        order_status: 'pending',
         shippingAddress: {
           ...address,
           province: provinces.find(p => p.id === selectedProvince)?.name || "",
@@ -669,6 +676,8 @@ const PaymentDashboard = () => {
       total: finalTotal > 0 ? finalTotal : 0,
       paymentMethod: selectedPaymentMethod,
       status: 'pending',
+      payment_status: 'pending',
+      order_status: 'pending',
       shippingAddress: {
         ...address,
         province: provinces.find(p => p.id === selectedProvince)?.name || "",
@@ -879,13 +888,13 @@ const PaymentDashboard = () => {
                 </div>
               ) : selectedService ? (
                 /* Premium Selected Courier Card (Shopify Style) */
-                <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row gap-4 justify-between sm:items-center hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-4">
-                    <div className="w-20 h-10 rounded-lg bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-black text-xs text-gray-800 dark:text-gray-200 uppercase whitespace-nowrap">
+                    <div className="w-20 h-10 rounded-lg bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-black text-xs text-gray-800 dark:text-gray-200 uppercase whitespace-nowrap shrink-0">
                       {selectedService.company}
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-gray-900 dark:text-white uppercase">
+                      <h4 className="font-bold text-sm text-gray-900 dark:text-white uppercase break-words">
                         {selectedService.company.toUpperCase()} - {selectedService.courier_service_name}
                       </h4>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -893,14 +902,14 @@ const PaymentDashboard = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t border-gray-100 dark:border-gray-700 sm:border-t-0">
                     <span className="font-bold text-sm text-gray-900 dark:text-white">
                       Rp {Number(selectedService.price).toLocaleString('id-ID')}
                     </span>
                     <button
                       type="button"
                       onClick={() => setIsShippingModalOpen(true)}
-                      className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-850 hover:bg-gray-100 dark:hover:bg-gray-850 hover:text-black dark:hover:text-white transition"
+                      className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 rounded-lg text-xs font-bold border border-gray-200 dark:border-gray-850 hover:bg-gray-100 dark:hover:bg-gray-850 hover:text-black dark:hover:text-white transition whitespace-nowrap"
                     >
                       {isId ? 'Ubah' : 'Change'}
                     </button>
@@ -922,7 +931,7 @@ const PaymentDashboard = () => {
               </div>
 
               {/* Methods Tab */}
-              <div className="grid grid-cols-2 gap-2 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
                 {methods.map(m => (
                   <button
                     key={m.value}

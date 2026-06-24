@@ -5,27 +5,29 @@ import { useCurrency } from "../components/CurrencyContext.jsx";
 import config from "../config";
 import { getImageUrl } from "../utils/imageHelper";
 import { useCart } from "../components/CartContext";
+import { formatDisplayOrderId } from "../utils/orderHelper";
 
 export default function Profile() {
   const { userEmail, logout } = useAuth();
-  const { t, currency } = useCurrency();
+  const { t, currency, language } = useCurrency();
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const [orders, setOrders] = useState([]);
+  
+  // Review states
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewItem, setReviewItem] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("orders");
   const [savedAddress, setSavedAddress] = useState(null);
   const [profile, setProfile] = useState(null);
   const [reorderToast, setReorderToast] = useState('');
   const [copyStatus, setCopyStatus] = useState(false);
-  const [debugLogs, setDebugLogs] = useState([]);
-
-  useEffect(() => {
-    try {
-      const logs = JSON.parse(localStorage.getItem('debug_autosave_logs') || '[]');
-      setDebugLogs(logs);
-    } catch(e){}
-  }, []);
 
   // Profile Form States
   const [firstName, setFirstName] = useState("");
@@ -33,6 +35,7 @@ export default function Profile() {
   const [phone, setPhone] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   
   // Geography States
   const [provinces, setProvinces] = useState([]);
@@ -101,6 +104,14 @@ export default function Profile() {
             setPhone(data.phone || localAddr.phone || '');
             setStreetAddress(data.address || localAddr.address || '');
             setPostalCode(data.postal_code || localAddr.postalCode || '');
+            if (data.birth_date) {
+              const d = new Date(data.birth_date);
+              if (!isNaN(d.getTime())) {
+                setBirthDate(d.toISOString().split('T')[0]);
+              }
+            } else {
+              setBirthDate('');
+            }
 
             const provId = data.province_id || localStorage.getItem('sel_prov') || '';
             const cityId = data.city_id || localStorage.getItem('sel_city') || '';
@@ -269,6 +280,7 @@ export default function Profile() {
           firstName, 
           lastName, 
           phone, 
+          birthDate,
           address: streetAddress, 
           province: provinces.find(p => p.id === selectedProvince)?.name || "", 
           city: cities.find(c => c.id === selectedCity)?.name || "", 
@@ -424,11 +436,15 @@ export default function Profile() {
       case "pending": return "text-red-600 bg-red-50 dark:bg-red-900/20";
       case "waiting_payment": return "text-red-600 bg-red-50 dark:bg-red-900/20 animate-pulse";
       case "waiting_verification": return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
+      case "cod": return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
       case "processing": return "text-teal-600 bg-teal-50 dark:bg-teal-900/20";
       case "shipped": return "text-purple-600 bg-purple-50 dark:bg-purple-900/20";
+      case "delivered": return "text-green-600 bg-green-50 dark:bg-green-900/20";
       case "completed": return "text-gray-600 bg-gray-50 dark:bg-gray-800";
       case "cancelled": return "text-red-600 bg-red-50 dark:bg-red-900/20";
       case "failed": return "text-red-600 bg-red-50 dark:bg-red-900/20";
+      case "expired": return "text-red-600 bg-red-50 dark:bg-red-900/20";
+      case "refunded": return "text-gray-650 bg-gray-100 dark:bg-gray-800";
       default: return "text-gray-600 bg-gray-50";
     }
   };
@@ -439,19 +455,72 @@ export default function Profile() {
       case "pending": return "Belum Dibayar";
       case "waiting_payment": return "Belum Dibayar";
       case "waiting_verification": return "Menunggu Verifikasi";
+      case "cod": return "COD (Bayar di Tempat)";
       case "processing": return "Diproses";
       case "shipped": return "Dikirim";
+      case "delivered": return "Diterima";
       case "completed": return "Selesai";
       case "cancelled": return "Dibatalkan";
       case "failed": return "Gagal";
+      case "expired": return "Kadaluarsa";
+      case "refunded": return "Dikembalikan";
       default: return status;
     }
   };
 
+  const handleOpenReviewModal = (item) => {
+    setReviewItem(item);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewError("");
+    setReviewSuccess(false);
+    setReviewModalOpen(true);
+  };
 
+  const handleCloseReviewModal = () => {
+    setReviewModalOpen(false);
+    setReviewItem(null);
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!reviewItem) return;
+    const prodId = reviewItem.id || reviewItem.product_id;
+    if (!prodId) {
+      setReviewError(language === 'EN' ? "Product ID not found." : "ID Produk tidak ditemukan.");
+      return;
+    }
+    setReviewSubmitting(true);
+    setReviewError("");
+    try {
+      const res = await fetch(`${config.API_URL}/api/products/${prodId}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          rating: reviewRating,
+          comment: reviewComment
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || (language === 'EN' ? "Failed to submit review" : "Gagal mengirim ulasan"));
+      }
+      setReviewSuccess(true);
+      setTimeout(() => {
+        handleCloseReviewModal();
+      }, 1500);
+    } catch (err) {
+      setReviewError(err.message);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8 md:py-12 min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
+    <div className="container mx-auto px-4 pt-8 pb-32 md:py-12 min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
 
       {/* Reorder Toast */}
       {reorderToast && (
@@ -464,7 +533,7 @@ export default function Profile() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-3xl font-[900] uppercase tracking-tighter text-black dark:text-white mb-2">{t('profile.title')}</h1>
-          <p className="text-gray-500 text-sm">{t('profile.welcome')} <span className="font-bold text-black dark:text-gray-300">{userEmail}</span></p>
+          <p className="text-gray-500 text-sm">{t('profile.welcome')} <span className="font-bold text-black dark:text-gray-300">{firstName ? `${firstName} ${lastName}`.trim() : userEmail}</span></p>
         </div>
         <button
           onClick={handleLogout}
@@ -507,7 +576,7 @@ export default function Profile() {
 
 
           {activeTab === "orders" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 md:p-8 min-h-[400px]">
               <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">{t('profile.recentOrders')}</h2>
 
               {loading ? (
@@ -527,45 +596,69 @@ export default function Profile() {
               ) : (
                 <div className="space-y-6">
                   {orders.map((order) => {
-                    const firstItem = order.items && order.items.length > 0 ? order.items[0] : null;
+                    const displayId = formatDisplayOrderId(order.id);
+                    const orderLabel = t('profile.orderNumber');
+                    const cleanLabel = (orderLabel.endsWith('#') && displayId.startsWith('#')) ? orderLabel.slice(0, -1) : orderLabel;
                     return (
                       <div key={order.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 md:p-6 hover:shadow-md transition-shadow relative bg-white dark:bg-gray-800/50">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                           <div>
-                            <div className="font-bold text-sm text-gray-900 dark:text-white mb-1">{t('profile.orderNumber')}{order.id}</div>
+                            <div className="font-bold text-sm text-gray-900 dark:text-white mb-1 break-all">{cleanLabel}{displayId}</div>
                             <div className="text-xs text-gray-500">{t('profile.placedOn')} {new Date(order.createdAt).toLocaleDateString(currency.locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColor(order.status)}`}>
-                            {getStatusLabel(order.status)}
-                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${statusColor(order.payment_status)}`}>
+                              Bayar: {getStatusLabel(order.payment_status)}
+                            </span>
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${statusColor(order.order_status)}`}>
+                              Pesanan: {getStatusLabel(order.order_status)}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="flex gap-4 items-center">
-                          {firstItem && (
-                            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded overflow-hidden shrink-0">
-                              <img src={getImageUrl(firstItem.image || (firstItem.images && firstItem.images[0]))} className="w-full h-full object-contain p-1" alt="Product" />
+                        {/* Order Items List */}
+                        <div className="space-y-4">
+                          {order.items && order.items.map((item, idx) => (
+                            <div key={idx} className="flex gap-4 items-center justify-between border-b pb-4 border-dashed border-gray-100 dark:border-gray-850 last:border-b-0 last:pb-0">
+                              <div className="flex gap-4 items-center flex-1 min-w-0">
+                                <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden shrink-0 flex items-center justify-center p-0.5 border border-gray-100 dark:border-gray-800">
+                                  <img src={getImageUrl(item.image || (item.images && item.images[0]))} className="w-full h-full object-contain p-1" alt={item.name} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-xs uppercase tracking-tight text-gray-800 dark:text-gray-200 truncate">{item.name}</p>
+                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Qty: {item.qty}</p>
+                                  {order.order_status === 'completed' && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleOpenReviewModal(item); }}
+                                      className="mt-2 text-[9px] bg-black dark:bg-white text-white dark:text-black font-extrabold uppercase tracking-wider px-2.5 py-1 rounded hover:opacity-80 transition-opacity"
+                                    >
+                                      {language === 'EN' ? 'Write Review' : 'Tulis Ulasan'}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="font-bold text-sm text-gray-900 dark:text-white">Rp {(item.price * item.qty).toLocaleString('id-ID')}</p>
+                              </div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm text-gray-800 dark:text-gray-200 truncate">{firstItem ? firstItem.name : "Product items hidden"}</p>
-                            {order.items && order.items.length > 1 && (
-                              <p className="text-xs text-gray-500 mt-1">+ {order.items.length - 1} {t('profile.moreItems')}</p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-sm text-gray-900 dark:text-white">Rp {order.total.toLocaleString('id-ID')}</p>
-                          </div>
+                          ))}
+                        </div>
+
+                        {/* Order Total */}
+                        <div className="mt-4 pt-3 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center text-xs">
+                          <span className="text-gray-400 font-bold uppercase tracking-wider">Total</span>
+                          <span className="font-extrabold text-sm text-black dark:text-white">Rp {order.total.toLocaleString('id-ID')}</span>
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                          {order.status === 'shipped' ? (
+                          {order.order_status === 'shipped' ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleConfirmDelivery(order.id); }}
                               className="text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 hover:opacity-95 transition-all flex items-center gap-1.5 rounded-lg shadow-sm"
                             >
                               ✓ Konfirmasi Diterima
                             </button>
-                          ) : ["pending", "waiting_payment"].includes(order.status) ? (
+                          ) : ["pending", "waiting_payment"].includes(order.payment_status) && order.paymentMethod !== 'cod' ? (
                             <button
                               onClick={() => navigate(`/payment/confirm?orderId=${order.id}`)}
                               className="text-xs font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white px-4 py-2 hover:opacity-95 transition-all flex items-center gap-1 animate-pulse rounded"
@@ -596,7 +689,7 @@ export default function Profile() {
           )}
 
           {activeTab === "profile" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 md:p-8 min-h-[400px]">
               <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">
                 {t('profile.accountDetails')}
               </h2>
@@ -646,10 +739,10 @@ export default function Profile() {
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('register.birthday')}</label>
                   <input 
-                    type="text" 
-                    value={profile?.birth_date || "-"} 
-                    disabled 
-                    className="w-full p-3 bg-gray-100 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded text-gray-400 font-mono text-sm cursor-not-allowed" 
+                    type="date" 
+                    value={birthDate} 
+                    onChange={e => setBirthDate(e.target.value)} 
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-700/30 text-black dark:text-white border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-1 focus:ring-black"
                   />
                 </div>
 
@@ -787,7 +880,7 @@ export default function Profile() {
           )}
 
           {activeTab === "address" && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:p-8 min-h-[400px]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 md:p-8 min-h-[400px]">
               <h2 className="text-xl font-bold uppercase tracking-wide mb-6 border-b border-gray-100 dark:border-gray-700 pb-4 text-black dark:text-white">
                 {t('profile.savedAddresses')}
               </h2>
@@ -892,18 +985,69 @@ export default function Profile() {
           )}
         </div>
       </div>
-      {debugLogs.length > 0 && (
-        <div className="mt-12 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-xs font-mono max-w-full overflow-x-auto text-black dark:text-white">
-          <h3 className="font-bold text-sm mb-4 uppercase tracking-wide">Developer Tools: Debug Auto-Save Logs</h3>
-          <div className="space-y-1 bg-gray-50 dark:bg-gray-950 p-4 rounded max-h-60 overflow-y-auto border border-gray-200/50">
-            {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
+
+
+      {/* Review Modal */}
+      {reviewModalOpen && reviewItem && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={handleCloseReviewModal}></div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 max-w-sm w-full relative z-10 shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-300">
+            <button onClick={handleCloseReviewModal} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white text-xl font-bold">&times;</button>
+            
+            <h3 className="text-lg font-bold uppercase tracking-tight mb-4 dark:text-white">{t('reviews.leaveReview')}</h3>
+            <p className="text-xs text-gray-400 mb-6 font-bold uppercase tracking-wide">{language === 'EN' ? 'Product:' : 'Produk:'} {reviewItem.name}</p>
+
+            {reviewSuccess ? (
+              <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-xl border border-green-100 dark:border-green-800 text-center animate-in fade-in duration-500">
+                <div className="text-3xl mb-2">⭐</div>
+                <div className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-widest">{t('reviews.success')}</div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-2">{t('reviews.rating')}</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className={`text-2xl transition-transform hover:scale-125 focus:outline-none ${star <= reviewRating ? 'text-yellow-400' : 'text-gray-300'}`}
+                      >
+                        {star <= reviewRating ? "★" : "☆"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-2">{language === 'EN' ? 'Comment / Review' : 'Komentar / Ulasan'}</label>
+                  <textarea
+                    rows="4"
+                    placeholder={t('reviews.placeholder')}
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-black dark:text-white outline-none"
+                    required
+                  ></textarea>
+                </div>
+
+                {reviewError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold">
+                    {reviewError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-lg"
+                >
+                  {reviewSubmitting ? t('reviews.submitting') : t('reviews.submit')}
+                </button>
+              </form>
+            )}
           </div>
-          <button 
-            onClick={() => { localStorage.removeItem('debug_autosave_logs'); setDebugLogs([]); }} 
-            className="mt-4 text-xs font-bold bg-red-600 hover:bg-red-700 text-white px-4 py-2 uppercase tracking-wider transition-colors rounded"
-          >
-            Clear Debug Logs
-          </button>
         </div>
       )}
     </div>

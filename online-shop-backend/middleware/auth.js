@@ -1,4 +1,11 @@
 const jwt = require('jsonwebtoken');
+
+// Validasi ketat JWT secret di lingkungan produksi
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'supersecretkey123')) {
+  console.error("FATAL: JWT_SECRET di lingkungan produksi tidak boleh menggunakan nilai default/kosong!");
+  process.exit(1);
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
 
 const verifyToken = (req, res, next) => {

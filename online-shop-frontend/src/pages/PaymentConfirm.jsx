@@ -4,6 +4,7 @@ import config from '../config.js';
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import { useCart } from "../components/CartContext.jsx";
+import { formatDisplayOrderId } from "../utils/orderHelper";
 
 const PaymentConfirm = () => {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ const PaymentConfirm = () => {
   const location = useLocation();
   const orderIdParam = searchParams.get("orderId");
   const isTemp = searchParams.get("temp") === "true" || (orderIdParam && orderIdParam.startsWith('temp-'));
-  const { clearCart } = useCart();
+  const { cart, clearCart } = useCart();
   const [paymentData, setPaymentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,6 +25,7 @@ const PaymentConfirm = () => {
   const [tempOrderId, setTempOrderId] = useState("");
   const [timeLeft, setTimeLeft] = useState("");
   const [isExpired, setIsExpired] = useState(false);
+
 
   // Guard: prevent duplicate pending-order creation across onClose/onError/handleGoBack/unmount
   const pendingCreatedRef = useRef(false);
@@ -109,6 +111,8 @@ const PaymentConfirm = () => {
       total: currentPaymentData.total,
       paymentMethod: currentPaymentData.paymentMethod || "midtrans",
       status: 'pending',
+      payment_status: 'pending',
+      order_status: 'pending',
       shippingAddress: {
         ...(currentPaymentData.shippingAddress || {}),
         tempId: uniqueTempId
@@ -161,14 +165,7 @@ const PaymentConfirm = () => {
     };
   }, []);
 
-  // Review states
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [reviewItem, setReviewItem] = useState(null);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState("");
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState("");
-  const [reviewSuccess, setReviewSuccess] = useState(false);
+
 
   // Address editing states
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -332,6 +329,8 @@ const PaymentConfirm = () => {
           // Normalize address field
           tempData.shippingAddress = tempData.shippingAddress || tempData.shipping_address;
           tempData.shipping_address = tempData.shippingAddress;
+          tempData.payment_status = tempData.payment_status || tempData.status || 'pending';
+          tempData.order_status = tempData.order_status || tempData.status || 'pending';
           setPaymentData(tempData);
           setError("");
           setLoading(false);
@@ -357,6 +356,8 @@ const PaymentConfirm = () => {
           const parsedOrder = {
             ...tempData,
             id: 'temp',
+            payment_status: tempData.payment_status || tempData.status || 'pending',
+            order_status: tempData.order_status || tempData.status || 'pending',
           };
           setPaymentData(parsedOrder);
           setError("");
@@ -393,7 +394,7 @@ const PaymentConfirm = () => {
         }
 
         if (!items || items.length === 0) {
-          items = JSON.parse(localStorage.getItem("cart") || "[]");
+          items = cart;
         }
 
         const parsedOrder = {
@@ -402,7 +403,9 @@ const PaymentConfirm = () => {
           total: parseFloat(data.total),
           // Normalize address field
           shippingAddress: data.shipping_address || data.shippingAddress,
-          shipping_address: data.shipping_address || data.shippingAddress
+          shipping_address: data.shipping_address || data.shippingAddress,
+          payment_status: data.payment_status || data.status || 'pending',
+          order_status: data.order_status || data.status || 'pending'
         };
 
         setPaymentData(parsedOrder);
@@ -421,7 +424,7 @@ const PaymentConfirm = () => {
 
   // Countdown timer for unpaid/pending orders (24 hours limit)
   useEffect(() => {
-    if (!paymentData || !['pending', 'waiting_payment'].includes(paymentData.status)) {
+    if (!paymentData || !['pending', 'waiting_payment'].includes(paymentData.payment_status)) {
       return;
     }
 
@@ -618,12 +621,12 @@ const PaymentConfirm = () => {
       time: formatTime(t1Date)
     });
 
-    if (order.status === 'cancelled' || order.status === 'expired' || order.status === 'failed') {
+    if (order.payment_status === 'cancelled' || order.payment_status === 'expired' || order.payment_status === 'failed') {
       const tCancelDate = getSafeDate(30 * 60 * 1000, 1);
       timeline.unshift({
         title: language === 'ID'
-          ? `[System] Pesanan dibatalkan. Alasan: ${order.status === 'expired' ? 'Batas waktu pembayaran habis (24 jam)' : 'Dibatalkan oleh pembeli/admin'}.`
-          : `[System] Order cancelled. Reason: ${order.status === 'expired' ? 'Payment time limit exceeded (24 hours)' : 'Cancelled by customer/admin'}.`,
+          ? `[System] Pesanan dibatalkan. Alasan: ${order.payment_status === 'expired' ? 'Batas waktu pembayaran habis (24 jam)' : 'Dibatalkan oleh pembeli/admin'}.`
+          : `[System] Order cancelled. Reason: ${order.payment_status === 'expired' ? 'Payment time limit exceeded (24 hours)' : 'Cancelled by customer/admin'}.`,
         date: formatDate(tCancelDate),
         time: formatTime(tCancelDate)
       });
@@ -631,7 +634,7 @@ const PaymentConfirm = () => {
     }
 
     // 2. Payment Confirmed (Day 0, +1 hour)
-    if (['paid', 'processing', 'shipped', 'completed'].includes(order.status)) {
+    if (['paid', 'processing', 'shipped', 'completed'].includes(order.payment_status)) {
       const t2Date = getSafeDate(1 * hr, 2);
       timeline.unshift({
         title: language === 'ID'
@@ -643,7 +646,7 @@ const PaymentConfirm = () => {
     }
 
     // 3. Picked Up (Day 1, +26 hours)
-    if (['paid', 'processing', 'shipped', 'completed'].includes(order.status)) {
+    if (['paid', 'processing', 'shipped', 'completed'].includes(order.payment_status)) {
       const t3Date = getSafeDate(26 * hr, 3);
       timeline.unshift({
         title: language === 'ID'
@@ -655,7 +658,7 @@ const PaymentConfirm = () => {
     }
 
     // 4. Sorting Center Arrival (Day 2, +48 hours)
-    if (['shipped', 'completed'].includes(order.status)) {
+    if (['shipped', 'completed'].includes(order.payment_status)) {
       const t4Date = getSafeDate(48 * hr, 4);
       timeline.unshift({
         title: language === 'ID'
@@ -677,7 +680,7 @@ const PaymentConfirm = () => {
     }
 
     // 5. Hub Arrival (Day 3, +74 hours)
-    if (['shipped', 'completed'].includes(order.status)) {
+    if (['shipped', 'completed'].includes(order.payment_status)) {
       const t6Date = getSafeDate(74 * hr, 6);
       timeline.unshift({
         title: language === 'ID'
@@ -699,7 +702,7 @@ const PaymentConfirm = () => {
     }
 
     // 6. Delivered (Day 4, +110 hours)
-    if (order.status === 'completed') {
+    if (order.payment_status === 'completed') {
       const t8Date = getSafeDate(110 * hr, 8);
       const recipientName = address.name || `${address.firstName || ''} ${address.lastName || ''}`.trim() || 'Penerima';
       timeline.unshift({
@@ -829,6 +832,7 @@ const PaymentConfirm = () => {
           localStorage.setItem('lastOrderEmail', paymentData.email || "guest@mail.com");
 
           // 3. Clear cart & temp files
+          clearCart();
           localStorage.removeItem('cart');
           localStorage.removeItem('tempCodOrder');
           localStorage.removeItem('tempCheckoutOrder');
@@ -853,6 +857,15 @@ const PaymentConfirm = () => {
           localStorage.setItem('cartTotal', paymentData.total);
           localStorage.setItem('lastOrderItems', JSON.stringify(paymentData.items));
           localStorage.setItem('lastOrderEmail', paymentData.shippingAddress?.email || paymentData.email || "");
+
+          clearCart();
+          localStorage.removeItem('cart');
+          localStorage.removeItem('tempCodOrder');
+          localStorage.removeItem('tempCheckoutOrder');
+          localStorage.removeItem('tempPendingOrder');
+          localStorage.removeItem('referral_code');
+          localStorage.removeItem('appliedCoupon');
+          localStorage.removeItem('discountAmount');
 
           navigate("/payment-success");
           return;
@@ -1031,67 +1044,12 @@ const PaymentConfirm = () => {
     }
   };
 
-  const handleOpenReviewModal = (item) => {
-    setReviewItem(item);
-    setReviewRating(5);
-    setReviewComment("");
-    setReviewError("");
-    setReviewSuccess(false);
-    setReviewModalOpen(true);
-  };
 
-  const handleCloseReviewModal = () => {
-    setReviewModalOpen(false);
-    setReviewItem(null);
-  };
-
-  const handleSubmitReview = async (e) => {
-    e.preventDefault();
-    if (!reviewItem) return;
-
-    const prodId = reviewItem.id || reviewItem.product_id;
-    if (!prodId) {
-      setReviewError(language === 'EN' ? "Product ID not found." : "ID Produk tidak ditemukan.");
-      return;
-    }
-
-    setReviewSubmitting(true);
-    setReviewError("");
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${config.API_URL}/api/products/${prodId}/reviews`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          rating: reviewRating,
-          comment: reviewComment
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || (language === 'EN' ? "Failed to submit review" : "Gagal mengirim ulasan"));
-      }
-
-      setReviewSuccess(true);
-      setTimeout(() => {
-        handleCloseReviewModal();
-      }, 1500);
-    } catch (err) {
-      setReviewError(err.message);
-    } finally {
-      setReviewSubmitting(false);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pt-4 md:pt-6 pb-12 transition-colors duration-700">
-      <div className="max-w-xl mx-auto px-6">
-        <div className="bg-white dark:bg-gray-900 p-10 md:p-14 rounded-[40px] shadow-2xl border border-gray-100 dark:border-gray-800 text-center relative overflow-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-955 pt-4 md:pt-6 pb-36 md:pb-12 transition-colors duration-700">
+      <div className="max-w-xl mx-auto px-4 md:px-6">
+        <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 md:p-14 rounded-2xl md:rounded-[40px] shadow-2xl border border-gray-100 dark:border-gray-800 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 dark:bg-black/20 rounded-full -mr-16 -mt-16"></div>
           
           <div className="relative z-10">
@@ -1111,42 +1069,42 @@ const PaymentConfirm = () => {
                 <div className="flex flex-col items-center mb-10">
                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400 mb-4 block italic">Order Status</span>
                    <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                      paymentData.status === 'paid' ? 'bg-green-100 text-green-700' :
-                      paymentData.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                      paymentData.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      paymentData.status === 'processing' ? 'bg-teal-100 text-teal-700' :
-                      paymentData.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                      paymentData.status === 'waiting_verification' ? 'bg-amber-100 text-amber-700 animate-pulse' :
-                      paymentData.status === 'failed' ? 'bg-red-100 text-red-700' :
+                      paymentData.payment_status === 'paid' ? 'bg-green-100 text-green-700' :
+                      paymentData.payment_status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                      paymentData.payment_status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      paymentData.payment_status === 'processing' ? 'bg-teal-100 text-teal-700' :
+                      paymentData.payment_status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                      paymentData.payment_status === 'waiting_verification' ? 'bg-amber-100 text-amber-700 animate-pulse' :
+                      paymentData.payment_status === 'failed' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700 animate-pulse'
                     }`}>
-                      {paymentData.status === 'paid' ? (language === 'EN' ? '✔ Paid' : '✔ Lunas') : 
-                       paymentData.status === 'shipped' ? (language === 'EN' ? '🚚 Shipped' : '🚚 Dikirim') :
-                       paymentData.status === 'cancelled' ? (language === 'EN' ? '✘ Cancelled' : '✘ Dibatalkan') :
-                       paymentData.status === 'processing' ? (language === 'EN' ? '⚙ Processing' : '⚙ Diproses') :
-                       paymentData.status === 'completed' ? (language === 'EN' ? '✔ Completed' : '✔ Selesai') :
-                       paymentData.status === 'waiting_verification' ? (language === 'EN' ? '⌛ Waiting Verification' : '⌛ Menunggu Verifikasi') :
-                       paymentData.status === 'failed' ? (language === 'EN' ? '✘ Failed' : '✘ Gagal') :
+                      {paymentData.payment_status === 'paid' ? (language === 'EN' ? '✔ Paid' : '✔ Lunas') : 
+                       paymentData.payment_status === 'shipped' ? (language === 'EN' ? '🚚 Shipped' : '🚚 Dikirim') :
+                       paymentData.payment_status === 'cancelled' ? (language === 'EN' ? '✘ Cancelled' : '✘ Dibatalkan') :
+                       paymentData.payment_status === 'processing' ? (language === 'EN' ? '⚙ Processing' : '⚙ Diproses') :
+                       paymentData.payment_status === 'completed' ? (language === 'EN' ? '✔ Completed' : '✔ Selesai') :
+                       paymentData.payment_status === 'waiting_verification' ? (language === 'EN' ? '⌛ Waiting Verification' : '⌛ Menunggu Verifikasi') :
+                       paymentData.payment_status === 'failed' ? (language === 'EN' ? '✘ Failed' : '✘ Gagal') :
                        (language === 'EN' ? '⌛ Waiting for Payment' : '⌛ Menunggu Pembayaran')}
                    </div>
                 </div>
 
                 {/* Shopee-style Horizontal Progress Bar */}
-                {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(paymentData.status) && (
+                {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(paymentData.payment_status) && (
                   <div className="mb-8 bg-gray-50/50 dark:bg-gray-800/40 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-850">
-                    <div className="relative flex items-center justify-between w-full mt-2 mb-2">
+                    <div className="relative flex items-start justify-between w-full mt-2 mb-2">
                       {/* Background Gray Line */}
                       <div className="absolute left-0 right-0 top-5 h-[2px] bg-gray-200 dark:bg-gray-700 -z-0 rounded-full"></div>
                       
                       {/* Active Green Line */}
                       <div 
                         className="absolute left-0 top-5 h-[2px] bg-emerald-500 transition-all duration-1000 -z-0 rounded-full"
-                        style={{ width: `${(getActiveStepIndex(paymentData.status) / (shopeeSteps.length - 1)) * 100}%` }}
+                        style={{ width: `${(getActiveStepIndex(paymentData.payment_status) / (shopeeSteps.length - 1)) * 100}%` }}
                       ></div>
 
                       {shopeeSteps.map((step, idx) => {
-                        const isActive = getActiveStepIndex(paymentData.status) >= idx;
-                        const isCurrent = getActiveStepIndex(paymentData.status) === idx;
+                        const isActive = getActiveStepIndex(paymentData.payment_status) >= idx;
+                        const isCurrent = getActiveStepIndex(paymentData.payment_status) === idx;
                         return (
                           <div key={step.key} className="flex flex-col items-center flex-1 relative z-10">
                             {/* Circle Icon */}
@@ -1158,7 +1116,7 @@ const PaymentConfirm = () => {
                               {renderStepIcon(step.icon, isActive)}
                             </div>
                             {/* Label */}
-                            <span className={`text-[8px] font-black mt-2 text-center px-0.5 uppercase tracking-wider ${
+                            <span className={`text-[8px] md:text-[10px] font-black mt-2 text-center px-0.5 uppercase tracking-wider break-words leading-tight w-full max-w-[55px] md:max-w-none mx-auto block ${
                               isActive ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-gray-650'
                             }`}>
                               {language === 'ID' ? step.labelID : step.labelEN}
@@ -1171,13 +1129,13 @@ const PaymentConfirm = () => {
                 )}
 
                 {/* Shopee-style Tracking History Timeline */}
-                {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(paymentData.status) && (() => {
+                {['paid', 'processing', 'shipped', 'completed', 'waiting_verification'].includes(paymentData.payment_status) && (() => {
                   const timelineItems = generateTimeline(paymentData);
                   return (
-                    <div className="mb-8 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 md:p-8">
+                    <div className="mb-8 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-4 md:p-8">
                       <div className="mb-6 border-b pb-4">
                         <h2 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 capitalize">
-                          {t(`admin.status.${paymentData.status}`)}
+                          {t(`admin.status.${paymentData.payment_status}`)}
                         </h2>
                       </div>
 
@@ -1204,7 +1162,7 @@ const PaymentConfirm = () => {
                                 <p className={`text-xs ${isLatest ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-500 dark:text-gray-400 font-medium'}`}>
                                   {item.title}
                                 </p>
-                                <span className="text-[9px] text-gray-400 font-mono block mt-1">
+                                <span className="text-[9px] text-gray-400 block mt-1 tracking-wider">
                                   {showDate ? `${item.date} · ` : ""}{item.time}
                                 </span>
                               </div>
@@ -1222,20 +1180,20 @@ const PaymentConfirm = () => {
                     {language === 'EN' ? 'Invoice & Shipping Details' : 'Rincian Nota & Pengiriman'}
                   </h3>
                   
-                  <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 mb-1 block">
                         {language === 'EN' ? 'Invoice No. / ID' : 'No. Invoice / ID'}
                       </span>
-                      <span className="font-bold font-mono text-gray-800 dark:text-gray-200">
-                        {paymentData.id === 'temp' ? 'DRAFT_COD' : `#${paymentData.id}`}
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200 break-all">
+                        {paymentData.id === 'temp' ? 'DRAFT_COD' : formatDisplayOrderId(paymentData.id)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 mb-1 block">
                         {language === 'EN' ? 'Date' : 'Tanggal'}
                       </span>
-                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
                         {paymentData.createdAt ? new Date(paymentData.createdAt).toLocaleDateString(language === 'EN' ? 'en-US' : 'id-ID', {
                           year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
                         }) : new Date().toLocaleDateString(language === 'EN' ? 'en-US' : 'id-ID', {
@@ -1244,19 +1202,19 @@ const PaymentConfirm = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 mb-1 block">
                         {language === 'EN' ? 'Payment Method' : 'Metode Pembayaran'}
                       </span>
-                      <span className="font-bold text-gray-800 dark:text-gray-200 uppercase text-[10px]">
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">
                         {paymentData.paymentMethod === 'cod' ? (language === 'EN' ? 'COD (Cash on Delivery)' : 'COD (Bayar di Tempat)') :
                          paymentData.paymentMethod === 'mandiri_tf' ? (language === 'EN' ? 'Mandiri Bank Transfer' : 'Transfer Bank Mandiri') : 'Midtrans (QRIS/VA/E-Wallet)'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400 block text-[9px] uppercase font-bold tracking-wider mb-0.5">
+                      <span className="text-[9px] uppercase font-bold text-gray-400 mb-1 block">
                         {language === 'EN' ? 'Shipping Method' : 'Metode Pengiriman'}
                       </span>
-                      <span className="font-bold text-gray-800 dark:text-gray-200 uppercase text-[10px]">
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase">
                         {paymentData.shippingAddress?.courierInfo || (language === 'EN' ? 'Manual / Standard' : 'Manual / Standar')}
                       </span>
                     </div>
@@ -1377,11 +1335,11 @@ const PaymentConfirm = () => {
                             <p className="font-bold text-gray-950 dark:text-white mb-0.5 text-xs">
                               {paymentData.shippingAddress?.firstName} {paymentData.shippingAddress?.lastName || ''}
                             </p>
-                            <p className="text-gray-500 dark:text-gray-400 text-[10px] mb-2 font-mono">
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] mb-2">
                               📞 {paymentData.shippingAddress?.phone}
                             </p>
                           </div>
-                          {['pending', 'waiting_payment'].includes(paymentData.status) && (
+                          {['pending', 'waiting_payment'].includes(paymentData.payment_status) && (
                             <button
                               type="button"
                               onClick={handleStartEditAddress}
@@ -1421,14 +1379,6 @@ const PaymentConfirm = () => {
                         <div className="flex-1">
                            <p className="font-bold text-xs uppercase dark:text-white">{item.name}</p>
                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Qty: {item.qty}</p>
-                           {paymentData.status === 'completed' && (
-                             <button
-                               onClick={() => handleOpenReviewModal(item)}
-                               className="text-[9px] bg-black dark:bg-white text-white dark:text-black font-bold uppercase tracking-wider px-2 py-0.5 rounded hover:opacity-85 transition-opacity"
-                             >
-                               {language === 'EN' ? 'Write Review' : 'Tulis Ulasan'}
-                             </button>
-                           )}
                         </div>
                         <div className="font-black text-sm dark:text-white">Rp {(item.price * item.qty).toLocaleString()}</div>
                       </div>
@@ -1442,7 +1392,7 @@ const PaymentConfirm = () => {
                   </div>
                 </div>
 
-                {['pending', 'waiting_payment'].includes(paymentData.status) ? (
+                {['pending', 'waiting_payment'].includes(paymentData.payment_status) ? (
                   <div className="space-y-6">
                     {/* Countdown Timer */}
                     {timeLeft && (
@@ -1456,7 +1406,7 @@ const PaymentConfirm = () => {
                           </p>
                         ) : (
                           <div className="flex flex-col items-center">
-                            <span className="text-2xl font-mono font-black text-amber-600 dark:text-amber-400 animate-pulse">
+                            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 animate-pulse tracking-wider">
                               {timeLeft}
                             </span>
                             <span className="text-[9px] text-gray-500 mt-1 uppercase font-bold tracking-tight">
@@ -1476,7 +1426,7 @@ const PaymentConfirm = () => {
                       <div className="space-y-6">
                         <div className="bg-black text-white p-8 rounded-3xl text-center">
                           <p className="text-xs uppercase font-bold mb-2 opacity-50">{language === 'EN' ? 'Mandiri Bank Transfer' : 'Transfer Bank Mandiri'}</p>
-                          <p className="text-xl font-mono font-black select-all">123-456-7890</p>
+                          <p className="text-xl font-black select-all tracking-wider">123-456-7890</p>
                           <p className="text-[9px] opacity-30 mt-2 font-bold uppercase">{language === 'EN' ? 'on behalf of Distrapness Indonesia' : 'a.n. Distrapness Indonesia'}</p>
                         </div>
                         <div className="p-6 border border-gray-100 dark:border-gray-800 rounded-3xl">
@@ -1530,69 +1480,6 @@ const PaymentConfirm = () => {
           </div>
         </div>
       </div>
-
-      {/* Review Modal */}
-      {reviewModalOpen && reviewItem && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={handleCloseReviewModal}></div>
-          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 max-w-sm w-full relative z-10 shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-300">
-            <button onClick={handleCloseReviewModal} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white text-xl font-bold">&times;</button>
-            
-            <h3 className="text-lg font-bold uppercase tracking-tight mb-4 dark:text-white">{language === 'EN' ? 'Leave a Review' : 'Berikan Ulasan'}</h3>
-            <p className="text-xs text-gray-400 mb-6 font-bold uppercase tracking-wide">{language === 'EN' ? 'Product:' : 'Produk:'} {reviewItem.name}</p>
-
-            {reviewSuccess ? (
-              <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-xl border border-green-100 dark:border-green-800 text-center animate-in fade-in duration-500">
-                <div className="text-3xl mb-2">⭐</div>
-                <div className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-widest">{language === 'EN' ? 'Review Submitted Successfully!' : 'Ulasan Berhasil Terkirim!'}</div>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitReview} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-2">{language === 'EN' ? 'Rating' : 'Rating'}</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setReviewRating(star)}
-                        className={`text-2xl transition-transform hover:scale-125 focus:outline-none ${star <= reviewRating ? 'text-yellow-400' : 'text-gray-300'}`}
-                      >
-                        {star <= reviewRating ? "★" : "☆"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-2">{language === 'EN' ? 'Comment / Review' : 'Komentar / Ulasan'}</label>
-                  <textarea
-                    rows="4"
-                    placeholder={language === 'EN' ? "Write your review about this product..." : "Tulis ulasan Anda tentang produk ini..."}
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-black dark:text-white outline-none"
-                    required
-                  ></textarea>
-                </div>
-
-                {reviewError && (
-                  <div className="p-3 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-semibold">
-                    {reviewError}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-lg"
-                >
-                  {reviewSubmitting ? (language === 'EN' ? "Submitting..." : "Mengirim...") : (language === 'EN' ? "Submit Review" : "Kirim Ulasan")}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
       )}
     </div>
   );

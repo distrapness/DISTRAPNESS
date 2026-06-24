@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
+import { formatDisplayOrderId } from "../utils/orderHelper";
 import config from "../config";
 import Footer from "../components/Footer";
 
@@ -13,6 +14,7 @@ const OrderTracking = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
 
   useEffect(() => {
     if (!orderIdFromParams) {
@@ -66,20 +68,18 @@ const OrderTracking = () => {
     </div>
   );
 
-  const getActiveStepIndex = (status) => {
-    switch (status) {
-      case 'completed': return 4;
+  const getActiveStepIndex = (orderStatus) => {
+    switch (orderStatus) {
+      case 'completed':
+      case 'delivered': return 4;
       case 'shipped': return 3;
-      case 'paid':
-      case 'processing':
-      case 'waiting_verification': return 1;
-      case 'pending':
-      case 'waiting_payment': return 0;
+      case 'processing': return 1;
+      case 'pending': return 0;
       default: return 0;
     }
   };
 
-  const activeStepIndex = order ? getActiveStepIndex(order.status) : 0;
+  const activeStepIndex = order ? getActiveStepIndex(order.order_status) : 0;
 
   const shopeeSteps = [
     { key: 'placed', labelID: 'Pesanan Dibuat', labelEN: 'Order Created', icon: 'doc' },
@@ -206,12 +206,12 @@ const OrderTracking = () => {
       time: formatTime(t1Date)
     });
 
-    if (order.status === 'cancelled' || order.status === 'expired' || order.status === 'failed') {
+    if (order.order_status === 'cancelled' || order.payment_status === 'expired' || order.payment_status === 'failed') {
       const tCancelDate = getSafeDate(30 * 60 * 1000, 1);
       timeline.unshift({
         title: language === 'ID'
-          ? `[System] Pesanan dibatalkan. Alasan: ${order.status === 'expired' ? 'Batas waktu pembayaran habis (24 jam)' : 'Dibatalkan oleh pembeli/admin'}.`
-          : `[System] Order cancelled. Reason: ${order.status === 'expired' ? 'Payment time limit exceeded (24 hours)' : 'Cancelled by customer/admin'}.`,
+          ? `[System] Pesanan dibatalkan. Alasan: ${order.payment_status === 'expired' ? 'Batas waktu pembayaran habis (24 jam)' : 'Dibatalkan oleh pembeli/admin'}.`
+          : `[System] Order cancelled. Reason: ${order.payment_status === 'expired' ? 'Payment time limit exceeded (24 hours)' : 'Cancelled by customer/admin'}.`,
         date: formatDate(tCancelDate),
         time: formatTime(tCancelDate)
       });
@@ -219,7 +219,7 @@ const OrderTracking = () => {
     }
 
     // 2. Payment Confirmed (Day 0, +1 hour)
-    if (['paid', 'processing', 'shipped', 'completed'].includes(order.status)) {
+    if (order.payment_status === 'paid' || ['processing', 'shipped', 'completed'].includes(order.order_status)) {
       const t2Date = getSafeDate(1 * hr, 2);
       timeline.unshift({
         title: language === 'ID'
@@ -231,7 +231,7 @@ const OrderTracking = () => {
     }
 
     // 3. Picked Up (Day 1, +26 hours)
-    if (['paid', 'processing', 'shipped', 'completed'].includes(order.status)) {
+    if (['processing', 'shipped', 'completed'].includes(order.order_status)) {
       const t3Date = getSafeDate(26 * hr, 3);
       timeline.unshift({
         title: language === 'ID'
@@ -243,7 +243,7 @@ const OrderTracking = () => {
     }
 
     // 4. Sorting Center Arrival (Day 2, +48 hours)
-    if (['shipped', 'completed'].includes(order.status)) {
+    if (['shipped', 'completed'].includes(order.order_status)) {
       const t4Date = getSafeDate(48 * hr, 4);
       timeline.unshift({
         title: language === 'ID'
@@ -265,7 +265,7 @@ const OrderTracking = () => {
     }
 
     // 5. Hub Arrival (Day 3, +74 hours)
-    if (['shipped', 'completed'].includes(order.status)) {
+    if (['shipped', 'completed'].includes(order.order_status)) {
       const t6Date = getSafeDate(74 * hr, 6);
       timeline.unshift({
         title: language === 'ID'
@@ -287,7 +287,7 @@ const OrderTracking = () => {
     }
 
     // 6. Delivered (Day 4, +110 hours)
-    if (order.status === 'completed') {
+    if (order.order_status === 'completed') {
       const t8Date = getSafeDate(110 * hr, 8);
       const recipientName = address.name || `${address.firstName || ''} ${address.lastName || ''}`.trim() || 'Penerima';
       timeline.unshift({
@@ -305,14 +305,14 @@ const OrderTracking = () => {
   const timelineItems = generateTimeline(order);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-955 pt-4 md:pt-6 pb-12 transition-colors duration-700">
+    <div className="min-h-screen bg-[#F8F9FA] dark:bg-gray-955 pt-4 md:pt-6 pb-36 md:pb-12 transition-colors duration-700">
       <div className="max-w-7xl mx-auto px-4 md:px-8">
 
         {/* Page Header */}
         <div className="flex justify-between items-end mb-10">
           <div>
             <h1 className="text-4xl font-[900] uppercase tracking-tighter text-gray-900 dark:text-white">{t('orderTracking.title')}</h1>
-            <p className="text-gray-500 text-xs uppercase tracking-widest mt-2">{t('orderTracking.orderNumber')}: <span className="text-black dark:text-gray-300 font-bold">#{orderIdFromParams}</span></p>
+            <p className="text-gray-500 text-xs uppercase tracking-widest mt-2 break-all">{t('orderTracking.orderNumber')}: <span className="text-black dark:text-gray-300 font-bold">{formatDisplayOrderId(orderIdFromParams)}</span></p>
           </div>
           <Link to="/profile" className="text-xs font-bold uppercase tracking-widest border-b-2 border-black dark:border-white pb-1 hover:opacity-60 transition-opacity">
             {t('orderTracking.backToOrders')}
@@ -333,7 +333,7 @@ const OrderTracking = () => {
               <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm p-8 md:p-12 border border-gray-100 dark:border-gray-800 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 dark:bg-black/10 rounded-full -mr-16 -mt-16"></div>
                 
-                <div className="relative flex items-center justify-between w-full mt-6 mb-12">
+                <div className="relative flex items-start justify-between w-full mt-6 mb-12">
                   {/* Background Gray Line */}
                   <div className="absolute left-0 right-0 top-6 h-1 bg-gray-100 dark:bg-gray-800 -z-0 rounded-full"></div>
                   
@@ -357,8 +357,8 @@ const OrderTracking = () => {
                           {renderStepIcon(step.icon, isActive)}
                         </div>
                         {/* Label */}
-                        <span className={`text-[9px] md:text-[10px] font-black mt-3 text-center px-1 uppercase tracking-wider ${
-                          isActive ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-gray-600'
+                        <span className={`text-[8px] md:text-[10px] font-black mt-3 text-center px-0.5 uppercase tracking-wider break-words leading-tight w-full max-w-[55px] md:max-w-none mx-auto block ${
+                          isActive ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-gray-400 dark:text-gray-650'
                         }`}>
                           {language === 'ID' ? step.labelID : step.labelEN}
                         </span>
@@ -371,32 +371,32 @@ const OrderTracking = () => {
               {/* Shopee-style Package Info & Chronological Timeline details */}
               <div className="grid md:grid-cols-12 gap-8">
                 {/* Left Card: Package Information */}
-                <div className="md:col-span-4 bg-white dark:bg-gray-900 rounded-3xl shadow-sm p-8 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
+                <div className="md:col-span-4 bg-white dark:bg-gray-900 rounded-3xl shadow-sm p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-gray-800 flex flex-col justify-between">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] mb-6 border-b pb-4 dark:text-white">Package Information</h3>
                     
                     <div className="space-y-5 text-xs">
                       <div>
                         <p className="text-[9px] uppercase font-bold text-gray-400 mb-1">Tracking Number</p>
-                        <p className="font-mono text-base font-black text-black dark:text-white uppercase tracking-wider">
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider break-all">
                           {order.tracking_number || "SPEPH01206896633A"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[9px] uppercase font-bold text-gray-400 mb-1">Recipient Name</p>
-                        <p className="font-bold text-gray-800 dark:text-gray-250">
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
                           {address.name ? maskName(address.name) : `${maskName(address.firstName)} ${maskName(address.lastName || '')}`.trim()}
                         </p>
                       </div>
                       <div>
                         <p className="text-[9px] uppercase font-bold text-gray-400 mb-1">Tel Number</p>
-                        <p className="font-bold text-gray-850 dark:text-gray-300 font-mono">
+                        <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
                           {maskPhone(address.phone)}
                         </p>
                       </div>
                       <div>
                         <p className="text-[9px] uppercase font-bold text-gray-400 mb-1">Courier Service</p>
-                        <p className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-[10px]">
+                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                           🚚 {address.courierInfo || "STANDARD DELIVERY"}
                         </p>
                       </div>
@@ -412,17 +412,17 @@ const OrderTracking = () => {
                 </div>
 
                 {/* Right Card: Chronological Timeline Detail */}
-                <div className="md:col-span-8 bg-white dark:bg-gray-900 rounded-3xl shadow-sm p-8 border border-gray-100 dark:border-gray-800">
+                <div className="md:col-span-8 bg-white dark:bg-gray-900 rounded-3xl shadow-sm p-4 sm:p-6 md:p-8 border border-gray-100 dark:border-gray-800">
                   <div className="mb-6 border-b pb-4">
                     <h2 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 capitalize">
-                      {t(`admin.status.${order.status}`)}
+                      {t(`admin.status.order_${order.order_status}`) || order.order_status}
                     </h2>
                   </div>
 
                   {timelineItems.length === 0 ? (
                     <div className="py-12 text-center text-gray-400 italic">No tracking updates available.</div>
                   ) : (
-                    <div className="relative border-l-2 border-gray-100 dark:border-gray-800 ml-4 md:ml-32 pl-8 md:pl-10 py-2 space-y-10">
+                    <div className="relative border-l-2 border-gray-100 dark:border-gray-800 ml-2 md:ml-32 pl-6 md:pl-10 py-2 space-y-10">
                       {timelineItems.map((item, idx) => {
                         const isLatest = idx === 0;
                         const showDate = idx === 0 || timelineItems[idx - 1].date !== item.date;
@@ -436,15 +436,15 @@ const OrderTracking = () => {
                                   <p className={`text-[11px] font-black uppercase tracking-wider ${isLatest ? 'text-emerald-500' : 'text-gray-800 dark:text-gray-300'}`}>
                                     {item.date}
                                   </p>
-                                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{item.time}</p>
+                                  <p className="text-[10px] text-gray-400 mt-0.5 tracking-wider">{item.time}</p>
                                 </>
                               ) : (
-                                <p className="text-[10px] text-gray-400 font-mono">{item.time}</p>
+                                <p className="text-[10px] text-gray-400 tracking-wider">{item.time}</p>
                               )}
                             </div>
 
                             {/* Bullet Dot */}
-                            <span className="absolute -left-[41px] top-1 flex items-center justify-center bg-white dark:bg-gray-900 rounded-full p-1 z-10">
+                            <span className="absolute -left-[31px] md:-left-[41px] top-1 flex items-center justify-center bg-white dark:bg-gray-900 rounded-full p-1 z-10">
                               {isLatest ? (
                                 <span className="relative flex h-3.5 w-3.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -458,7 +458,7 @@ const OrderTracking = () => {
                             {/* Mobile Time display (inside description container) */}
                             <div className="md:hidden mb-2">
                               <span className={`text-[10px] font-bold uppercase tracking-wider ${isLatest ? 'text-emerald-500' : 'text-gray-500'}`}>
-                                {showDate ? `${item.date} · ` : ""}<span className="font-mono">{item.time}</span>
+                                {showDate ? `${item.date} · ` : ""}<span className="tracking-wider">{item.time}</span>
                               </span>
                             </div>
 
@@ -538,7 +538,7 @@ const OrderTracking = () => {
                   </div>
                 </div>
 
-                {order.status === 'shipped' && (
+                {order.order_status === 'shipped' && (
                   <button
                     onClick={handleConfirmDelivery}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-[0.25em] py-5 rounded-2xl shadow-xl transition-all hover:scale-[0.98] active:scale-95 flex items-center justify-center gap-2 mb-4"

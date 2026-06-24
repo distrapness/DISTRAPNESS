@@ -92,9 +92,17 @@ export default function LoginPage() {
         window.grecaptcha.reset();
         setRecaptchaToken('');
       }
-      const backendMsg = err.response && err.response.data && err.response.data.message;
-      const backendDetail = err.response && err.response.data && err.response.data.detail;
-      setError(backendMsg ? `${backendMsg} ${backendDetail || ''}` : t('login.error'));
+      const backendStatus = err.response && err.response.status;
+      if (backendStatus === 403 && err.response.data && err.response.data.verified === false) {
+        setError(err.response.data.message);
+        setTimeout(() => {
+          navigate("/register", { state: { email: err.response.data.email, showOtp: true } });
+        }, 2000);
+      } else {
+        const backendMsg = err.response && err.response.data && err.response.data.message;
+        const backendDetail = err.response && err.response.data && err.response.data.detail;
+        setError(backendMsg ? `${backendMsg} ${backendDetail || ''}` : t('login.error'));
+      }
     } finally {
       setLoading(false);
     }

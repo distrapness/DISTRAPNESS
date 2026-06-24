@@ -9,6 +9,47 @@ const { sendOrderConfirmation, sendAdminNotification, sendStatusUpdateEmail, sen
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const midtransClient = require('midtrans-client');
 
+const calculateServerSideTotal = async (items, couponCode, shippingAddress) => {
+  let subtotal = 0;
+  for (const item of items) {
+    const [rows] = await pool.promise().query('SELECT price, is_flash_sale, flash_sale_price, flash_sale_end FROM products WHERE id = ?', [item.id]);
+    if (rows.length === 0) throw new Error(`Produk dengan ID ${item.id} tidak ditemukan.`);
+    
+    const prod = rows[0];
+    let activePrice = Number(prod.price);
+    
+    if (prod.is_flash_sale && (!prod.flash_sale_end || new Date(prod.flash_sale_end) > new Date())) {
+      activePrice = Number(prod.flash_sale_price);
+    }
+    
+    subtotal += activePrice * Number(item.qty);
+  }
+
+  let discountAmount = 0;
+  if (couponCode) {
+    const [coupons] = await pool.promise().query('SELECT * FROM coupons WHERE code = ? AND is_active = TRUE', [couponCode.toUpperCase()]);
+    if (coupons.length > 0) {
+      const coupon = coupons[0];
+      const now = new Date();
+      const isDateValid = (!coupon.start_date || new Date(coupon.start_date) <= now) && (!coupon.expiry_date || new Date(coupon.expiry_date) >= now);
+      const isLimitValid = coupon.usage_limit === 0 || coupon.usage_count < coupon.usage_limit;
+      const isMinPurchaseValid = subtotal >= Number(coupon.min_purchase);
+
+      if (isDateValid && isLimitValid && isMinPurchaseValid) {
+        if (coupon.type === 'percent') {
+          discountAmount = (coupon.value / 100) * subtotal;
+        } else {
+          discountAmount = Number(coupon.value);
+        }
+      }
+    }
+  }
+
+  let shippingFee = subtotal > 300000 ? 0 : 25000;
+  const finalTotal = Math.max(0, subtotal - discountAmount + shippingFee);
+  return { subtotal, discountAmount, shippingFee, finalTotal };
+};
+
 const getMidtransConfig = async () => {
     try {
         const [rows] = await pool.promise().query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('midtrans_server_key', 'midtrans_client_key', 'midtrans_production')");
@@ -82,24 +123,55 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Keranjang belanja kosong' });
   }
 
+  // Enforce correct state based on payment method and status
+  let paymentStatus = 'pending';
+  let orderStatus = 'pending';
+  if (paymentMethod === 'cod') {
+    paymentStatus = 'cod';
+    orderStatus = 'processing';
+  } else if (paymentMethod === 'mandiri_tf') {
+    paymentStatus = 'pending';
+    orderStatus = 'pending';
+  } else if (paymentMethod === 'midtrans') {
+    if (status === 'paid' || status === 'settlement' || status === 'capture') {
+      paymentStatus = 'paid';
+      orderStatus = 'processing';
+    } else if (status === 'waiting_payment' || status === 'pending') {
+      paymentStatus = 'pending';
+      orderStatus = 'pending';
+    } else if (status === 'cancelled' || status === 'expire' || status === 'cancel') {
+      paymentStatus = 'cancelled';
+      orderStatus = 'cancelled';
+    }
+  }
+
+  // Recalculate price server-side to prevent client price editing
+  let validatedAmounts;
+  try {
+    validatedAmounts = await calculateServerSideTotal(items, couponCode, shippingAddress);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+
   const connection = await pool.promise().getConnection();
 
   try {
     await connection.beginTransaction();
 
-    // 0. Check if tempId already exists in database to prevent duplicates
-    if (shippingAddress && shippingAddress.tempId) {
-      const tempId = shippingAddress.tempId;
+    const tempId = shippingAddress && shippingAddress.tempId ? shippingAddress.tempId : null;
+    
+    // Check if temp_id already exists to prevent duplicate order inserts
+    if (tempId) {
       const [existing] = await connection.query(
-        'SELECT id, status FROM orders WHERE shipping_address LIKE ?',
-        [`%${tempId}%`]
+        'SELECT id, payment_status, order_status FROM orders WHERE temp_id = ? FOR UPDATE',
+        [tempId]
       );
       if (existing.length > 0) {
-        if (status === 'paid' && existing[0].status !== 'paid') {
-          await connection.query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['paid', existing[0].id]);
+        if (paymentStatus === 'paid' && existing[0].payment_status !== 'paid') {
+          await connection.query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['paid', 'processing', existing[0].id]);
         }
         await connection.commit();
-        return res.json({ success: true, orderId: existing[0].id });
+        return res.json({ success: true, orderId: existing[0].id, total: validatedAmounts.finalTotal });
       }
     }
 
@@ -118,18 +190,17 @@ router.post('/', async (req, res) => {
         throw new Error(`Stok habis untuk "${product.name}". Tersisa hanya ${product.stock}.`);
       }
 
-      // ✅ FIX: Size-specific stock check
+      // Size-specific stock check
       if (item.selectedSize) {
         try {
           let sizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
           if (sizes && sizes[item.selectedSize] !== undefined) {
              if (sizes[item.selectedSize] < item.qty) {
-               throw new Error(`Ukuran "${item.selectedSize}" untuk produk "${product.name}" sudah habis atau tidak mencukupi.`);
+               throw new Error(`Ukuran "${item.selectedSize}" untuk produk "${product.name}" sudah habis.`);
              }
           }
         } catch(e) {
-          console.error("Size validation error:", e.message);
-          // Fallback to allow if size parsing fails, or could be stricter
+          throw new Error("Gagal memvalidasi ukuran stok produk.");
         }
       }
     }
@@ -154,22 +225,19 @@ router.post('/', async (req, res) => {
       ...(shippingAddress || {}),
       email: targetEmail
     };
-    const refCode = null;
 
-    // 3. Simpan Order
+    // 3. Simpan Order (menggunakan validatedAmounts.finalTotal terverifikasi server-side!)
     const [result] = await connection.query(
-      'INSERT INTO orders ("userId", items, total, "paymentMethod", status, shipping_address, coupon_code, discount_amount, referral_code, "createdAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [dbUserId, JSON.stringify(items), total, paymentMethod, status || 'pending', JSON.stringify(finalShipping), couponCode || null, discountAmount || 0, refCode]
+      'INSERT INTO orders ("userId", items, total, "paymentMethod", payment_status, order_status, shipping_address, coupon_code, discount_amount, temp_id, "createdAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [dbUserId, JSON.stringify(items), validatedAmounts.finalTotal, paymentMethod, paymentStatus, orderStatus, JSON.stringify(finalShipping), couponCode || null, validatedAmounts.discountAmount, tempId]
     );
 
     const newOrderId = result.insertId;
 
     // 4. Kurangi Stok (Global & Per Ukuran)
     for (const item of items) {
-      // Update global stock
       await connection.query('UPDATE products SET stock = stock - ? WHERE id = ?', [item.qty, item.id]);
       
-      // Update size-specific stock if selected
       if (item.selectedSize) {
         const [pRows] = await connection.query('SELECT sizes FROM products WHERE id = ?', [item.id]);
         if (pRows.length > 0 && pRows[0].sizes) {
@@ -185,25 +253,20 @@ router.post('/', async (req, res) => {
         }
       }
 
-      // Check for low stock notification
       checkAndNotifyLowStock(item.id).catch(err => console.error("Low stock check failed:", err.message));
     }
     
-    // 4b. Update Coupon Usage if applied
     if (couponCode) {
       await connection.query('UPDATE coupons SET usage_count = usage_count + 1 WHERE code = ?', [couponCode]);
     }
 
     await connection.commit();
 
-      // 5. Kirim Email ke Customer ditunda sampai pesanan dibayar (untuk Midtrans) atau dikonfirmasi (untuk COD)
-
-    // 6. Kirim Email Notifikasi ke Admin (safe)
     try {
       sendAdminNotification({
         orderId: newOrderId,
         cart: items,
-        total: total,
+        total: validatedAmounts.finalTotal,
         email: targetEmail,
         paymentMethod: paymentMethod,
         shippingAddress: finalShipping
@@ -219,7 +282,7 @@ router.post('/', async (req, res) => {
         const parameter = {
           transaction_details: {
             order_id: `ORDER-${newOrderId}-${Date.now()}`,
-            gross_amount: Math.round(total)
+            gross_amount: Math.round(validatedAmounts.finalTotal)
           },
           credit_card: {
             secure: true
@@ -239,7 +302,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    res.json({ success: true, orderId: newOrderId, snapToken });
+    res.json({ success: true, orderId: newOrderId, snapToken, total: validatedAmounts.finalTotal });
 
   } catch (err) {
     await connection.rollback();
@@ -261,8 +324,8 @@ router.post('/upload-proof/:orderId', upload.single('paymentProof'), (req, res) 
   const url = `data:${mime};base64,${b64}`;
 
   pool.query(
-    'UPDATE orders SET "paymentProof"=?, status=?, "updatedAt"=NOW() WHERE id=?',
-    [url, 'waiting_verification', orderId],
+    'UPDATE orders SET "paymentProof"=?, payment_status=?, order_status=?, "updatedAt"=NOW() WHERE id=?',
+    [url, 'pending', 'waiting_verification', orderId],
     (err, result) => {
       if (err) return res.status(500).json({ error: 'Database error', detail: err });
       res.json({ success: true, url });
@@ -305,14 +368,14 @@ router.get('/:orderId', (req, res) => {
 router.put('/:orderId/confirm-cod', async (req, res) => {
   const { orderId } = req.params;
   try {
-    const [rows] = await pool.promise().query('SELECT status, "paymentMethod", shipping_address, total, items FROM orders WHERE id = ?', [orderId]);
+    const [rows] = await pool.promise().query('SELECT payment_status, order_status, "paymentMethod", shipping_address, total, items FROM orders WHERE id = ?', [orderId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     
     if (rows[0].paymentMethod !== 'cod') {
       return res.status(400).json({ error: 'Hanya pesanan COD yang bisa dikonfirmasi di sini' });
     }
 
-    await pool.promise().query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['processing', orderId]);
+    await pool.promise().query('UPDATE orders SET order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['processing', orderId]);
 
     // Kirim Email Konfirmasi Pesanan COD (karena sudah dikonfirmasi ulang oleh customer)
     try {
@@ -338,21 +401,28 @@ router.put('/:orderId/confirm-cod', async (req, res) => {
 
 
 // UPDATE ORDER STATUS BY CUSTOMER (For Midtrans flow)
-router.put('/:orderId/customer-status', async (req, res) => {
+router.put('/:orderId/customer-status', verifyToken, async (req, res) => {
   const { orderId } = req.params;
-  const { status } = req.body; // 'pending', 'waiting_payment', 'cancelled', 'paid'
+  const { status } = req.body; // Actually orderStatus or paymentStatus. Assuming this is cancel request.
   
-  if (!['pending', 'waiting_payment', 'cancelled', 'paid'].includes(status)) {
-    return res.status(400).json({ error: 'Status tidak valid' });
+  // HANYA ijinkan status 'cancelled' atau 'waiting_payment'. Blokir keras status 'paid' / 'completed' dari client!
+  if (!['pending', 'waiting_payment', 'cancelled'].includes(status)) {
+    return res.status(403).json({ error: 'Operasi ditolak: Status LUNAS hanya dapat dikonfirmasi otomatis oleh sistem webhook gateway.' });
   }
 
   try {
-    const [rows] = await pool.promise().query('SELECT status, "paymentMethod", items FROM orders WHERE id = ?', [orderId]);
+    const [rows] = await pool.promise().query('SELECT payment_status, order_status, "paymentMethod", items, "userId" FROM orders WHERE id = ?', [orderId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     
-    const oldStatus = rows[0].status;
-    const paymentMethod = rows[0].paymentMethod;
-    const items = JSON.parse(rows[0].items || '[]');
+    const order = rows[0];
+    const oldStatus = order.order_status;
+    const paymentMethod = order.paymentMethod;
+    const items = JSON.parse(order.items || '[]');
+
+    // Pastikan pengguna hanya memodifikasi miliknya sendiri
+    if (order.userId && String(order.userId) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Akses ditolak: Anda tidak memilik hak untuk mengubah pesanan ini.' });
+    }
 
     if (paymentMethod !== 'midtrans') {
       return res.status(400).json({ error: 'Hanya pesanan Midtrans yang dapat diupdate melalui endpoint ini' });
@@ -376,7 +446,7 @@ router.put('/:orderId/customer-status', async (req, res) => {
             }
           }
         }
-        await connection.query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['cancelled', orderId]);
+        await connection.query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['cancelled', 'cancelled', orderId]);
         await connection.commit();
       } catch (err) {
         await connection.rollback();
@@ -385,7 +455,7 @@ router.put('/:orderId/customer-status', async (req, res) => {
         connection.release();
       }
     } else {
-      await pool.promise().query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', [status, orderId]);
+      await pool.promise().query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', [status === 'cancelled' ? 'cancelled' : 'pending', status, orderId]);
     }
 
     res.json({ success: true });
@@ -404,10 +474,10 @@ router.put('/:orderId/shipping-address', async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.promise().query('SELECT status FROM orders WHERE id = ?', [orderId]);
+    const [rows] = await pool.promise().query('SELECT payment_status, order_status FROM orders WHERE id = ?', [orderId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     
-    const status = rows[0].status;
+    const status = rows[0].payment_status === 'pending' || rows[0].order_status === 'pending' ? 'pending' : rows[0].order_status;
     if (!['pending', 'waiting_payment'].includes(status)) {
       return res.status(400).json({ error: 'Alamat pesanan yang sudah dibayar atau diproses tidak dapat diubah' });
     }
@@ -429,10 +499,10 @@ router.put('/:orderId/payment-details', async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.promise().query('SELECT status FROM orders WHERE id = ?', [orderId]);
+    const [rows] = await pool.promise().query('SELECT payment_status, order_status FROM orders WHERE id = ?', [orderId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     
-    const status = rows[0].status;
+    const status = rows[0].payment_status === 'pending' || rows[0].order_status === 'pending' ? 'pending' : rows[0].order_status;
     if (!['pending', 'waiting_payment'].includes(status)) {
       return res.status(400).json({ error: 'Pesanan yang sudah dibayar atau diproses tidak dapat diubah' });
     }
@@ -466,10 +536,10 @@ router.put('/bulk-status', verifyToken, verifyAdmin, async (req, res) => {
 
     for (const orderId of orderIds) {
       // Fetch existing order to check status change
-      const [orders] = await connection.query('SELECT status, items FROM orders WHERE id = ?', [orderId]);
+      const [orders] = await connection.query('SELECT payment_status, order_status, items FROM orders WHERE id = ?', [orderId]);
       if (orders.length === 0) continue; // skip if not found
       
-      const oldStatus = orders[0].status;
+      const oldStatus = orders[0].order_status;
       if (oldStatus === status) continue; // skip if status is the same
 
       const items = JSON.parse(orders[0].items || '[]');
@@ -516,7 +586,15 @@ router.put('/bulk-status', verifyToken, verifyAdmin, async (req, res) => {
       }
 
       // Update status for the order
-      await connection.query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', [status, orderId]);
+      // Admin updates order_status. If completing COD, also set payment_status to paid.
+      let pStatusQuery = '';
+      let queryParams = [status, orderId];
+      if (status === 'completed' || status === 'delivered') {
+         pStatusQuery = ', payment_status = \'paid\'';
+      } else if (status === 'cancelled') {
+         pStatusQuery = ', payment_status = \'cancelled\'';
+      }
+      await connection.query(`UPDATE orders SET order_status = ?${pStatusQuery}, "updatedAt" = NOW() WHERE id = ?`, queryParams);
 
       // Trigger status update email
       try {
@@ -557,9 +635,10 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
     await connection.beginTransaction();
 
     // Fetch existing order to check status change
-    const [orders] = await connection.query('SELECT status, items, total FROM orders WHERE id = ?', [orderId]);
+    const [orders] = await connection.query('SELECT payment_status, order_status, items, total, "paymentMethod" FROM orders WHERE id = ?', [orderId]);
     if (orders.length === 0) throw new Error("Order not found");
-    const oldStatus = orders[0].status;
+    const oldStatus = orders[0].order_status;
+    const pMethod = orders[0].paymentMethod;
     const items = JSON.parse(orders[0].items || '[]');
     const total = Number(orders[0].total) || 0;
 
@@ -612,11 +691,15 @@ router.put('/status/:orderId', verifyToken, verifyAdmin, async (req, res) => {
       }
     }
 
-    let query = 'UPDATE orders SET status=?, "updatedAt"=NOW() WHERE id=?';
+    let pStatusUpdate = '';
+    if (status === 'completed') { pStatusUpdate = ", payment_status='paid'"; }
+    if (status === 'cancelled') { pStatusUpdate = ", payment_status='cancelled'"; }
+
+    let query = `UPDATE orders SET order_status=?, "updatedAt"=NOW()${pStatusUpdate} WHERE id=?`;
     let params = [status, orderId];
 
     if (trackingNumber !== undefined) {
-      query = 'UPDATE orders SET status=?, tracking_number=?, "updatedAt"=NOW() WHERE id=?';
+      query = `UPDATE orders SET order_status=?, tracking_number=?, "updatedAt"=NOW()${pStatusUpdate} WHERE id=?`;
       params = [status, trackingNumber, orderId];
     }
 
@@ -693,7 +776,7 @@ router.get('/export/csv', verifyToken, verifyAdmin, async (req, res) => {
         `"${addr.address || ''}"`,
         addr.city || '',
         o.total,
-        o.status,
+        o.payment_status, o.order_status,
         o.paymentMethod || '',
         o.tracking_number || '',
         `"${itemNames}"`,
@@ -701,7 +784,7 @@ router.get('/export/csv', verifyToken, verifyAdmin, async (req, res) => {
       ].join(',');
     });
 
-    const header = 'ID,Email,Nama,Telepon,Alamat,Kota,Total,Status,Pembayaran,Resi,Items,Tanggal';
+    const header = 'ID,Email,Nama,Telepon,Alamat,Kota,Total,Payment Status,Order Status,Pembayaran,Resi,Items,Tanggal';
     const csv = [header, ...rows].join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -722,7 +805,7 @@ router.get('/stats/chart', verifyToken, verifyAdmin, async (req, res) => {
         SUM(total) as revenue
       FROM orders
       WHERE "createdAt" >= NOW() - INTERVAL '30 days'
-        AND status NOT IN ('cancelled', 'pending', 'expired', 'failed')
+        AND order_status NOT IN ('cancelled', 'pending', 'failed') AND payment_status = 'paid'
       GROUP BY "createdAt"::date
       ORDER BY date ASC
     `);
@@ -787,7 +870,7 @@ router.all('/auto-cancel', async (req, res) => {
       }
 
       // Update status to expired
-      await connection.query("UPDATE orders SET status = 'expired', \"updatedAt\" = NOW() WHERE id = ?", [order.id]);
+      await connection.query("UPDATE orders SET payment_status = 'expired', order_status = 'cancelled', \"updatedAt\" = NOW() WHERE id = ?", [order.id]);
 
       // Try sending a status update email
       try {
@@ -935,4 +1018,5 @@ router.put('/:orderId/confirm-delivery', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.calculateServerSideTotal = calculateServerSideTotal;
 

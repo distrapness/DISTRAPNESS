@@ -63,6 +63,22 @@ router.post('/prepare', async (req, res) => {
   // orderPayload = { userId, email, items, total, paymentMethod, shippingAddress, couponCode, discountAmount, referralCode }
 
   try {
+    if (!orderPayload || !orderPayload.items || orderPayload.items.length === 0) {
+      return res.status(400).json({ error: 'Detail produk pesanan kosong.' });
+    }
+
+    const { calculateServerSideTotal } = require('./orderRoutes');
+    let validatedAmounts;
+    try {
+      validatedAmounts = await calculateServerSideTotal(
+        orderPayload.items,
+        orderPayload.couponCode,
+        orderPayload.shippingAddress
+      );
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+
     const { randomUUID } = require('crypto');
     const tempId = randomUUID();
 
@@ -70,12 +86,14 @@ router.post('/prepare', async (req, res) => {
     if (orderPayload) {
       orderPayload.shippingAddress = orderPayload.shippingAddress || {};
       orderPayload.shippingAddress.tempId = tempId;
+      orderPayload.total = validatedAmounts.finalTotal; // Enforce calculated total
+      orderPayload.discountAmount = validatedAmounts.discountAmount;
     }
 
     // 1. Store payload in-memory (avoids DB adapter RETURNING id issue)
     tempOrderStore.set(tempId, { payload: orderPayload, createdAt: Date.now() });
 
-    // Also try to persist to DB (best-effort, won't block if fails)
+    // Also try to persist to DB
     try {
       await pool.promise().query(
         'INSERT INTO temp_midtrans_orders2 (temp_id, payload) VALUES (?, ?) ON CONFLICT (temp_id) DO NOTHING RETURNING temp_id',
@@ -89,7 +107,7 @@ router.post('/prepare', async (req, res) => {
     const parameter = {
       transaction_details: {
         order_id: `ORDER-${tempId}`,
-        gross_amount: Math.round(total)
+        gross_amount: Math.round(validatedAmounts.finalTotal)
       },
       credit_card: { secure: true },
       expiry: {
@@ -102,7 +120,7 @@ router.post('/prepare', async (req, res) => {
     const snap = await getSnapInstance();
     const transaction = await snap.createTransaction(parameter);
 
-    res.json({ token: transaction.token, tempId });
+    res.json({ token: transaction.token, tempId, total: validatedAmounts.finalTotal });
   } catch (error) {
     console.error('Midtrans prepare error:', error.ApiResponse || error);
     res.status(500).json({
@@ -193,7 +211,6 @@ const crypto = require('crypto');
 // Webhook endpoint untuk update status order otomatis
 router.post('/webhook', express.json(), async (req, res) => {
   const notif = req.body;
-  // Midtrans akan mengirim notifikasi status pembayaran ke endpoint ini
   
   try {
     // 1. VERIFIKASI KEAMANAN (SIGNATURE KEY)
@@ -206,78 +223,74 @@ router.post('/webhook', express.json(), async (req, res) => {
       return res.status(403).json({ error: 'Invalid Signature Key' });
     }
 
-    // Update status order di database sesuai notif.transaction_status
-
-    // Extract orderId: format is ORDER-{UUID_or_numeric_id}-{timestamp}
-    // UUID is 36 chars (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-    // Numeric id is short. We take everything between "ORDER-" and the last "-{timestamp}"
-    const rawId = notif.order_id.replace(/^ORDER-/, ''); // remove "ORDER-" prefix
+    // Extract orderId from ORDER-{UUID_or_numeric_id}-{timestamp}
+    const rawId = notif.order_id.replace(/^ORDER-/, ''); 
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(rawId);
     const orderId = isUUID
-      ? rawId.substring(0, 36) // UUID is exactly 36 chars
-      : rawId.replace(/-\d+$/, ''); // numeric: strip trailing -timestamp
-    let status = 'pending';
-    if (notif.transaction_status === 'settlement' || notif.transaction_status === 'capture') status = 'paid';
-    if (notif.transaction_status === 'pending') status = 'pending';
-    if (notif.transaction_status === 'expire' || notif.transaction_status === 'cancel' || notif.transaction_status === 'deny') status = 'cancelled';
+      ? rawId.substring(0, 36) 
+      : rawId.replace(/-\d+$/, ''); 
 
-    // Retrieve temporary order payload — check in-memory store first, then DB fallback
-    let tempPayload = null;
-    const memEntry = tempOrderStore.get(orderId);
-    if (memEntry) {
-      tempPayload = memEntry.payload;
-    } else {
-      // Fallback: try DB (temp_midtrans_orders2)
-      try {
-        const [rows] = await pool.promise().query('SELECT payload FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
-        if (rows.length > 0) {
-          tempPayload = typeof rows[0].payload === 'string'
-            ? JSON.parse(rows[0].payload)
-            : rows[0].payload;
-        }
-      } catch (dbErr) {
-        console.warn('DB fallback lookup failed:', dbErr.message);
-      }
+    let paymentStatus = 'pending';
+    let orderStatus = 'pending';
+    if (notif.transaction_status === 'settlement' || notif.transaction_status === 'capture') {
+      paymentStatus = 'paid';
+      orderStatus = 'processing';
+    }
+    if (notif.transaction_status === 'pending') {
+      paymentStatus = 'pending';
+    }
+    if (notif.transaction_status === 'expire' || notif.transaction_status === 'cancel' || notif.transaction_status === 'deny') {
+      paymentStatus = 'cancelled';
+      orderStatus = 'cancelled';
     }
 
-    // Check if there is an existing order in orders table referencing this UUID (tempId)
-    let existingOrder = null;
-    if (isUUID) {
-      try {
-        const [rows] = await pool.promise().query(
-          "SELECT id, status, items FROM orders WHERE shipping_address LIKE ?",
-          [`%${orderId}%`]
+    const connection = await pool.promise().getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // Retrieve temporary order payload
+      let tempPayload = null;
+      const memEntry = tempOrderStore.get(orderId);
+      if (memEntry) {
+        tempPayload = memEntry.payload;
+      } else {
+        const [tempRows] = await connection.query('SELECT payload FROM temp_midtrans_orders2 WHERE temp_id = ? FOR UPDATE', [orderId]);
+        if (tempRows.length > 0) {
+          tempPayload = typeof tempRows[0].payload === 'string'
+            ? JSON.parse(tempRows[0].payload)
+            : tempRows[0].payload;
+        }
+      }
+
+      // Check if there is an existing order in orders table referencing this tempId
+      let existingOrder = null;
+      if (isUUID) {
+        const [rows] = await connection.query(
+          'SELECT id, payment_status, order_status, items, total, shipping_address FROM orders WHERE temp_id = ? FOR UPDATE',
+          [orderId]
         );
         if (rows.length > 0) {
           existingOrder = rows[0];
         }
-      } catch (err) {
-        console.error("Error checking existing order by tempId:", err.message);
       }
-    }
 
-    // Helper to finalize order (supports paid or pending status)
-    const finalizeOrder = async (payload, orderStatus = 'paid') => {
-      const { userId, items, total, shippingAddress, couponCode, discountAmount, email, referralCode } = payload;
-      const connection = await pool.promise().getConnection();
-      try {
-        await connection.beginTransaction();
-        // Stock checks (same as order creation)
+      const finalizeOrder = async (payload, pStatus, oStatus) => {
+        const { userId, items, total, shippingAddress, couponCode, discountAmount, email } = payload;
+        
+        // Stock checks (locking with FOR UPDATE)
         for (const item of items) {
           const [rows] = await connection.query('SELECT stock, name, sizes FROM products WHERE id = ? FOR UPDATE', [item.id]);
           if (rows.length === 0) throw new Error(`Produk "${item.name}" tidak ditemukan.`);
           const product = rows[0];
           if (product.stock < item.qty) throw new Error(`Stok habis untuk "${product.name}". Tersisa hanya ${product.stock}.`);
           if (item.selectedSize) {
-            try {
-              let sizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
-              if (sizes && sizes[item.selectedSize] !== undefined && sizes[item.selectedSize] < item.qty) {
-                throw new Error(`Ukuran "${item.selectedSize}" untuk produk "${product.name}" sudah habis.`);
-              }
-            } catch (e) { console.error('Size validation error:', e.message); }
+            let sizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+            if (sizes && sizes[item.selectedSize] !== undefined && sizes[item.selectedSize] < item.qty) {
+              throw new Error(`Ukuran "${item.selectedSize}" untuk produk "${product.name}" sudah habis.`);
+            }
           }
         }
-        // Resolve user id
+
         let dbUserId = null;
         if (userId && !isNaN(userId)) {
           dbUserId = parseInt(userId);
@@ -291,252 +304,144 @@ router.post('/webhook', express.json(), async (req, res) => {
         const targetEmail = email || (typeof userId === 'string' && userId.includes('@') ? userId : '') || 'customer@mail.com';
         const finalShipping = { ...(shippingAddress || {}), email: targetEmail };
 
-        // Insert order with paid or pending status
+        // Insert final order with UNIQUE temp_id
         const [result] = await connection.query(
-          'INSERT INTO orders ("userId", items, total, "paymentMethod", status, shipping_address, coupon_code, discount_amount, referral_code, "createdAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-          [dbUserId, JSON.stringify(items), total, 'midtrans', orderStatus, JSON.stringify(finalShipping), couponCode || null, discountAmount || 0, null]
+          'INSERT INTO orders ("userId", items, total, "paymentMethod", payment_status, order_status, shipping_address, coupon_code, discount_amount, temp_id, "createdAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+          [dbUserId, JSON.stringify(items), total, 'midtrans', pStatus, oStatus, JSON.stringify(finalShipping), couponCode || null, discountAmount || 0, orderId]
         );
         const newOrderId = result.insertId;
 
-        // Decrease stock
+        // Deduct stock
         for (const item of items) {
           await connection.query('UPDATE products SET stock = stock - ? WHERE id = ?', [item.qty, item.id]);
           if (item.selectedSize) {
             const [pRows] = await connection.query('SELECT sizes FROM products WHERE id = ?', [item.id]);
             if (pRows.length > 0 && pRows[0].sizes) {
-              try {
-                let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
-                if (sizes && sizes[item.selectedSize] !== undefined) {
-                  sizes[item.selectedSize] = Math.max(0, sizes[item.selectedSize] - item.qty);
-                  await connection.query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
-                }
-              } catch (e) { console.error('Error updating size stock:', e.message); }
+              let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
+              if (sizes && sizes[item.selectedSize] !== undefined) {
+                sizes[item.selectedSize] = Math.max(0, sizes[item.selectedSize] - item.qty);
+                await connection.query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
+              }
             }
           }
-          // Check for low stock notification
           checkAndNotifyLowStock(item.id).catch(err => console.error("Low stock check failed (Midtrans):", err.message));
         }
 
-        // Coupon usage
         if (couponCode) {
           await connection.query('UPDATE coupons SET usage_count = usage_count + 1 WHERE code = ?', [couponCode]);
         }
 
-        await connection.commit();
-
-        // Send emails only if paid/lunas
-        if (orderStatus === 'paid') {
+        // Send confirmation email
+        if (pStatus === 'paid') {
           try {
-            const [orderRows] = await pool.promise().query('SELECT total, items, shipping_address FROM orders WHERE id = ?', [newOrderId]);
-            const totalAmount = orderRows[0]?.total || 0;
-            const orderItems = JSON.parse(orderRows[0]?.items || '[]');
-            const addr = JSON.parse(orderRows[0]?.shipping_address || '{}');
-            if (addr.email) {
-              await sendOrderConfirmation({ email: addr.email, orderId: newOrderId, cart: orderItems, total: totalAmount });
+            if (targetEmail) {
+              await sendOrderConfirmation({ email: targetEmail, orderId: newOrderId, cart: items, total });
             }
           } catch (e) { console.error('Post-payment email error:', e.message); }
         }
-      } catch (e) {
-        await connection.rollback();
-        console.error('Finalize Midtrans order error:', e.message);
-        throw e;
-      } finally {
-        connection.release();
-      }
-    };
+      };
 
-    // Process based on status
-    if (isUUID) {
-      if (existingOrder) {
-        // Order already created! Update status if status changes.
-        if (status === 'paid' && existingOrder.status !== 'paid') {
-          await pool.promise().query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['paid', existingOrder.id]);
-          
-          // Send invoice confirmation email after payment success
-          try {
-            const [orders] = await pool.promise().query('SELECT total, items, shipping_address FROM orders WHERE id = ?', [existingOrder.id]);
-            const totalAmount = orders[0]?.total || 0;
-            const items = JSON.parse(orders[0]?.items || '[]');
-            const addr = JSON.parse(orders[0]?.shipping_address || '{}');
+      if (isUUID) {
+        if (existingOrder) {
+          if (paymentStatus === 'paid' && existingOrder.payment_status !== 'paid') {
+            await connection.query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['paid', 'processing', existingOrder.id]);
             
-            if (addr.email) {
-              sendOrderConfirmation({
-                email: addr.email,
-                orderId: existingOrder.id,
-                cart: items,
-                total: totalAmount
-              }).catch(e => console.error("Midtrans invoice email failed:", e.message));
-            }
-          } catch (e) {
-            console.error("Invoice email error:", e.message);
-          }
-        } else if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
-          // Restore stock if cancelled
-          await pool.promise().query('UPDATE orders SET status = ?, "updatedAt" = NOW() WHERE id = ?', ['cancelled', existingOrder.id]);
-          
-          let orderItems = [];
-          try {
-            orderItems = typeof existingOrder.items === 'string'
-              ? JSON.parse(existingOrder.items)
-              : existingOrder.items || [];
-          } catch (e) {
-            console.error("Failed to parse items from existingOrder:", e);
-          }
-
-          if (orderItems && orderItems.length > 0) {
+            // Send confirmation email
             try {
-              for (const item of orderItems) {
-                await pool.promise().query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
-                if (item.selectedSize) {
-                  const [pRows] = await pool.promise().query('SELECT sizes FROM products WHERE id = ?', [item.id]);
-                  if (pRows.length > 0 && pRows[0].sizes) {
-                    let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
-                    if (sizes && sizes[item.selectedSize] !== undefined) {
-                      sizes[item.selectedSize] += item.qty;
-                      await pool.promise().query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.error("Stock restoration error (Midtrans UUID):", e.message);
-            }
-          }
-
-          // Send cancel status email
-          try {
-            const [rows] = await pool.promise().query('SELECT shipping_address FROM orders WHERE id = ?', [existingOrder.id]);
-            if (rows.length > 0) {
-              const addr = JSON.parse(rows[0].shipping_address || '{}');
+              const items = typeof existingOrder.items === 'string' ? JSON.parse(existingOrder.items) : existingOrder.items || [];
+              const addr = typeof existingOrder.shipping_address === 'string' ? JSON.parse(existingOrder.shipping_address) : existingOrder.shipping_address || {};
               if (addr.email) {
-                sendStatusUpdateEmail({
+                sendOrderConfirmation({
                   email: addr.email,
                   orderId: existingOrder.id,
-                  status: 'cancelled'
-                });
+                  cart: items,
+                  total: existingOrder.total
+                }).catch(e => console.error("Webhook mail error:", e.message));
               }
+            } catch (e) { console.error("Webhook mail parsing error:", e.message); }
+          } else if (paymentStatus === 'cancelled' && existingOrder.payment_status !== 'cancelled') {
+            await connection.query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['cancelled', 'cancelled', existingOrder.id]);
+            const items = typeof existingOrder.items === 'string' ? JSON.parse(existingOrder.items) : existingOrder.items || [];
+            for (const item of items) {
+              await connection.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
             }
-          } catch (e) {
-            console.error("Failed to send cancel status email:", e.message);
           }
+          
+          if (paymentStatus === 'paid' || paymentStatus === 'cancelled') {
+            tempOrderStore.delete(orderId);
+            await connection.query('DELETE FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
+          }
+
+          await connection.commit();
+          return res.status(200).json({ success: true });
         }
-        
-        // Clean up temp stores if finalized
-        if (status === 'paid' || status === 'cancelled') {
+
+        if (paymentStatus === 'paid' && tempPayload) {
+          await finalizeOrder(tempPayload, 'paid', 'processing');
           tempOrderStore.delete(orderId);
-          try {
-            await pool.promise().query('DELETE FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
-          } catch (e) { /* non-fatal */ }
+          await connection.query('DELETE FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
+          await connection.commit();
+          return res.status(200).json({ success: true });
         }
-        
-        return res.status(200).json({ success: true });
-      }
 
-      // If order does not exist yet in DB
-      if (status === 'paid' && tempPayload) {
-        await finalizeOrder(tempPayload, 'paid');
-        tempOrderStore.delete(orderId);
-        try {
-          await pool.promise().query('DELETE FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
-        } catch (e) { /* non-fatal */ }
-        return res.status(200).json({ success: true });
-      }
-
-      if (status === 'pending' && tempPayload) {
-        const payType = (notif.payment_type || '').toLowerCase();
-        const isPayLater = ['bank_transfer', 'echannel', 'cstore'].includes(payType) || payType.includes('va') || payType.includes('transfer') || payType.includes('bill');
-        if (isPayLater) {
-          // Create the order as pending in the DB!
-          await finalizeOrder(tempPayload, 'pending');
-        }
-        // Do NOT delete from tempOrderStore/DB yet, since we need it for subsequent updates
-        return res.status(200).json({ success: true });
-      }
-
-      if (status === 'cancelled') {
-        tempOrderStore.delete(orderId);
-        try {
-          await pool.promise().query('DELETE FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
-        } catch (e) { /* non-fatal */ }
-      }
-      return res.status(200).json({ success: true });
-    }
-
-    pool.query('SELECT status, items FROM orders WHERE id=?', [orderId], async (err, orderResults) => {
-      if (err || !orderResults.length) return res.status(500).json({ error: 'DB error' });
-      
-      const oldStatus = orderResults[0].status;
-      const items = JSON.parse(orderResults[0].items || '[]');
-
-      // If status changes to cancelled FROM something else
-      if (status === 'cancelled' && oldStatus !== 'cancelled') {
-          try {
-              for (const item of items) {
-                  await pool.promise().query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
-                  
-                  // Restore variant stock
-                  if (item.selectedSize) {
-                      const [pRows] = await pool.promise().query('SELECT sizes FROM products WHERE id = ?', [item.id]);
-                      if (pRows.length > 0 && pRows[0].sizes) {
-                          let sizes = typeof pRows[0].sizes === 'string' ? JSON.parse(pRows[0].sizes) : pRows[0].sizes;
-                          if (sizes && sizes[item.selectedSize] !== undefined) {
-                              sizes[item.selectedSize] += item.qty;
-                              await pool.promise().query('UPDATE products SET sizes = ? WHERE id = ?', [JSON.stringify(sizes), item.id]);
-                          }
-                      }
-                  }
-              }
-          } catch (e) {
-              console.error("Stock restoration error (Midtrans):", e.message);
+        if (paymentStatus === 'pending' && tempPayload) {
+          const payType = (notif.payment_type || '').toLowerCase();
+          const isPayLater = ['bank_transfer', 'echannel', 'cstore'].includes(payType) || payType.includes('va') || payType.includes('transfer') || payType.includes('bill');
+          if (isPayLater) {
+            await finalizeOrder(tempPayload, 'pending', 'pending');
           }
+          await connection.commit();
+          return res.status(200).json({ success: true });
+        }
+
+        if (paymentStatus === 'cancelled') {
+          tempOrderStore.delete(orderId);
+          await connection.query('DELETE FROM temp_midtrans_orders2 WHERE temp_id = ?', [orderId]);
+        }
+        await connection.commit();
+        return res.status(200).json({ success: true });
       }
 
-      pool.query('UPDATE orders SET status=?, "updatedAt"=NOW() WHERE id=?', [status, orderId], async (err) => {
-        if (err) return res.status(500).json({ error: 'DB error' });
-        
-        // Invoice Email
-        if (status === 'paid' && oldStatus !== 'paid') {
-            try {
-                const [orders] = await pool.promise().query('SELECT total, items, shipping_address FROM orders WHERE id = ?', [orderId]);
-                const totalAmount = orders[0]?.total || 0;
-                const items = JSON.parse(orders[0]?.items || '[]');
-                const addr = JSON.parse(orders[0]?.shipping_address || '{}');
-                
-                // Kirim Email Konfirmasi Pesanan dengan rincian barang (invoice) setelah pembayaran sukses
-                if (addr.email) {
-                    sendOrderConfirmation({
-                        email: addr.email,
-                        orderId: orderId,
-                        cart: items,
-                        total: totalAmount
-                    }).catch(e => console.error("Midtrans invoice email failed:", e.message));
-                }
-            } catch (e) {
-                console.error("Invoice email error:", e.message);
-            }
-        }
+      // Fallback for non-UUID orderId (pre-existing orders)
+      const [orderRows] = await connection.query('SELECT payment_status, order_status, items, total, shipping_address FROM orders WHERE id = ? FOR UPDATE', [orderId]);
+      if (orderRows.length === 0) {
+        await connection.commit();
+        return res.status(404).json({ error: 'Order not found' });
+      }
 
-        // Send Status Email (Sync) [NEW]
+      const existingPaymentStatus = orderRows[0].payment_status;
+      const items = typeof orderRows[0].items === 'string' ? JSON.parse(orderRows[0].items) : orderRows[0].items || [];
+      const addr = typeof orderRows[0].shipping_address === 'string' ? JSON.parse(orderRows[0].shipping_address) : orderRows[0].shipping_address || {};
+
+      if (paymentStatus === 'paid' && existingPaymentStatus !== 'paid') {
+        await connection.query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['paid', 'processing', orderId]);
         try {
-            const [rows] = await pool.promise().query('SELECT shipping_address FROM orders WHERE id = ?', [orderId]);
-            if (rows.length > 0) {
-                const addr = JSON.parse(rows[0].shipping_address || '{}');
-                if (addr.email) {
-                    sendStatusUpdateEmail({
-                        email: addr.email,
-                        orderId,
-                        status
-                    });
-                }
-            }
-        } catch (e) {
-            console.error("Failed to send Midtrans status email:", e.message);
+          if (addr.email) {
+            sendOrderConfirmation({
+              email: addr.email,
+              orderId,
+              cart: items,
+              total: orderRows[0].total
+            }).catch(e => console.error("Midtrans fallback invoice email failed:", e.message));
+          }
+        } catch (e) {}
+      } else if (paymentStatus === 'cancelled' && existingPaymentStatus !== 'cancelled') {
+        await connection.query('UPDATE orders SET payment_status = ?, order_status = ?, "updatedAt" = NOW() WHERE id = ?', ['cancelled', 'cancelled', orderId]);
+        for (const item of items) {
+          await connection.query('UPDATE products SET stock = stock + ? WHERE id = ?', [item.qty, item.id]);
         }
+      }
 
-        res.status(200).json({ success: true });
-      });
-    });
+      await connection.commit();
+      res.status(200).json({ success: true });
+    } catch (dbErr) {
+      await connection.rollback();
+      throw dbErr;
+    } finally {
+      connection.release();
+    }
   } catch (e) {
+    console.error("Webhook processing error:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
