@@ -454,20 +454,20 @@ const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) =
                          color === 'indigo' ? 'border-t-4 border-indigo-500' :
                          'border-t-4 border-blue-500';
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-all flex flex-col justify-between h-full ${borderTopColor}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 md:p-5 lg:p-4 xl:p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-all flex flex-col justify-between h-full ${borderTopColor}`}>
       <div>
-        <div className="flex justify-between items-center mb-4 relative z-10 gap-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{title}</p>
-          <div className={`p-3 rounded-xl flex-shrink-0 ${
+        <div className="flex items-center gap-2 mb-4 relative z-10">
+          <div className={`p-2 rounded-xl flex-shrink-0 ${
             color === 'green' ? 'bg-green-50 text-green-600' :
             color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
             'bg-blue-50 text-blue-600'
           } dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
             {icon}
           </div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{title}</p>
         </div>
         <div className="relative z-10 mb-4">
-          <h3 className="text-lg sm:text-xl md:text-base lg:text-xl xl:text-2xl font-black text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis mt-1" title={value}>{value}</h3>
+          <h3 className="text-2xl sm:text-lg md:text-xl lg:text-lg xl:text-2xl font-black text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis mt-1" title={value}>{value}</h3>
         </div>
       </div>
       <div className="flex items-center gap-2 mb-2 relative z-10">
