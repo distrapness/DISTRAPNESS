@@ -439,21 +439,23 @@ const Sparkline = ({ data, color = "green", height = 40 }) => {
   );
 };
 const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-shadow">
-    <div className="flex justify-between items-start gap-4 mb-4 relative z-10">
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{title}</p>
-        <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 dark:text-white mt-1 whitespace-nowrap">{value}</h3>
+  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-shadow flex flex-col justify-between h-full">
+    <div>
+      <div className="flex justify-between items-center mb-4 relative z-10 gap-4">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{title}</p>
+        <div className={`p-3 rounded-xl flex-shrink-0 ${
+          color === 'green' ? 'bg-green-50 text-green-600' :
+          color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
+          'bg-blue-50 text-blue-600'
+        } dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
+          {icon}
+        </div>
       </div>
-      <div className={`p-4 rounded-2xl flex-shrink-0 ${
-        color === 'green' ? 'bg-green-50 text-green-600' :
-        color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
-        'bg-blue-50 text-blue-600'
-      } dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
-        {icon}
+      <div className="relative z-10 mb-4">
+        <h3 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis" title={value}>{value}</h3>
       </div>
     </div>
-    <div className="flex items-center gap-2 mb-6 relative z-10">
+    <div className="flex items-center gap-2 mb-2 relative z-10">
       <span className={`text-[10px] font-black uppercase ${
         trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' :
         trendColor === 'text-indigo-500' ? 'text-indigo-600 bg-indigo-50' :
