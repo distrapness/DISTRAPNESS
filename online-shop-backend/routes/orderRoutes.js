@@ -45,7 +45,7 @@ const calculateServerSideTotal = async (items, couponCode, shippingAddress) => {
     }
   }
 
-  let shippingFee = subtotal > 300000 ? 0 : 25000;
+  let shippingFee = subtotal > 500000 ? 0 : 25000;
   const finalTotal = Math.max(0, subtotal - discountAmount + shippingFee);
   return { subtotal, discountAmount, shippingFee, finalTotal };
 };
@@ -96,21 +96,26 @@ const upload = multer({
 // GET USER ORDERS (By Email in Shipping Address)
 router.get('/user', verifyToken, (req, res) => {
   const email = req.user?.email;
+  const userId = req.user?.id || null;
   if (!email) return res.json([]);
 
   // Use LIKE to find email in JSON string (Compatible with most MySQL versions)
   // Pattern matches "email":"value" structure roughly
   const search = `%"email":"${email}"%`;
 
-  pool.query('SELECT * FROM orders WHERE shipping_address LIKE ? ORDER BY "createdAt" DESC', [search], (err, results) => {
-    if (err) return res.status(500).json({ error: 'Database error', detail: err });
-    const data = results.map(r => ({
-      ...r,
-      shipping_address: r.shipping_address ? JSON.parse(r.shipping_address) : null,
-      items: r.items ? JSON.parse(r.items) : []
-    }));
-    res.json(data);
-  });
+  pool.query(
+    'SELECT * FROM orders WHERE "userId" = ? OR shipping_address ILIKE ? ORDER BY "createdAt" DESC',
+    [userId, search],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: 'Database error', detail: err });
+      const data = results.map(r => ({
+        ...r,
+        shipping_address: r.shipping_address ? JSON.parse(r.shipping_address) : null,
+        items: r.items ? JSON.parse(r.items) : []
+      }));
+      res.json(data);
+    }
+  );
 });
 
 // CREATE ORDER (With Stock Management)

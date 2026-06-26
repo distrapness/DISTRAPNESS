@@ -98,7 +98,7 @@ const CartPage = () => {
     };
 
     const hasInvalidItems = cart.some(item => checkItem(item).invalid);
-    const shipping = subtotal > 300000 ? 0 : 25000;
+    const shipping = subtotal > 500000 ? 0 : 25000;
     const total = Math.max(0, subtotal - discountAmount + shipping);
 
     return (
@@ -111,11 +111,11 @@ const CartPage = () => {
                 {/* Free Shipping Bar */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg mb-8 shadow-sm border border-gray-100 dark:border-gray-700">
                     <div className="flex justify-between text-sm font-bold mb-2">
-                        <span>{subtotal >= 300000 ? t('cart.freeShipping') : `${t('cart.spendMore')}Rp${Number(300000 - subtotal).toLocaleString('id-ID', { minimumFractionDigits: 0 })}${t('cart.forFreeShipping')}`}</span>
-                        <span className="text-[#FF0000]">{Math.min(100, (subtotal / 300000) * 100).toFixed(0)}%</span>
+                        <span>{subtotal >= 500000 ? t('cart.freeShipping') : `${t('cart.spendMore')}Rp${Number(500000 - subtotal).toLocaleString('id-ID', { minimumFractionDigits: 0 })}${t('cart.forFreeShipping')}`}</span>
+                        <span className="text-[#FF0000]">{Math.min(100, (subtotal / 500000) * 100).toFixed(0)}%</span>
                     </div>
                     <div className="w-full bg-gray-100 dark:bg-gray-700 h-1 rounded-full overflow-hidden">
-                        <div className="bg-black dark:bg-white h-full transition-all duration-500" style={{ width: `${Math.min(100, (subtotal / 300000) * 100)}%` }}></div>
+                        <div className="bg-black dark:bg-white h-full transition-all duration-500" style={{ width: `${Math.min(100, (subtotal / 500000) * 100)}%` }}></div>
                     </div>
                 </div>
 
@@ -236,10 +236,6 @@ const CartPage = () => {
                                 <div className="flex justify-between text-gray-600">
                                     <span>{t('cart.shipping')}</span>
                                     <span>{shipping === 0 ? <span className="text-green-600 font-bold">{t('cart.free')}</span> : `Rp${Number(shipping).toLocaleString('id-ID', { minimumFractionDigits: 0 })}`}</span>
-                                </div>
-                                <div className="flex justify-between text-gray-600">
-                                    <span>{t('cart.taxEstimate')}</span>
-                                    <span>Rp{Number(subtotal * 0.11).toLocaleString('id-ID', { minimumFractionDigits: 0 })}</span>
                                 </div>
                                 <div className="flex justify-between text-red-500 font-bold">
                                     <span>{t('cart.savings') || 'Hemat'}</span>

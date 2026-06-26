@@ -493,7 +493,7 @@ const PaymentDashboard = () => {
           // Auto select the cheapest option as default
           const cheapest = sorted[0];
           setSelectedService(cheapest);
-          setShippingCost(Number(cheapest.price));
+          setShippingCost(subtotal > 500000 ? 0 : Number(cheapest.price));
           setShippingMethod(`${cheapest.company.toUpperCase()} - ${cheapest.courier_service_name}`);
           localStorage.setItem('selectedService', JSON.stringify(cheapest));
         } else {
@@ -513,11 +513,11 @@ const PaymentDashboard = () => {
         console.error("Error calculating cost:", err);
       });
     }
-  }, [selectedVillage, cart, provinces, cities, districts, villages]);
+  }, [selectedVillage, cart, provinces, cities, districts, villages, subtotal]);
 
   const handleServiceChange = (service) => {
     setSelectedService(service);
-    setShippingCost(Number(service.price));
+    setShippingCost(subtotal > 500000 ? 0 : Number(service.price));
     setShippingMethod(`${service.company.toUpperCase()} - ${service.courier_service_name}`);
     localStorage.setItem('selectedService', JSON.stringify(service));
   };
@@ -544,8 +544,8 @@ const PaymentDashboard = () => {
 
     // Consistent total calculation (same formula used in display)
     const discountedAmount = Math.max(0, subtotal - discountAmount - referralDiscount);
-    const taxes = Math.round(discountedAmount * 0.11);
-    const finalTotal = discountedAmount + Number(shippingCost) + taxes;
+    const taxes = 0;
+    const finalTotal = discountedAmount + Number(shippingCost);
     const items = cart;
 
     // Sync address back to user profile in database
@@ -1013,19 +1013,14 @@ const PaymentDashboard = () => {
                     <span className="font-bold">- Rp {discountAmount.toLocaleString('id-ID')}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span>PPN (11%)</span>
-                  <span className="font-bold text-gray-900 dark:text-white">Rp {Math.round((subtotal - discountAmount) * 0.11).toLocaleString('id-ID')}</span>
-                </div>
               </div>
-
               {/* Total */}
               <div className="flex justify-between items-end mb-8">
                 <span className="text-lg font-bold">{t('cart.total')}</span>
                 <div className="text-right">
                   <span className="text-xs text-gray-400 block mb-1">IDR</span>
                   <span className="text-3xl font-[900] tracking-tight text-red-600 dark:text-red-500">
-                    Rp{Math.max(0, Math.round((subtotal - discountAmount) * 1.11) + Number(shippingCost)).toLocaleString('id-ID')}
+                    Rp{Math.max(0, Math.round(subtotal - discountAmount - referralDiscount) + Number(shippingCost)).toLocaleString('id-ID')}
                   </span>
                 </div>
               </div>
@@ -1097,7 +1092,7 @@ const PaymentDashboard = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-black text-xs text-gray-900 dark:text-white">
-                        Rp {Number(opt.price).toLocaleString('id-ID')}
+                        {subtotal > 500000 ? (isId ? 'Gratis' : 'Free') : `Rp ${Number(opt.price).toLocaleString('id-ID')}`}
                       </span>
                       {isSelected && (
                         <span className="text-green-600 font-black text-sm">✓</span>

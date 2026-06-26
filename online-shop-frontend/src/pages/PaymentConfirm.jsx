@@ -5,8 +5,10 @@ import { getImageUrl } from "../utils/imageHelper";
 import { useCurrency } from "../components/CurrencyContext.jsx";
 import { useCart } from "../components/CartContext.jsx";
 import { formatDisplayOrderId } from "../utils/orderHelper";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 const PaymentConfirm = () => {
+  const { userEmail } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -759,14 +761,13 @@ const PaymentConfirm = () => {
       console.error("Failed to update customer status:", e);
     }
   };
-
   const handleCreateDatabaseOrder = async (orderStatus) => {
-    const email = (paymentData.shippingAddress && paymentData.shippingAddress.email) || paymentData.email || "customer@mail.com";
+    const email = (paymentData.shippingAddress && paymentData.shippingAddress.email) || paymentData.email || userEmail || "customer@mail.com";
     const createRes = await fetch(`${config.API_URL}/api/orders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId: paymentData.userId || "guest",
+        userId: userEmail || paymentData.userId || "guest",
         email: email,
         items: paymentData.items,
         total: paymentData.total,
@@ -831,8 +832,8 @@ const PaymentConfirm = () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              userId: paymentData.userId || "guest",
-              email: paymentData.email || "guest@mail.com",
+              userId: userEmail || paymentData.userId || "guest",
+              email: (paymentData.shippingAddress && paymentData.shippingAddress.email) || paymentData.email || userEmail || "guest@mail.com",
               items: paymentData.items,
               total: paymentData.total,
               paymentMethod: "cod",
