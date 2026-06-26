@@ -904,7 +904,7 @@ const PaymentDashboard = () => {
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t border-gray-100 dark:border-gray-700 sm:border-t-0">
                     <span className="font-bold text-sm text-gray-900 dark:text-white">
-                      Rp {Number(selectedService.price).toLocaleString('id-ID')}
+                      {subtotal > 500000 ? (isId ? 'Rp 0 (Gratis)' : 'Rp 0 (Free)') : `Rp ${Number(selectedService.price).toLocaleString('id-ID')}`}
                     </span>
                     <button
                       type="button"
