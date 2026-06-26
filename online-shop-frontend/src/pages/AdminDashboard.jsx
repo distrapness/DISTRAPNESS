@@ -443,7 +443,7 @@ const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) =
     <div className="flex justify-between items-start gap-4 mb-4 relative z-10">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">{title}</p>
-        <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 dark:text-white mt-1 break-all">{value}</h3>
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-gray-900 dark:text-white mt-1 whitespace-nowrap">{value}</h3>
       </div>
       <div className={`p-4 rounded-2xl flex-shrink-0 ${
         color === 'green' ? 'bg-green-50 text-green-600' :
