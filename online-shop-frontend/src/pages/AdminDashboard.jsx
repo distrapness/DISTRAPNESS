@@ -185,18 +185,19 @@ const AdminDashboard = () => {
                 
                 {/* Growth indicator */}
                 {(() => {
-                  const diff = stats.thisMonthRevenue - stats.lastMonthRevenue;
-                  const pct = stats.lastMonthRevenue > 0 ? (diff / stats.lastMonthRevenue) * 100 : 0;
-                  const isUp = diff >= 0;
-                  return (
-                    <div className="mt-3 flex items-center gap-2 text-xs font-bold">
-                      <span className={isUp ? "text-green-600 bg-green-50 px-2 py-0.5 rounded" : "text-red-600 bg-red-50 px-2 py-0.5 rounded"}>
-                        {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% MoM Growth
-                      </span>
-                      <span className="text-gray-400 font-normal">selisih {formatCurrency(Math.abs(diff))}</span>
-                    </div>
-                  );
-                })()}
+                   const diff = stats.thisMonthRevenue - stats.lastMonthRevenue;
+                   const pct = stats.lastMonthRevenue > 0 ? (diff / stats.lastMonthRevenue) * 100 : (stats.thisMonthRevenue > 0 ? 100 : 0);
+                   const isUp = diff >= 0;
+                   const isNew = stats.lastMonthRevenue === 0 && stats.thisMonthRevenue > 0;
+                   return (
+                     <div className="mt-3 flex items-center gap-2 text-xs font-bold">
+                       <span className={isUp ? "text-green-600 bg-green-50 dark:bg-green-900/10 px-2 py-1 rounded-lg" : "text-red-600 bg-red-50 dark:bg-red-900/10 px-2 py-1 rounded-lg"}>
+                         {isUp ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% MoM Growth {isNew && "(Baru)"}
+                       </span>
+                       <span className="text-gray-400 dark:text-gray-500 font-normal">selisih {formatCurrency(Math.abs(diff))}</span>
+                     </div>
+                   );
+                 })()}
               </div>
 
               <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
@@ -252,24 +253,24 @@ const AdminDashboard = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
               <h3 className="font-bold text-base text-gray-800 dark:text-white mb-4">Performa Metode Pembayaran</h3>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-gray-400 border-b border-gray-100 dark:border-gray-700 uppercase font-black tracking-wider">
-                      <th className="py-2">Metode</th>
-                      <th className="py-2 text-center">Transaksi</th>
-                      <th className="py-2 text-right">Pendapatan</th>
-                      <th className="py-2 text-right">Rata-rata (AOV)</th>
+                    <tr className="text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700 uppercase font-black tracking-wider text-[10px]">
+                      <th className="py-3 px-4 rounded-l-lg text-left">Metode</th>
+                      <th className="py-3 px-4 text-center">Transaksi</th>
+                      <th className="py-3 px-4 text-right">Pendapatan</th>
+                      <th className="py-3 px-4 text-right rounded-r-lg">Rata-rata (AOV)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
                     {Object.entries(stats.paymentMethodStats || {}).map(([method, data]) => (
-                      <tr key={method} className="hover:bg-gray-50 dark:hover:bg-gray-700/20">
-                        <td className="py-3 font-bold text-gray-800 dark:text-gray-200 capitalize">
+                      <tr key={method} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-gray-800 dark:text-gray-200 capitalize">
                           {method === 'midtrans' ? 'Midtrans (VA/QRIS)' : method.toUpperCase()}
                         </td>
-                        <td className="py-3 text-center text-gray-600 dark:text-gray-400 font-semibold">{data.count}</td>
-                        <td className="py-3 text-right font-black text-gray-900 dark:text-white">{formatCurrency(data.total)}</td>
-                        <td className="py-3 text-right text-gray-500 font-medium">{formatCurrency(data.total / (data.count || 1))}</td>
+                        <td className="py-3.5 px-4 text-center text-gray-600 dark:text-gray-400 font-semibold">{data.count}</td>
+                        <td className="py-3.5 px-4 text-right font-black text-gray-900 dark:text-white">{formatCurrency(data.total)}</td>
+                        <td className="py-3.5 px-4 text-right text-gray-500 font-medium">{formatCurrency(data.total / (data.count || 1))}</td>
                       </tr>
                     ))}
                     {Object.keys(stats.paymentMethodStats || {}).length === 0 && (
@@ -422,53 +423,68 @@ const Sparkline = ({ data, color = "green", height = 40 }) => {
     return `${x},${y}`;
   }).join(" ");
 
+  const strokeColor = color === "green" ? "#10b981" : color === "indigo" ? "#6366f1" : "#3b82f6";
+
   return (
-    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible opacity-50">
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible opacity-75">
+      <defs>
+        <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
       <polyline
         fill="none"
-        stroke={color === "green" ? "#22c55e" : "#3b82f6"}
-        strokeWidth="2"
+        stroke={strokeColor}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         points={points}
       />
       <path
         d={`M0,${height} L${points} L${width},${height} Z`}
-        fill={color === "green" ? "#22c55e" : "#3b82f6"}
-        fillOpacity="0.1"
+        fill={`url(#grad-${color})`}
       />
     </svg>
   );
 };
-const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-    <div>
-      <div className="flex justify-between items-center mb-4 relative z-10 gap-4">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{title}</p>
-        <div className={`p-3 rounded-xl flex-shrink-0 ${
-          color === 'green' ? 'bg-green-50 text-green-600' :
-          color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
-          'bg-blue-50 text-blue-600'
-        } dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
-          {icon}
+
+const StatCard = ({ title, value, trend, trendColor, icon, chartData, color }) => {
+  const borderTopColor = color === 'green' ? 'border-t-4 border-green-500' :
+                         color === 'indigo' ? 'border-t-4 border-indigo-500' :
+                         'border-t-4 border-blue-500';
+  return (
+    <div className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden group hover:shadow-md transition-all flex flex-col justify-between h-full ${borderTopColor}`}>
+      <div>
+        <div className="flex justify-between items-center mb-4 relative z-10 gap-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">{title}</p>
+          <div className={`p-3 rounded-xl flex-shrink-0 ${
+            color === 'green' ? 'bg-green-50 text-green-600' :
+            color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
+            'bg-blue-50 text-blue-600'
+          } dark:bg-opacity-10 transition-transform group-hover:scale-110`}>
+            {icon}
+          </div>
+        </div>
+        <div className="relative z-10 mb-4">
+          <h3 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis" title={value}>{value}</h3>
         </div>
       </div>
-      <div className="relative z-10 mb-4">
-        <h3 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis" title={value}>{value}</h3>
+      <div className="flex items-center gap-2 mb-2 relative z-10">
+        <span className={`text-[10px] font-black uppercase ${
+          trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' :
+          trendColor === 'text-indigo-500' ? 'text-indigo-600 bg-indigo-50' :
+          'text-blue-600 bg-blue-50'
+        } dark:bg-opacity-10 px-2 py-1 rounded-lg`}>
+          {trend}
+        </span>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 h-12 opacity-30 grayscale group-hover:grayscale-0 transition-all duration-700">
+        {chartData && <Sparkline data={chartData} color={color} height={48} />}
       </div>
     </div>
-    <div className="flex items-center gap-2 mb-2 relative z-10">
-      <span className={`text-[10px] font-black uppercase ${
-        trendColor === 'text-green-500' ? 'text-green-600 bg-green-50' :
-        trendColor === 'text-indigo-500' ? 'text-indigo-600 bg-indigo-50' :
-        'text-blue-600 bg-blue-50'
-      } dark:bg-opacity-10 px-2 py-1 rounded-lg`}>
-        {trend}
-      </span>
-    </div>
-
-    <div className="absolute bottom-0 left-0 right-0 h-12 opacity-30 grayscale group-hover:grayscale-0 transition-all duration-700">
-      {chartData && <Sparkline data={chartData} color={color} height={48} />}
-    </div>
-  </div>
-);
+  );
+};
 
 export default AdminDashboard;
